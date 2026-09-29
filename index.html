@@ -97,6 +97,7 @@
     <h2>ON BREAK</h2>
     <div class="menu">
       <button class="go" id="resumeBtn" type="button">Resume</button>
+      <button class="alt" id="resetPuzzleBtn" type="button" hidden>Reset puzzle</button>
       <button class="alt" id="restartBtn" type="button">Restart level</button>
       <button class="alt" id="soundBtn" type="button">Sound: on</button>
       <button class="alt" id="fsBtn" type="button" hidden>Fullscreen</button>
@@ -123,8 +124,8 @@
 <!-- ending -->
 <div class="ov" id="ovEnd" hidden>
   <div class="card">
-    <p class="kicker">ALL CHANNELS</p>
-    <h1>WARNING <span>BROADCAST</span></h1>
+    <p class="kicker" id="endKicker">ALL CHANNELS</p>
+    <h1 id="endTitle">WARNING <span>BROADCAST</span></h1>
     <p class="story" id="endText"></p>
     <p class="stats" id="endStats"></p>
     <button class="go" id="endBtn" type="button">Back to title</button>

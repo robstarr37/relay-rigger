@@ -1,5 +1,5 @@
 // Offline support: network-first for the game files (so updates show up), cache fallback when offline.
-const CACHE='relay-rigger-v2';
+const CACHE='relay-rigger-v3';
 const FILES=['./','index.html','styles.css','levels.js','game.js','manifest.webmanifest','icons/icon-192.png','icons/icon-512.png','icons/apple-touch-icon.png'];
 self.addEventListener('install',e=>{e.waitUntil(caches.open(CACHE).then(c=>c.addAll(FILES)).then(()=>self.skipWaiting()));});
 self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(ks=>Promise.all(ks.filter(k=>k!==CACHE).map(k=>caches.delete(k)))).then(()=>self.clients.claim()));});

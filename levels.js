@@ -25,12 +25,17 @@ const M = {
   cableHazard(B,x,g){ B.girder(x,x+11,g-7); B.sparks(x+7,x+9,g-1); },
   // girder staircase up to a deck at g-19 that runs to deckEnd
   towerClimb(B,x,g,deckEnd){ B.girder(x+2,x+8,g-5); B.girder(x+6,x+12,g-10); B.girder(x,x+8,g-15); B.girder(x+6,deckEnd,g-19); },
+  // one long ceiling over a wide pit x+5..x+4+len: swing, let go, fire again, repeat
+  ceilingRun(B,x,g,len){ B.steel(x,x+len+10,g-13,g-12); },
+  // n short girders hanging over a pit that starts at x+5; ground resumes at x+18+8*(n-1).
+  // Spacing measured with the test bot: first girder 7 tiles past the edge, then one every 8.
+  anchorRun(B,x,g,n){ for(let i=0;i<n;i++){ const c=x+11+8*i; B.girder(c-2,c+1,g-12); } },
 };
 
 const LEVELS = [
 // ------------------------------------------------------------------ 1
 {
-  name:'Kestrel Ridge', place:'Transmitter KRX-7 · 02:40', theme:'ridge', W:140, H:26,
+  act:1, name:'Kestrel Ridge', place:'Transmitter KRX-7 · 02:40', theme:'ridge', W:140, H:26,
   brief:"Last night's storm knocked seven relay boxes loose and took the Kestrel Ridge transmitter off air. Somebody's drones are crawling all over the tower. Swing up, reroute the network from the deck terminal and get it broadcasting again.",
   outro:"Back on air. But those drones weren't ours — and they were jamming the signal on purpose.",
   build(B){
@@ -63,7 +68,7 @@ const LEVELS = [
 },
 // ------------------------------------------------------------------ 2
 {
-  name:'Harrow Quarry', place:'Relay HQ-2 · 21:15', theme:'quarry', W:170, H:26,
+  act:1, name:'Harrow Quarry', place:'Relay HQ-2 · 21:15', theme:'quarry', W:170, H:26,
   brief:"Relay HQ-2 in the old quarry went dark at the same minute as Kestrel. The night crew radioed about “something” moving on the quarry floor, then stopped answering.",
   outro:"Those weren't animals. Head office says keep it quiet. Head office is wrong.",
   build(B){
@@ -98,7 +103,7 @@ const LEVELS = [
 },
 // ------------------------------------------------------------------ 3
 {
-  name:'Blackwater Dam', place:'Emergency antenna BW-1 · 23:50', theme:'dam', W:155, H:30,
+  act:1, name:'Blackwater Dam', place:'Emergency antenna BW-1 · 23:50', theme:'dam', W:155, H:30,
   brief:"The dam antenna carries every emergency channel in the valley. Something is feeding on its terminal from the inside. Get up there and take it back.",
   outro:"Emergency channels restored. There were lights over the mountains all night, and they're moving toward the city.",
   build(B){
@@ -129,7 +134,7 @@ const LEVELS = [
 },
 // ------------------------------------------------------------------ 4
 {
-  name:'Meridian Rooftops', place:'City relay grid · 01:05', theme:'city', W:190, H:30,
+  act:1, name:'Meridian Rooftops', place:'City relay grid · 01:05', theme:'city', W:190, H:30,
   brief:"There's a ship over Meridian City. The rooftop relay grid is the only way left to get a warning out, and they're tearing it down block by block. Two terminals to reroute.",
   outro:"Meridian's grid is ours again. One link is left: the Skyline Uplink can reach the whole coast.",
   build(B){
@@ -162,9 +167,10 @@ const LEVELS = [
 },
 // ------------------------------------------------------------------ 5
 {
-  name:'Skyline Uplink', place:'Coastal uplink SK-1 · 03:33', theme:'uplink', W:130, H:46,
+  act:1, name:'Skyline Uplink', place:'Coastal uplink SK-1 · 03:33', theme:'uplink', W:130, H:46,
   brief:"This is it. Reroute both uplink terminals and the warning goes out to every radio, phone and screen on the coast. They know it too. Expect everything.",
   outro:"",
+  actEnd:{title:'WARNING BROADCAST',text:"Every radio, phone and screen on the coast just heard the warning. The roads are filling, the shelters are opening, and the ship over Meridian has stopped moving. You kept the lines open."},
   build(B){
     const g=42;
     B.steel(1,33,g,45); B.steel(39,54,g,45); B.steel(67,128,g,45);
@@ -190,9 +196,194 @@ const LEVELS = [
     [78, "Two terminals, two towers. Everything they have is coming."],
     [108,"One more climb."]
   ]
+},
+// ================================================================== ACT 2 · INTERFERENCE
+// ------------------------------------------------------------------ 6
+{
+  act:2, name:'Pylon Run', place:'Northern trunk line · 22:10', theme:'storm', W:230, H:28,
+  brief:"The warning got out, and they noticed. Storm cells are rolling down the northern trunk line and the pylons are dropping one by one. Ride the storm and keep the line alive.",
+  outro:"The line is holding. But the junk wrapped round the pylons wasn't storm damage. It was growing.",
+  build(B){
+    const g=24;
+    B.rock(1,14,g,27); B.rock(20,52,g,27); B.rock(77,140,g,27); B.rock(146,228,g,27);
+    M.girderGap(B,15,g);           // pit 15..19
+    M.cableHazard(B,34,g);         // sparks 41..43
+    M.ceilingRun(B,48,g,24);       // one long ceiling, pit 53..76: chain swings across
+    M.climbOver(B,100,g);          // pillar 112..116
+    M.girderGap(B,141,g);          // pit 141..145
+    M.towerClimb(B,160,g,200);     // deck row 5
+    M.cableHazard(B,205,g);        // sparks 212..214
+    B.start(2,23); B.check(47,23); B.check(79,23); B.check(119,23); B.check(158,23); B.check(170,4); B.check(202,23);
+    [[8,23],[39,16],[58,22],[70,22],[102,19],[170,13],[162,8],[195,4],[210,16]].forEach(r=>B.relay(...r));
+    B.drone(24,32,23); B.enemy('skitter',90,23); B.enemy('seeker',96,17);
+    B.enemy('skitter',182,4); B.drone(188,196,4); B.enemy('seeker',218,17);
+    B.terminal(128,23,{time:15,waves:[[0.1,'hunter','hunter'],[0.4,'skitter','skitter'],[0.7,'seeker','leech','leech']]});
+    B.goal(224,23);
+    B.prop('cabin',{x:3,row:23}); B.prop('sign',{x:32.5,row:23}); B.prop('cone',{x:52.4,row:23}); B.prop('cone',{x:77.2,row:23});
+    B.prop('chains',{x:57,row:13,len:24}); B.prop('chains',{x:66,row:13,len:40}); B.prop('chains',{x:73,row:13,len:20});
+    B.prop('drum',{x:122,row:23}); B.prop('tower',{x0:159.4,x1:173.6,top:5,row:23}); B.prop('pylon',{x:184,top:6,row:23}); B.prop('pylon',{x:196,top:6,row:23});
+    B.prop('sign',{x:203.5,row:23}); B.prop('fence',{x0:217,x1:228,row:23});
+  },
+  hints:[
+    [0,  "Pylon Run. The storm's up, so keep moving."],
+    [44, "One long ceiling over the gap. Swing, let go at the top, and fire again straight away. Chain it all the way across."],
+    [98, "Over the pillar: fire up, reel in, step across."],
+    [140,"Up the pylon tower."],
+    [199,"Drop down and climb over the last live cable."]
+  ]
+},
+// ------------------------------------------------------------------ 7 (top-down)
+{
+  act:2, mode:'top', name:'Substation 9', place:'Substation 9 · 23:40', theme:'station',
+  brief:"Something has moved into Substation 9 and sealed it from the inside. The doors run on pressure plates and old levers. Get in, reroute the switching terminal, and get out through the service hatch.",
+  outro:"Switching restored. The things in there were nesting between the transformers.",
+  map:[
+    "########################################",
+    "#.......R.#...   ...#... ...R.#..  ....#",
+    "#.........#.K.   ...#... .....#..  ..b.#",
+    "#....C....#...   ...#... .....#..  ....#",
+    "#.P.......A...   .o..... .....#..  ....#",
+    "#.........#...   ...#... ..C.....BB....#",
+    "#....a....#...   ...#... .....#..  ....#",
+    "#.........#...   ..R#... .....#..  ....#",
+    "####################################.###",
+    "#####################........T.........#",
+    "#####################..............K...#",
+    "#####################..................#",
+    "#####################.....#.....#......#",
+    "#####################..................#",
+    "#####################.X..............R.#",
+    "#####################..................#",
+    "########################################"
+  ],
+  key:{ a:{t:'plate',g:1}, A:{t:'door',g:1}, b:{t:'lever',g:2}, B:{t:'bridge',g:2} },
+  terms:[{time:12,waves:[[0.15,'skitter'],[0.5,'skitter','hunter'],[0.8,'skitter','skitter']]}],
+  hints:[
+    [3,4,  "Top-down view. Walk into a crate to push it. Push this one onto the pressure plate."],
+    [13,4, "Face the post and press <b>GRAB</b>: the cable pulls you across the gap."],
+    [22,4, "Face the crate across the gap and press <b>GRAB</b> to drag it into the pit. That fills it in."],
+    [32,4, "Grapple the lever to flip it, and watch for the bridge."],
+    [34,10,"Reroute the terminal. Aliens will beam in: fight them, then get back to work."],
+    [22,13,"The service hatch opens once the terminal is done. Stuck on a puzzle? Pause and choose Reset puzzle."]
+  ]
+},
+// ------------------------------------------------------------------ 8
+{
+  act:2, name:'Floodgate', place:'Carrow Dam spillway · 02:05', theme:'flood', W:250, H:30,
+  brief:"They opened the floodgates to drown the valley relays. The ferries and service lifts still run on backup power. Ride them across the spillway and take the dam terminal back.",
+  outro:"Gates shut, relays dry. Whatever opened them knew exactly which valve to turn.",
+  build(B){
+    const g=26;
+    B.rock(1,16,g,29); B.rock(35,60,g,29); B.rock(98,130,g,29); B.steel(131,150,12,29); B.rock(187,248,g,29);
+    B.platform(17,26,31,26,4);                      // ferry over the first pit (17..34)
+    M.anchorRun(B,56,g,4);                          // girder hops, pit 61..97
+    B.platform(127,26,127,12,4,{speed:34});         // service lift up the dam wall
+    B.platform(151,16,165,16,4);                    // two spillway ferries that meet in the middle
+    B.platform(169,16,183,16,4,{phase:1});
+    B.start(2,25); B.check(36,25); B.check(100,25); B.check(133,11); B.check(189,25);
+    [[8,25],[26,25],[75,13],[110,25],[145,11],[158,15],[176,15],[230,25]].forEach(r=>B.relay(...r));
+    B.drone(40,50,25); B.enemy('skitter',112,25); B.enemy('seeker',160,10);
+    B.enemy('skitter',205,25); B.drone(214,224,25); B.enemy('spitter',236,25);
+    B.terminal(141,11,{time:16,waves:[[0.08,'seeker','hunter'],[0.35,'leech','leech','skitter'],[0.65,'hunter','hunter','seeker'],[0.85,'leech','skitter']]});
+    B.goal(244,25);
+    B.prop('cabin',{x:3,row:25}); B.prop('sign',{x:15,row:25}); B.prop('cone',{x:35.4,row:25}); B.prop('drum',{x:45,row:25});
+    B.prop('fence',{x0:102,x1:108,row:25}); B.prop('crates',{x:114,row:25}); B.prop('dish',{x:147,row:11}); B.prop('antenna',{x:133,row:11});
+    B.prop('sign',{x:189.5,row:25}); B.prop('fence',{x0:196,x1:212,row:25}); B.prop('cone',{x:226,row:25});
+  },
+  hints:[
+    [0,  "Floodgate. Step onto the ferry platform and ride it across."],
+    [52, "Separate girders over the spillway. Swing from one to the next: let go at the top of each arc and fire again."],
+    [118,"Ride the service lift up the dam wall."],
+    [146,"Drop onto the ferry as it passes below. The two ferries meet in the middle, so step across."],
+    [188,"Almost there. Watch for the spitter by the mast."]
+  ]
+},
+// ------------------------------------------------------------------ 9
+{
+  act:2, name:'Freight Yard', place:'Harlow freight yard · 04:30', theme:'yard', W:290, H:30,
+  brief:"The freight yard's crane lines carry the backbone cables for three cities, and the ship is hovering right over them. Two terminals, a long way apart. Don't stop moving.",
+  outro:"Both yard terminals rerouted. Before it pulled back, the ship dropped something into the hills. Something big.",
+  build(B){
+    const g=26;
+    B.rock(1,30,g,29); B.rock(36,60,g,29); B.rock(85,125,g,29); B.rock(154,189,g,29); B.steel(190,205,10,29); B.rock(206,230,g,29); B.rock(268,288,g,29);
+    M.girderGap(B,31,g);                            // pit 31..35
+    B.platform(61,20,80,20,4,{speed:40});           // crane platform over pit 61..84: hook it and ride
+    M.ceilingRun(B,121,g,28);                       // gantry chain swing, pit 126..153
+    B.platform(186,26,186,10,4,{speed:34});         // lift up the container stack
+    M.anchorRun(B,226,g,4);                         // girder hops, pit 231..267
+    B.start(2,25); B.check(37,25); B.check(87,25); B.check(156,25); B.check(192,9); B.check(208,25); B.check(269,25);
+    [[10,25],[33,18],[70,19],[110,25],[137,22],[147,22],[198,9],[245,13],[280,25]].forEach(r=>B.relay(...r));
+    B.drone(12,24,25); B.enemy('skitter',50,25); B.enemy('seeker',72,14); B.enemy('skitter',118,25);
+    B.enemy('spitter',171,25); B.enemy('skitter',201,9); B.enemy('hunter',216,19); B.enemy('seeker',250,17);
+    B.terminal(100,25,{time:15,waves:[[0.1,'hunter','skitter'],[0.4,'seeker','leech','leech'],[0.7,'skitter','skitter','hunter']]});
+    B.terminal(276,25,{time:17,waves:[[0.08,'seeker','seeker'],[0.3,'leech','leech','skitter'],[0.55,'hunter','hunter','skitter'],[0.8,'leech','leech','seeker']]});
+    B.goal(285,25);
+    B.prop('crates',{x:4,row:25}); B.prop('tank',{x:20,row:25}); B.prop('cone',{x:30.4,row:25}); B.prop('drum',{x:45,row:25}); B.prop('cone',{x:60.4,row:25});
+    B.prop('antenna',{x:90,row:25}); B.prop('vent',{x:104,row:25}); B.prop('chains',{x:130,row:15,len:30}); B.prop('chains',{x:141,row:15,len:44}); B.prop('chains',{x:150,row:15,len:24});
+    B.prop('crates',{x:160,row:25}); B.prop('tank',{x:178,row:25}); B.prop('antenna',{x:204,row:9}); B.prop('sign',{x:224,row:25}); B.prop('crates',{x:271,row:25});
+  },
+  hints:[
+    [0,  "Harlow freight yard, the longest run yet."],
+    [55, "The crane platform swings over the gap. Hook it from below, reel in to climb aboard, and ride it."],
+    [118,"Chain your swings under the gantry."],
+    [180,"Take the lift up the container stack."],
+    [222,"Girder hops over the last gap."]
+  ]
+},
+// ------------------------------------------------------------------ 10 (top-down)
+{
+  act:2, mode:'top', name:'The Hive Relay', place:'Relay Vault 7 · 05:55', theme:'hive',
+  brief:"Whatever they dropped burrowed straight into Relay Vault 7 and grew a hive around it. Every signal in the region routes through that vault. Go in, reroute both terminals, and get back out.",
+  outro:"",
+  actEnd:{title:'SIGNAL HOLDS',text:"Vault 7 is ours and the hive has gone quiet. Further down the line, something much bigger is waking up. End of Act 2. Acts 3 and 4 are on their way."},
+  map:[
+    "#####################################",
+    "#..........R#..       ..#...  ......#",
+    "#...........#..       ..#.C.  ...C..#",
+    "#....C...a..#..       ..#...  ......#",
+    "#.P.........AK.  .o   ..#...  ......#",
+    "#...........#..       ..#...  .....b#",
+    "#....C...a..#..       ......  ......#",
+    "#...........#..  .    .o#...  ....R.#",
+    "#......S....#R.  o    ..#...  .....Z#",
+    "#################################B###",
+    "#..   e   ..#.      ....#.....T.....#",
+    "#..       ..#.  Q   ....#.......K...#",
+    "#..       ..#.      .C..#...........#",
+    "#...........#.      ....#...........#",
+    "#.............EEEEEE....D...........#",
+    "#..S........#.      ....#...........#",
+    "#........S..#.      .c..#.R.........#",
+    "#R..........#.      ....#...........#",
+    "######F##############################",
+    "#.........R.#...........#.....T.....#",
+    "#.....K.....#.........f.#..........R#",
+    "#...........#..C........#...........#",
+    "#           #.....S.....G.K.........#",
+    "#           #...........#........Z..#",
+    "#           #..C........#...........#",
+    "#.............K.......f.#...........#",
+    "#R....o.....#R..........#.........X.#",
+    "#####################################"
+  ],
+  key:{ a:{t:'plate',g:1}, A:{t:'door',g:1}, b:{t:'lever',g:2}, B:{t:'door',g:2}, D:{t:'door',g:'term0'},
+        c:{t:'plate',g:3}, E:{t:'bridge',g:3}, e:{t:'lever',g:4}, F:{t:'door',g:4}, f:{t:'plate',g:5}, G:{t:'door',g:5} },
+  terms:[{time:14,waves:[[0.1,'skitter','skitter'],[0.45,'leech','seeker'],[0.75,'skitter','skitter','leech']]},
+         {time:16,waves:[[0.08,'seeker','hunter'],[0.3,'leech','leech','skitter'],[0.55,'skitter','skitter','seeker'],[0.8,'leech','leech','skitter']]}],
+  hints:[
+    [3,4,  "The hive. Two plates need two crates."],
+    [14,4, "Chain the posts: pull, turn, pull again."],
+    [26,5, "Fill the gap with both crates, then grapple the lever."],
+    [31,12,"This terminal also unlocks the door to the west."],
+    [21,11,"Hold the bridge out with a crate on the plate."],
+    [6,14, "Grapple the lever across the pit."],
+    [4,20, "Pull yourself over the chasm."],
+    [15,22,"Push both crates onto the plates. Line them up first."],
+    [27,21,"The last terminal. Hold it."]
+  ]
 }
 ];
 
-LEVELS[4].ending="Every radio, phone and screen on the coast just heard the warning. The roads are filling, the shelters are opening, and the ship over Meridian has stopped moving. You kept the lines open.";
 window.RR_LEVELS = LEVELS;
+window.RR_ACTS = ['Lights Out','Interference','Act 3','Act 4'];
 })();

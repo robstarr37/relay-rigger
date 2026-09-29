@@ -1,0 +1,72 @@
+/* Relay Rigger test bot — scripted play for checking that levels can be finished.
+   Open index.html?debug, then in the browser console:
+     await import('./tools/testbot.js')   (or paste this file)
+   and drive levels with TB.* (see the level walkthroughs in tools/walkthroughs.js). Not loaded by the game. */
+(() => {
+const r = window.__rr;
+if (!r) throw new Error('Open the game with ?debug first');
+const TB = window.TB = {
+  r,
+  // ---- top-down helpers ----
+  ctr(){ const p=r.p(); return [p.x+6,p.y+6]; },
+  tileOf(){ const [x,y]=this.ctr(); return [Math.floor(x/16),Math.floor(y/16)]; },
+  walkable(x,y){ return !r.solidT(x,y)&&!r.pitT(x,y); },
+  path(tx,ty){
+    const [sx,sy]=this.tileOf(), key=(x,y)=>x+','+y, prev={}, q=[[sx,sy]]; prev[key(sx,sy)]=null;
+    while(q.length){ const [x,y]=q.shift(); if(x===tx&&y===ty) break;
+      for(const [dx,dy] of [[1,0],[-1,0],[0,1],[0,-1]]){ const nx=x+dx, ny=y+dy, k=key(nx,ny); if(k in prev||!this.walkable(nx,ny)) continue; prev[k]=[x,y]; q.push([nx,ny]); } }
+    if(!(key(tx,ty) in prev)) return null;
+    const out=[]; let c=[tx,ty]; while(c){ out.unshift(c); c=prev[key(c[0],c[1])]; } return out;
+  },
+  goTile(x,y,maxF=200){ const tx=x*16+8, ty=y*16+8;
+    for(let f=0;f<maxF;f++){ const [cx,cy]=this.ctr(), dx=tx-cx, dy=ty-cy; if(Math.abs(dx)<1.5&&Math.abs(dy)<1.5) return true;
+      const k={}; if(Math.abs(dx)>=1.5) k[dx>0?'right':'left']=true; if(Math.abs(dy)>=1.5) k[dy>0?'down':'up']=true;
+      r.run(1,k); if(r.p().fall>0) return false; }
+    return false; },
+  walkTo(x,y){ const pth=this.path(x,y); if(!pth) return 'NO PATH to '+x+','+y;
+    for(const [a,b] of pth.slice(1)) if(!this.goTile(a,b)) return 'STUCK at '+this.tileOf()+' going '+a+','+b;
+    r.run(2); return 'ok'; },
+  face(d){ r.run(1,{[d]:true}); },
+  grab(wait=120){ r.run(1,{grab:true}); for(let f=0;f<wait;f++){ r.run(1); if(r.hook().state==='idle') break; } },
+  push(d,tiles){ const cs=()=>r.crates().filter(c=>!c.dead).map(c=>c.tx+','+c.ty).join('|'); let moves=0, last=cs();
+    for(let f=0;f<600&&moves<tiles;f++){ r.run(1,{[d]:true}); const now=cs(); if(now!==last){ moves++; last=now; } }
+    r.run(14); return moves; },
+  // work terminal ti; punch anything that comes close; returns a summary
+  fightTop(ti,max=120){
+    for(let f=0;f<max*60;){ const tm=r.terms()[ti]; if(tm.state==='done') return 'done in '+(f/60).toFixed(1)+'s, hp '+r.p().hp+', falls '+r.info().falls;
+      const [px,py]=this.ctr(); let tgt=null,bd=1e9;
+      for(const e of r.enemies()){ if(!e.alive) continue; if(e.type==='leech'&&!e.latched) continue; if(!this.sees(e)) continue; const d=Math.hypot(e.x-px,e.y-py); if(d<bd){bd=d;tgt=e;} }
+      if(tgt&&bd<110){ const dx=tgt.x-px, dy=tgt.y-py; let dir=null; if(Math.abs(dy)<9) dir=dx>0?'right':'left'; else if(Math.abs(dx)<9) dir=dy>0?'down':'up';
+        if(dir){ this.face(dir); r.run(1,{grab:true}); r.run(10); f+=12; }
+        else { const k={}; if(Math.abs(dx)<Math.abs(dy)) k[dx>0?'right':'left']=true; else k[dy>0?'down':'up']=true; r.run(3,k); f+=3; } }
+      else { const wx=tm.x, wy=tm.y+8; if(Math.hypot(wx-px,wy-py)>6){ const k={}; if(Math.abs(wx-px)>3) k[wx>px?'right':'left']=true; if(Math.abs(wy-py)>3) k[wy>py?'down':'up']=true; r.run(3,k); f+=3; } else { r.run(10); f+=10; } } }
+    return 'timeout at '+r.terms()[ti].prog.toFixed(2); },
+  crates(){ return JSON.stringify(r.crates().filter(c=>!c.dead).map(c=>[c.tx,c.ty])); },
+  // ---- side-view helpers ----
+  // swing across a gap from ground edge tile edgeTx: fire, pump with the swing, pay out to `rope`, let go at the forward peak, fire again
+  chain(lv,edgeTx,g,landTx,opts={}){ r.start(lv); if(!opts.keepEnemies) r.enemies().forEach(e=>{e.alive=false;}); r.teleport((edgeTx-2)*16,g*16-20); r.run(10);
+    let fired=false, swings=0, lastRel=-99; const fireAt=opts.fireAt??0.5, want=opts.rope??110, vxRel=opts.vxRel??60;
+    for(let f=0;f<3000;f++){ const p=r.p(), h=r.hook(), info=r.info(), k={};
+      if(!fired){ k.right=true; if(p.x+6>=(edgeTx+fireAt)*16){ k.grab=true; fired=true; } }
+      else if(h.state==='att'){ k.grab=true;
+        if(p.onGround) k.right=true;
+        else { k[p.vx>=0?'right':'left']=true; if(info.rope<want) k.down=true;
+          if(p.x+6>h.x+8&&p.vy<0&&p.vx>0&&p.vx<vxRel&&f-lastRel>20){ k.grab=false; k.down=false; lastRel=f; swings++; } } }
+      else if(h.state==='fly'){ k.grab=true; k.right=true; }
+      else { k.right=true; if(!p.onGround&&f-lastRel<90) k.grab=(f-lastRel)%2===1; }
+      const i=r.run(1,k);
+      if(i.falls>0) return 'FELL after '+swings+' swings';
+      if(i.ground&&i.tx>=landTx&&i.hook!=='att'&&i.hook!=='fly') return 'landed at '+i.tx+' after '+swings+' swings';
+    } return 'timeout'; },
+  hold(keys,frames){ for(let f=0;f<frames;f++) r.run(1,keys); },
+  // hold keys until cond() or timeout (frames); returns frames used or -1
+  until(keys,cond,max=1200){ for(let f=0;f<max;f++){ if(cond()) return f; r.run(1,keys); if(r.info().falls>0) return -2; } return -1; },
+  sees(e){ const [px,py]=this.ctr(), d=Math.hypot(e.x-px,e.y-py), n=Math.ceil(d/6); for(let i=1;i<n;i++){ const k=i/n; if(r.wallT(Math.floor((px+(e.x-px)*k)/16),Math.floor((py+(e.y-py)*k)/16))) return false; } return true; },
+  // clear nearby visible enemies (top-down)
+  killNear(rad=130){ for(let k=0;k<80;k++){ const [px,py]=this.ctr(); const e=r.enemies().find(e=>e.alive&&e.type!=='leech'&&Math.hypot(e.x-px,e.y-py)<rad&&this.sees(e)); if(!e) return 'clear';
+      const dx=e.x-px, dy=e.y-py;
+      if(Math.abs(dy)<9||Math.abs(dx)<9){ this.face(Math.abs(dx)>Math.abs(dy)?(dx>0?'right':'left'):(dy>0?'down':'up')); r.run(1,{grab:true}); r.run(12); }
+      else r.run(4,{[Math.abs(dx)<Math.abs(dy)?(dx>0?'right':'left'):(dy>0?'down':'up')]:true}); }
+    return 'gave up'; }
+};
+})();

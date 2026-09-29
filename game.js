@@ -627,7 +627,8 @@ function updateAnchor(dt){
   a.st-=dt;
   if(a.st<=0){ a.st=Math.max(4,8-lvl); if(enemies.filter(e=>e.alive&&e.type==='seeker').length<1+Math.ceil(lvl/2)){
       const e=makeEnemy('seeker',a.x+(Math.random()<0.5?-1:1)*(VW/2+20),p.y-40,{wave:true}); enemies.push(e); } }
-  if(Math.abs(p.x+6-a.x)<12) hurt(false,a.x);
+  const safeAbove=(Math.min(...LD.anchor.rows)-2)*T;
+  if(Math.abs(p.x+6-a.x)<12&&p.y+p.h>safeAbove) hurt(false,a.x);
 }
 function clampCam(){
   if(MODE==='top'){ cam.x=LW<=VW?(LW-VW)/2:clamp(cam.x,0,LW-VW); cam.y=LH<=VH?(LH-VH)/2:clamp(cam.y,0,LH-VH); return; }
@@ -994,6 +995,7 @@ function drawDarkness(){
   for(const r of relays) if(!r.got) hole(SX(r.x),SY(r.y),44,0.7);
   for(const c of checks) if(c.on) hole(SX(c.x),SY(c.y)-40,70,0.8);
   for(const [x,y] of LD.posts) hole(SX(x*T+8),SY(y*T+8),34,0.6);
+  for(const c of crates) if(!c.dead) hole(SX(c.x),SY(c.y),36,0.45);
   for(const s of shots) hole(SX(s.x),SY(s.y),30,0.8);
   for(const q of parts) if(q.t==='beam') hole(SX(q.x),SY(q.y),50,q.life/q.full);
   hole(SX(goal.x),SY(goal.y),70,0.7);
@@ -1742,7 +1744,8 @@ function openBrief(i){
   $('briefPlace').textContent=LDEF.place;
   $('briefText').textContent=LDEF.brief;
   const nT=LD.terms.length;
-  $('briefMeta').textContent=`${LD.relays.length} relays · ${nT} terminal${nT===1?'':'s'} to reroute`;
+  const boss=LD.anchor||LD.enemies.some(e=>e.type==='brood');
+  $('briefMeta').textContent=`${LD.relays.length} relays · `+(LD.anchor?'Boss fight':(nT?`${nT} terminal${nT===1?'':'s'} to reroute`:'')+(boss?' · Boss':''));
   Snd.ambience(false); setUI();
 }
 function startLevel(){

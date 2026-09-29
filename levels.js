@@ -505,8 +505,8 @@ const LEVELS = [
     "#..R.........#..........K..#############",
     "#.........K..#.............#############",
     "#............#.............#############",
-    "#............E.............#############",
-    "#.Z..........#.............#############",
+    "#...S........E.............#############",
+    "#............#.............#############",
     "#............#.R...........#############",
     "#............#.............#############",
     "######.#################################",
@@ -545,6 +545,7 @@ const LEVELS = [
     B.girder(22,31,29); B.girder(39,48,29);
     B.girder(22,31,22); B.girder(39,48,22);
     B.girder(22,31,15); B.girder(39,48,15);
+    B.girder(26,44,10);                              // high walkway over the tether: the only safe way across
     // side perches to dodge onto
     B.girder(6,13,32); B.girder(57,64,32); B.girder(6,13,25); B.girder(57,64,25); B.girder(6,13,18); B.girder(57,64,18);
     B.anchor(35,[35,28,21,14]);
@@ -553,7 +554,7 @@ const LEVELS = [
     B.prop('sign',{x:3,row:35}); B.prop('crates',{x:14,row:35}); B.prop('drum',{x:52,row:35}); B.prop('cone',{x:66,row:35});
   },
   hints:[
-    [0,  "Ship Anchor. Punch the clamps off the tether (▼ + GRAB) from the girders at the same height. Don't touch the tether."],
+    [0,  "Ship Anchor. Punch the clamps off the tether (▼ + GRAB) from the girders at the same height. Don't touch the tether: cross over the top on the high walkway."],
     [20, "When a red band lights up, get above or below it before it fires."]
   ]
 }

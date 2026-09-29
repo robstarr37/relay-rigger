@@ -90,6 +90,63 @@ const WALK = window.WALK = {
       if(Math.abs(r.p().x+6-30.5*16)>6){ walkX(30.5); continue; }
       r.run(1,{right:true}); r.run(1,{down:true,grab:true}); r.run(12); f+=14; }
     return 'state '+r.info().state+', clamps left '+clamps().length+', '+(f/60).toFixed(0)+'s, hits '+hits+', deaths '+r.info().falls+', dodges '+dodges; },
+  // ---- Act 4 top-down ----
+  beamAt(x,y){ return r.beams().find(b=>b.tx===x&&b.ty===y); },
+  // wait for a pulsing beam to switch off (and not be about to switch on)
+  waitOff(x,y){ const b=this.beamAt(x,y); return T.until({},()=>!b.active&&!b.warn,400); },
+  relayArray(calm){ const log=[]; r.start(16); if(calm) r.enemies().forEach(e=>{e.alive=false;}); r.run(20);
+    log.push('pulse beam '+T.walkTo(7,6)+' '+this.waitOff(8,0)+' '+T.walkTo(12,6)+' hp '+r.p().hp);
+    log.push('block beam '+T.walkTo(16,1)+' '+T.push('down',2)+' '+T.walkTo(21,4)+' '+T.walkTo(29,6)+' hp '+r.p().hp);
+    log.push('lever '+T.walkTo(32,2)); T.face('right'); T.grab(); log.push(' beams off '+r.gstate()['1']);
+    log.push('terminal 1 '+T.walkTo(35,2)+' '+T.fightTop(0)); r.run(10);
+    log.push('belt beams '+T.walkTo(35,10)+' '+T.walkTo(34,11)+' '+this.waitOff(33,18)+' '+T.walkTo(32,11)+' '+this.waitOff(31,18)+' '+T.walkTo(29,11)+' '+T.walkTo(27,14)+' hp '+r.p().hp);
+    log.push('terminal 2 '+T.walkTo(26,13)+' '+this.waitOff(28,12)+' '+T.walkTo(24,11)+' cp '+r.info().cp+' '+T.walkTo(20,11)+' '+T.fightTop(1)); r.run(10);
+    log.push('out '+T.killNear(200)+' '+T.walkTo(20,11)+' '+this.waitOff(28,12)+' '+T.walkTo(16,13)+' '+this.waitOff(28,15)+' '+T.walkTo(14,16)+' '+T.walkTo(12,16)+' '+T.walkTo(3,12)); r.run(30);
+    log.push('RESULT '+r.info().state+' hp '+r.p().hp+' falls '+r.info().falls);
+    return log.join('\n'); },
+  hullBreach(calm){ const log=[]; r.start(18); if(calm) r.enemies().forEach(e=>{e.alive=false;}); r.run(20);
+    log.push('crate through pad '+T.walkTo(5,6)+' '+T.push('right',4)+' crates '+T.crates());
+    T.walkTo(9,6); T.until({right:true},()=>T.tileOf()[0]>=13,120); log.push(' teleported to '+T.tileOf());
+    log.push('plate '+T.walkTo(15,2)+' '+T.push('right',10)+' '+T.walkTo(26,1)+' '+T.push('down',5)+' door '+r.gstate()['1']+' '+T.walkTo(29,4));
+    log.push('terminal 1 '+T.walkTo(35,2)+' '+T.fightTop(0)); r.run(10);
+    log.push('beam + pad '+T.walkTo(41,4)+' '+this.waitOff(43,5)+' '+T.walkTo(41,7)); T.until({down:true},()=>T.tileOf()[1]>=11,120); log.push(' at '+T.tileOf());
+    log.push('belt crate '+T.walkTo(41,13)+' '+T.push('left',1)); T.until({},()=>!r.pitT(31,13),420); log.push(' filled '+!r.pitT(31,13)+' '+T.walkTo(30,13)); T.until({down:true},()=>T.tileOf()[0]>=20&&T.tileOf()[1]<=12,160); log.push(' at '+T.tileOf());
+    log.push('terminal 2 '+T.walkTo(20,11)+' '+T.fightTop(1)); r.run(10);
+    log.push('out '+T.killNear(200)+' '+T.walkTo(18,13)+' '+this.waitOff(28,14)+' '+T.walkTo(14,15)+' '+T.walkTo(12,15)+' '+T.walkTo(4,13)); r.run(30);
+    log.push('RESULT '+r.info().state+' hp '+r.p().hp+' falls '+r.info().falls);
+    return log.join('\n'); },
+  // the final boss with every attack live: generators by climbing, then the core. Dodges each band once
+  // (sidestep a vertical band, climb out of a horizontal one) and punches up, across or diagonally.
+  heartOfTheShip(limitMs=40000){ const t0=performance.now(); r.start(19); let f=0, hits=0, hp=r.p().hp, handled=null, dodges=0; const B=()=>r.boss();
+    const gens=()=>r.enemies().filter(e=>e.type==='gen'&&e.alive), core=()=>r.enemies().find(e=>e.type==='core'&&e.alive);
+    const tick=(k={})=>{ r.run(1,k); f++; const h=r.p().hp; if(h<hp) hits+=hp-h; hp=h; };
+    const climb=()=>{ tick({}); tick({up:true,grab:true}); for(let i=0;i<150&&!(r.hook().state==='idle'&&r.p().onGround);i++) tick({up:true,grab:true}); };
+    const dodge=()=>{ const b=B().band, p=r.p(); if(!b||b.tel<=0||b===handled) return false; handled=b;
+      const hit=b.axis==='v'?Math.abs(p.x+6-b.pos)<30:Math.abs(p.y+p.h/2-b.pos)<30; if(!hit) return false; dodges++;
+      if(b.axis==='v'){ const dir=(p.x+6)<b.pos?'left':'right'; for(let i=0;i<45&&b.tel>0;i++) tick({[dir]:true}); } else if(p.onGround) climb(); return true; };
+    const row=()=>Math.round((r.p().y+r.p().h)/16);
+    // punch a flyer that has come close (across, up or diagonally)
+    const fend=()=>{ const p=r.p(); if(!p.onGround||r.hook().state!=='idle') return false; const px=p.x+6, py=p.y+7;
+      const e=r.enemies().find(e=>e.alive&&(e.type==='seeker'||e.type==='hunter')&&Math.hypot(e.x-px,e.y-py)<110); if(!e) return false;
+      const dx=e.x-px, dy=e.y-py; let aim=null; if(Math.abs(dy)<10) aim='h'; else if(Math.abs(dx)<10&&dy<0) aim='u'; else if(dy<0&&Math.abs(Math.abs(dx)/(-dy)-0.7)<0.35) aim='d';
+      if(!aim) return false; if(aim!=='u') tick({[dx>0?'right':'left']:true}); const k={grab:true}; if(aim==='h') k.down=true; if(aim==='u') k.up=true; tick(k); for(let q=0;q<8;q++) tick(); return true; };
+    // stand on (x, row); routes: floor(40) -> low girder(34) -> high girder(21), via the overlap columns 14 (west) and 57 (east)
+    const goTo=(tx,trow)=>{ for(let i=0;i<400;i++){ if(dodge()||fend()) continue; const p=r.p(); if(!p.onGround){ tick(); continue; }
+        const rw=row(), west=tx<36; const col=west?(trow===34?8:14.4):(trow===34?62:57.4);
+        if(rw===trow){ const d=tx*16-(p.x+6); if(Math.abs(d)<3) return true; tick({[d>0?'right':'left']:true}); continue; }
+        if(rw<trow){ tick({[west?'left':'right']:true}); continue; }
+        const c2=rw===40?(west?8:62):col; const d=c2*16-(p.x+6); if(Math.abs(d)>3){ tick({[d>0?'right':'left']:true}); continue; } climb(); } return false; };
+    const punchGen=(tx,trow,dir)=>{ for(let tries=0;tries<12;tries++){ const n=gens().length; if(!goTo(tx,trow)) continue;
+        for(let i=0;i<6&&gens().length===n;i++){ if(dodge()) break; fend(); tick({[dir]:true}); tick({down:true,grab:true}); for(let k=0;k<12;k++) tick(); }
+        if(gens().length<n) return true; } return false; };
+    punchGen(7,34,'right'); punchGen(15,21,'right'); punchGen(64.5,34,'left'); punchGen(56.5,21,'left');
+    while(core()&&performance.now()-t0<limitMs){ if(dodge()||fend()) continue; const p=r.p(); if(!p.onGround){ tick(); continue; }
+      if(row()!==21){ goTo(55,21); continue; }
+      const c=core(), dy=c.y-(p.y+7), dx=c.x-(p.x+6); let aim=null;
+      if(Math.abs(dy)<22&&Math.abs(dx)<200) aim='h'; else if(Math.abs(dx)<22&&dy<0&&dy>-200) aim='u'; else if(dy<0&&Math.abs(Math.abs(dx)/(-dy)-0.7)<0.3&&Math.hypot(dx,dy)<200) aim='d';
+      if(aim){ if(aim!=='u') tick({[dx>0?'right':'left']:true}); const k={grab:true}; if(aim==='h') k.down=true; if(aim==='u') k.up=true; tick(k); for(let q=0;q<10;q++) tick(); }
+      else { const want=Math.max(49*16+6,Math.min(57*16,c.x)); if(Math.abs(want-(p.x+6))>8) tick({[want>p.x+6?'right':'left']:true}); else tick(); } }
+    r.run(60); return 'gens left '+gens().length+', core '+(core()?'alive hp '+core().hp:'destroyed')+', '+(f/60).toFixed(0)+'s, hits '+hits+', deaths '+r.info().falls+', bands dodged '+dodges+', state '+r.info().state; },
   // can the worker get over the tether on the high walkway?
   anchorCrossing(){ r.start(14); r.anchor().pt=999; r.anchor().st=999; r.enemies().forEach(e=>{ if(e.type!=='clamp') e.alive=false; });
     r.teleport(28*16,15*16-20); r.run(5); const hp0=r.p().hp; const c=this.climbSide();

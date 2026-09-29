@@ -537,7 +537,7 @@ const LEVELS = [
   act:3, name:'Ship Anchor', place:'Carrow gorge · 04:05', theme:'gorge', W:70, H:40,
   brief:"The ship has dropped a tether into Carrow gorge, a living cable pumping energy up into it. Cut the four clamps holding it down. It will fight back: when a red band lights up across the gorge, get out of it.",
   outro:"",
-  actEnd:{title:'TETHER CUT',text:"The tether whipped back into the clouds and the ship lurched away from the coast, trailing sparks. For the first time, it's running. End of Act 3. Act 4 is coming."},
+  actEnd:{title:'TETHER CUT',text:"The tether whipped back into the clouds and the ship lurched away from the coast, trailing sparks. For the first time, it's running. End of Act 3."},
   build(B){
     B.rock(1,68,36,39);
     B.steel(10,60,3,4);                              // a high ceiling to swing from
@@ -557,9 +557,174 @@ const LEVELS = [
     [0,  "Ship Anchor. Punch the clamps off the tether (▼ + GRAB) from the girders at the same height. Don't touch the tether: cross over the top on the high walkway."],
     [20, "When a red band lights up, get above or below it before it fires."]
   ]
+},
+// ================================================================== ACT 4 · SIGNAL
+// ------------------------------------------------------------------ 16
+{
+  act:4, name:'Storm Front', place:'Kestrel coast line · 21:00', theme:'storm', W:300, H:30,
+  wind:{period:7,warn:1.3,dur:2.6,force:230},
+  brief:"The ship ran, but it's coming back for one last push, riding a storm front in over the coast. The gusts out there can knock a rigger clean off a girder. Keep the coast line alive until the array can fire.",
+  outro:"The line held through the storm. Down the coast, the relay array is powering up.",
+  build(B){
+    const g=26;
+    B.rock(1,20,g,29); B.rock(26,50,g,29); B.rock(88,120,g,29); B.rock(136,170,g,29); B.rock(191,220,g,29); B.rock(247,298,g,29);
+    M.girderGap(B,21,g);                    // pit 21..25
+    M.anchorRun(B,46,g,4);                  // girder hops, pit 51..87
+    B.crumble(121,135,g);                   // crumbling bridge over pit 121..135
+    B.platform(171,g,187,g,4);              // ferry over pit 171..190
+    M.ceilingRun(B,216,g,26);               // chain swings, pit 221..246
+    M.cableHazard(B,272,g);                 // sparks 279..281
+    B.start(2,25); B.check(27,25); B.check(90,25); B.check(137,25); B.check(192,25); B.check(249,25);
+    [[10,25],[28,18],[65,13],[128,25],[180,25],[258,25],[277,18],[286,25]].forEach(r=>B.relay(...r));
+    B.drone(30,40,25); B.enemy('skitter',100,25); B.enemy('seeker',110,18); B.enemy('spitter',164,25);
+    B.enemy('skitter',205,25); B.enemy('seeker',236,17); B.enemy('hunter',290,20);
+    B.terminal(262,25,{time:16,waves:[[0.08,'hunter','hunter'],[0.35,'leech','seeker'],[0.6,'skitter','skitter','leech'],[0.85,'seeker','seeker']]});
+    B.goal(294,25);
+    B.prop('cabin',{x:3,row:25}); B.prop('sign',{x:19,row:25}); B.prop('fence',{x0:89,x1:110,row:25}); B.prop('cone',{x:120.4,row:25}); B.prop('cone',{x:136.4,row:25});
+    B.prop('drum',{x:150,row:25}); B.prop('crates',{x:198,row:25}); B.prop('chains',{x:226,row:15,len:30}); B.prop('chains',{x:240,row:15,len:44}); B.prop('antenna',{x:255,row:25});
+  },
+  hints:[
+    [0,  "Storm Front. Watch for the GUST warning: the wind shoves you sideways. Hold against it, or hang on to your cable."],
+    [44, "Girder hops in a gale. Time your swings between gusts."],
+    [118,"This bridge crumbles behind you. Don't stop, and don't get blown back."],
+    [214,"A long ceiling over the last gap. Chain your swings."]
+  ]
+},
+// ------------------------------------------------------------------ 17 (top-down)
+{
+  act:4, mode:'top', name:'Relay Array', place:'Coastal relay array · 23:15', theme:'station',
+  brief:"The coast's relay array is the one weapon we have: aim it at the ship and it can knock out the shields. The aliens got here first and rigged the array rooms with security beams. Get both control terminals online.",
+  outro:"The array is locked on. The ship's shields are flickering.",
+  map:[
+    "########1########################3###3######",
+    "#..........R.#......#...R...#......T.......#",
+    "#............#..C...#.......#..........a...#",
+    "#............#......#.......#..............#",
+    "#............2..............#..............#",
+    "#............#......#.......#..............#",
+    "#.P.................#......................#",
+    "#............#.K....#.......#.K............#",
+    "#............#......#.......#.............R#",
+    "###################################E########",
+    "#............#......T.......#..............#",
+    "#.........K..#..........K...#...........K..#",
+    "#..X.........#..............6..............#",
+    "#............#....S.........#..............#",
+    "#............#................<<<<<<<<<<<<<#",
+    "#............#..............7..............#",
+    "#.R..........F.R........S...#............R.#",
+    "#............#..............#..............#",
+    "###############################5#4##########"
+  ],
+  key:{ '1':{t:'beam',dir:'down',on:1.6,off:1.6}, '2':{t:'beam',dir:'right'}, '3':{t:'beam',dir:'down',g:1}, a:{t:'lever',g:1}, E:{t:'door',g:'term0'},
+        '4':{t:'beam',dir:'up',on:1.2,off:1.8}, '5':{t:'beam',dir:'up',on:1.2,off:1.8,ph:1.5}, '6':{t:'beam',dir:'left',on:2,off:2}, '7':{t:'beam',dir:'left',on:2,off:2,ph:2}, F:{t:'door',g:'term1'} },
+  terms:[{time:15,waves:[[0.1,'skitter','hunter'],[0.45,'leech','leech'],[0.75,'skitter','skitter','seeker']]},
+         {time:16,waves:[[0.08,'seeker','seeker'],[0.35,'leech','skitter'],[0.6,'skitter','skitter','leech'],[0.85,'hunter','hunter']]}],
+  hints:[
+    [4,6,  "Security beams. This one pulses: cross while it's off."],
+    [15,5, "This beam never switches off. Push the crate into it: crates block beams."],
+    [30,5, "Two beams guard the terminal, both run from the lever. The cable goes straight through beams, so grapple the lever."],
+    [38,12,"Two pulsing beams across the belt. Pick your moment."],
+    [24,12,"Terminal 2. The beams sweep the room while you work."],
+    [8,13, "The exit is just ahead."]
+  ]
+},
+// ------------------------------------------------------------------ 18
+{
+  act:4, name:'Skyhook', place:'Above the Kestrel hills · 02:45', theme:'sky', W:300, H:50,
+  wind:{period:10,warn:1.3,dur:2,force:140},
+  brief:"The array knocked the ship's shields out for a few minutes and it dropped low, trailing its own cable lines over the hills. Ride those lines up into the sky and get onto the hull before it recovers.",
+  outro:"You're on the hull. There's a hatch, and it isn't locked.",
+  build(B){
+    B.steel(1,12,20,49);                                  // launch tower
+    B.zip(12,16,40,29);                                   // zip line 1
+    B.steel(40,52,32,33); B.steel(45,47,34,49);
+    B.platform(53,32,53,14,4,{speed:34});                 // lift up
+    B.steel(57,70,14,15); B.steel(62,64,16,49);
+    B.zip(70,11,108,25);                                  // zip line 2
+    B.steel(108,125,28,29); B.steel(114,116,30,49);
+    B.crumble(126,140,28);                                // crumbling span
+    B.steel(141,160,28,29); B.steel(148,150,30,49);
+    M.anchorRun(B,156,28,4);                              // girder hops, pit 161..197
+    B.steel(198,212,28,29); B.steel(203,205,30,49);
+    B.zip(205,22,250,40);                                 // zip line 3, down to the landing deck
+    B.steel(250,298,42,45);
+    B.start(3,19); B.check(42,31); B.check(58,13); B.check(110,27); B.check(143,27); B.check(199,27); B.check(252,41);
+    [[26,22],[60,13],[90,18],[133,27],[175,15],[228,32],[280,41]].forEach(r=>B.relay(...r));
+    B.enemy('seeker',30,24); B.enemy('seeker',90,10); B.enemy('skitter',120,27); B.enemy('seeker',130,20); B.enemy('seeker',180,12); B.enemy('seeker',230,30); B.enemy('skitter',270,41);
+    B.terminal(152,27,{time:16,waves:[[0.08,'seeker','hunter'],[0.35,'leech','leech','seeker'],[0.6,'hunter','hunter','skitter'],[0.85,'leech','seeker','seeker']]});
+    B.goal(295,41);
+    B.prop('antenna',{x:5,row:19}); B.prop('dish',{x:66,row:13}); B.prop('vent',{x:118,row:27}); B.prop('antenna',{x:158,row:27}); B.prop('dish',{x:210,row:27}); B.prop('vent',{x:262,row:41});
+  },
+  hints:[
+    [0,  "Skyhook. Zip lines: fire your cable at the line, hold GRAB, and slide. Let go to fly off, or ride it to the end."],
+    [50, "Ride the lift up to the next line."],
+    [124,"This span crumbles. Keep moving."],
+    [154,"Girder hops, high up. Watch the gusts."],
+    [200,"The last line takes you down to the hull deck."]
+  ]
+},
+// ------------------------------------------------------------------ 19 (top-down)
+{
+  act:4, mode:'top', name:'Hull Breach', place:'Inside the mothership · 03:30', theme:'ship',
+  brief:"You're inside. The ship's rooms are sealed and connected only by teleport pads, and most of the lights are out. Reroute the ship's own relays to broadcast our signal, and the core will be wide open.",
+  outro:"The ship's own relays are broadcasting our signal. The core is exposed.",
+  map:[
+    "############################################",
+    "#..R.........#...........R..#......T......R#",
+    "#..........S.#.u............#..............#",
+    "#............#..............#.K............#",
+    "#.P..........#..............B..............#",
+    "#............#...K..........#..............1",
+    "#.....C...u..#..............#..............#",
+    "#............#.......S....b.#...Q..........#",
+    "#............#..............#............w.#",
+    "############################################",
+    "#............#......T.......#.. ...........#",
+    "#............#.........K..y.#.. .......K.w.#",
+    "#.........K..#...S..........#.. ...........#",
+    "#...X........#..............#.. <<<<<<<<C..#",
+    "#............#..............2.. ...........#",
+    "#............F..............#.. ...........#",
+    "#.R..........#........S.....#.y ....Z......#",
+    "#............#.R............#.. ..........R#",
+    "############################################"
+  ],
+  key:{ u:{t:'tele',id:1}, w:{t:'tele',id:2}, y:{t:'tele',id:3}, b:{t:'plate',g:1}, B:{t:'door',g:1},
+        '1':{t:'beam',dir:'left',on:1.5,off:2}, '2':{t:'beam',dir:'left',on:1.6,off:1.8}, F:{t:'door',g:'term1'} },
+  terms:[{time:15,waves:[[0.1,'skitter','seeker'],[0.4,'leech','leech'],[0.7,'skitter','skitter','seeker']]},
+         {time:17,waves:[[0.08,'seeker','hunter'],[0.3,'leech','leech','skitter'],[0.55,'skitter','skitter','seeker'],[0.8,'leech','hunter','hunter']]}],
+  hints:[
+    [4,4,  "Teleport pads link sealed rooms. Crates travel through them too."],
+    [16,4, "The plate needs a crate on it. Send the crate through the pad first."],
+    [33,4, "Cross the beam between pulses."],
+    [38,12,"Feed the crate onto the belt to fill the pit."],
+    [23,12,"The last relay. Hold it."],
+    [8,13, "Out through the hatch, and on to the core."]
+  ]
+},
+// ------------------------------------------------------------------ 20 (final boss)
+{
+  act:4, name:'Heart of the Ship', place:'The mothership core', theme:'core', W:72, H:44,
+  brief:"The core. Four generators keep its shield up: destroy them, then destroy it. When a red band lights up, it can come across the chamber or straight down it. Move.",
+  outro:"",
+  actEnd:{title:'SIGNAL CLEAR',text:"The core burst and the mothership fell out of the sky into the sea off Kestrel Ridge. Every tower you climbed is still standing, and every channel on the coast is carrying the same message: it's over. Thanks for playing Relay Rigger."},
+  build(B){
+    B.steel(1,70,40,43); B.steel(6,66,2,3);
+    B.girder(6,14,34); B.girder(57,65,34); B.girder(14,22,21); B.girder(49,57,21); B.girder(31,41,28);
+    B.girder(8,26,12); B.girder(46,64,12);
+    B.platform(27,40,27,12,4,{speed:40}); B.platform(42,40,42,12,4,{speed:40,phase:1});
+    B.core(36,19,[[10,33],[61,33],[18,20],[53,20]]);
+    B.start(4,39); B.check(68,39);
+    [[7,33],[64,33],[20,20],[51,20],[36,27],[15,11]].forEach(r=>B.relay(...r));
+  },
+  hints:[
+    [0,  "The core. Its shield holds while any generator stands: punch the four generators on the girders."],
+    [30, "Climb from the low girders to the high ones, or ride the lifts. Red bands can come down the chamber too."]
+  ]
 }
 ];
 
 window.RR_LEVELS = LEVELS;
-window.RR_ACTS = ['Lights Out','Interference','Undertow','Act 4'];
+window.RR_ACTS = ['Lights Out','Interference','Undertow','Signal'];
 })();

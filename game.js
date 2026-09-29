@@ -418,7 +418,8 @@ function step(dt){
     if(inp<0&&p.vx>-AIRMAX) p.vx=Math.max(-AIRMAX,p.vx-AIR*dt);
     p.face=inp;
   }
-  if(wind&&wind.phase==='gust'){ const f=LDEF.wind.force*wind.dir; if(p.onGround) moveX(f*0.2*dt); else p.vx+=f*dt; }
+  // gusts push you along the ground (walk against them) and hard in the air; you can brace on moving platforms
+  if(wind&&wind.phase==='gust'){ const f=LDEF.wind.force*wind.dir; if(p.onGround){ if(!p.plat) moveX(f*0.13*dt); } else p.vx+=f*dt; }
   p.vy=Math.min(p.vy+G*dt,560);
   p.vx=Math.max(-520,Math.min(520,p.vx));
   moveX(p.vx*dt); p.onGround=false; p.plat=null; moveY(p.vy*dt);
@@ -884,7 +885,9 @@ function updateCrates(dt){
     if(c.mv.t>=1){ c.mv=null;
       if(pitT(c.tx,c.ty)){ filled.add(tk(c.tx,c.ty)); c.dead=true; sfx.clunk(); dust(c.x,c.y,8); popup(c.x,c.y-12,'GAP FILLED','#ffc23d'); shake=Math.max(shake,1.5); }
       else { const pad=tdLook.tele.get(tk(c.tx,c.ty)), q=pad&&pad.partner;
-        if(q&&!crateAt(q.tx,q.ty)&&!(Math.floor((p.x+6)/T)===q.tx&&Math.floor((p.y+6)/T)===q.ty)){ ring(c.x,c.y,'#5ae0e8',20,0.4); c.tx=q.tx; c.ty=q.ty; c.x=q.tx*T+8; c.y=q.ty*T+8; ring(c.x,c.y,'#5ae0e8',26,0.5); sfx.warp(); if(c.md) tryMoveCrate(c,c.md[0],c.md[1]); } } }
+        if(q&&!crateAt(q.tx,q.ty)&&!(Math.floor((p.x+6)/T)===q.tx&&Math.floor((p.y+6)/T)===q.ty)){ ring(c.x,c.y,'#5ae0e8',20,0.4); c.tx=q.tx; c.ty=q.ty; c.x=q.tx*T+8; c.y=q.ty*T+8; ring(c.x,c.y,'#5ae0e8',26,0.5); sfx.warp();
+          // slide off the pad (push direction first) so it never blocks the pad
+          for(const [ax,ay] of [c.md||[0,1],[1,0],[-1,0],[0,1],[0,-1]]) if(tryMoveCrate(c,ax,ay)) break; } } }
   }
 }
 function fireTop(){ const [dx,dy]=DV[p.face]; hook={state:'fly',x:p.x+6,y:p.y+6,dx,dy,len:0}; sfx.fire(); }

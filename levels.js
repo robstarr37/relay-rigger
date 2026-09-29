@@ -584,9 +584,10 @@ const LEVELS = [
     B.prop('drum',{x:150,row:25}); B.prop('crates',{x:198,row:25}); B.prop('chains',{x:226,row:15,len:30}); B.prop('chains',{x:240,row:15,len:44}); B.prop('antenna',{x:255,row:25});
   },
   hints:[
-    [0,  "Storm Front. Watch for the GUST warning: the wind shoves you sideways. Hold against it, or hang on to your cable."],
+    [0,  "Storm Front. Watch for the GUST warning: the wind shoves you sideways. Walk against it on the ground; in the air it carries you."],
     [44, "Girder hops in a gale. Time your swings between gusts."],
     [118,"This bridge crumbles behind you. Don't stop, and don't get blown back."],
+    [166,"Stand still on the ferry: you can brace against gusts on moving platforms."],
     [214,"A long ceiling over the last gap. Chain your swings."]
   ]
 },

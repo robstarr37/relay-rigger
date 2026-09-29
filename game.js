@@ -1662,7 +1662,10 @@ let stickId=null, grabId=null;
 function stickAt(e){
   const r=dpadEl.getBoundingClientRect(), dx=e.clientX-(r.left+r.width/2), dy=e.clientY-(r.top+r.height/2), d=Math.hypot(dx,dy);
   const o={left:false,right:false,up:false,down:false};
-  if(d>r.width*0.1){ const c=dx/d, s=dy/d; o.right=c>0.5; o.left=c<-0.5; o.down=s>0.5; o.up=s<-0.5; }
+  // side view: 8-way. Top-down: mostly 4-way so a slightly off-axis thumb still faces the right way for GRAB
+  const th=MODE==='top'?0.6:0.5;
+  if(d>r.width*0.1){ const c=dx/d, s=dy/d; o.right=c>th; o.left=c<-th; o.down=s>th; o.up=s<-th;
+    if(!o.right&&!o.left&&!o.up&&!o.down){ if(Math.abs(c)>Math.abs(s)) o[c>0?'right':'left']=true; else o[s>0?'down':'up']=true; } }
   for(const k in o){ TT[k]=o[k]; arms[k].classList.toggle('on',o[k]); }
 }
 function stickEnd(e){ if(e.pointerId!==stickId) return; stickId=null; for(const k in arms){ TT[k]=false; arms[k].classList.remove('on'); } }

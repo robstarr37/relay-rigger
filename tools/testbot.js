@@ -59,6 +59,18 @@ const TB = window.TB = {
       if(i.ground&&i.tx>=landTx&&i.hook!=='att'&&i.hook!=='fly') return 'landed at '+i.tx+' after '+swings+' swings';
     } return 'timeout'; },
   hold(keys,frames){ for(let f=0;f<frames;f++) r.run(1,keys); },
+  // side view: work terminal ti, punching (▼/diagonal/▲ + GRAB) whatever gets close; stays on the terminal's platform
+  defendSide(ti,maxSec=150){ const log={punches:0,hits:0}; let hp=r.p().hp;
+    for(let f=0;f<maxSec*60;){ const p=r.p(), tm=r.terms()[ti]; if(tm.state==='done') break; if(p.y+p.h>tm.y+40){ log.knockedOff=true; break; }
+      const pcx=p.x+6, hy=p.y+7; let tgt=null,best=1e9;
+      for(const e of r.enemies()){ if(!e.alive||(e.type==='leech'&&!e.latched)||Math.abs(e.y-hy)>120) continue; const d=Math.hypot(e.x-pcx,e.y-hy); if(d<best){best=d;tgt=e;} }
+      if(tgt&&best<170){ const dx=tgt.x-pcx, dy=tgt.y-hy, dir=dx>0?'right':'left'; let aim=null;
+        if(Math.abs(dy)<9) aim='down'; else if(Math.abs(dx)<8&&dy<0) aim='up'; else if(dy<0&&Math.abs(Math.abs(dx)/(-dy)-0.7)<0.35) aim='diag';
+        if(aim){ if(Math.sign(dx)!==p.face&&aim!=='up'){ r.run(1,{[dir]:true}); f++; } const k={grab:true}; if(aim==='down') k.down=true; if(aim==='up') k.up=true; r.run(1,k); r.run(10); f+=11; log.punches++; }
+        else { let want=dy<0?tgt.x-Math.sign(dx)*(-dy)*0.7:tgt.x-Math.sign(dx)*60; want=Math.max((tm.seg[0]+1)*16,Math.min(tm.seg[1]*16,want)); const mv=want>pcx?'right':'left'; if(Math.abs(want-pcx)>6){ r.run(4,{[mv]:true}); f+=4; } else { r.run(4); f+=4; } } }
+      else { const d=tm.x-pcx; if(Math.abs(d)>5||!p.onGround){ r.run(3,{[d>0?'right':'left']:true}); f+=3; } else { r.run(10); f+=10; } }
+      const nhp=r.p().hp; if(nhp<hp) log.hits++; hp=nhp; log.secs=(f/60).toFixed(1); }
+    log.terms=r.info().terms.join(','); log.falls=r.info().falls; return JSON.stringify(log); },
   // hold keys until cond() or timeout (frames); returns frames used or -1
   until(keys,cond,max=1200){ for(let f=0;f<max;f++){ if(cond()) return f; r.run(1,keys); if(r.info().falls>0) return -2; } return -1; },
   sees(e){ const [px,py]=this.ctr(), d=Math.hypot(e.x-px,e.y-py), n=Math.ceil(d/6); for(let i=1;i<n;i++){ const k=i/n; if(r.wallT(Math.floor((px+(e.x-px)*k)/16),Math.floor((py+(e.y-py)*k)/16))) return false; } return true; },

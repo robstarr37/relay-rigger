@@ -27,6 +27,26 @@ const WALK = window.WALK = {
     log.push('G plates '+T.killNear(200)+' '+T.walkTo(14,21)+' '+T.push('right',7)+' '+T.walkTo(22,22)+' '+T.push('up',1)+' '+T.walkTo(14,24)+' '+T.push('right',7)+' '+T.walkTo(22,23)+' '+T.push('down',1)+' door '+r.gstate()['5']);
     log.push('H terminal '+T.killNear()+' '+T.walkTo(26,22)+' cp '+r.info().cp+' '+T.killNear(250)+' '+T.walkTo(30,20)+' '+T.fightTop(1)+' '+T.killNear()+' '+T.walkTo(34,26)); r.run(30);
     log.push('RESULT '+r.info().state+' hp '+r.p().hp+' falls '+r.info().falls+' relays '+r.info().got);
+    return log.join('\n'); },
+  cableTunnels(calm){ const log=[]; r.start(11); if(calm) r.enemies().forEach(e=>{e.alive=false;}); r.run(30);
+    log.push('timed door '+T.walkTo(9,6)+' door '+r.gstate()['1']+' '+T.walkTo(14,4));
+    log.push('belt crate '+T.walkTo(15,2)+' '+T.push('down',3)+' '+T.walkTo(14,6)+' '+T.push('right',1)); T.until({},()=>!r.pitT(24,6),420); log.push(' gap filled '+!r.pitT(24,6)+' '+T.walkTo(28,6));
+    log.push('plate by belt '+T.walkTo(41,2)+' '+T.push('left',1)); T.until({},()=>r.gstate()['2'],420); log.push(' door B '+r.gstate()['2']+' '+T.walkTo(36,10));
+    log.push('terminal '+T.walkTo(37,11)+' '+T.walkTo(33,11)+' '+T.fightTop(0)); r.run(10); log.push(' door '+r.gstate()['term0']+' '+T.killNear()+' '+T.walkTo(27,14));
+    log.push('belt run '+T.killNear(200)+' '+T.walkTo(26,12)+' '+T.walkTo(12,12));
+    log.push('exit '+T.walkTo(3,15)); r.run(30);
+    log.push('RESULT '+r.info().state+' hp '+r.p().hp+' falls '+r.info().falls);
+    return log.join('\n'); },
+  burrow(calm){ const log=[]; r.start(13); if(calm) r.enemies().forEach(e=>{ if(e.type!=='brood') e.alive=false; }); r.run(30);
+    log.push('posts '+T.killNear(160)+' '+T.walkTo(15,4)); T.face('right'); T.grab(); T.face('down'); T.grab(); T.face('right'); T.grab(); log.push(' at '+T.tileOf());
+    log.push('terminal '+T.walkTo(25,10)+' '+T.walkTo(20,11)+' '+T.fightTop(0)); r.run(10); log.push(' door '+r.gstate()['term0']);
+    log.push('to arena '+T.killNear()+' '+T.walkTo(12,14)+' '+T.walkTo(6,20)+' cp '+r.info().cp);
+    const hits=()=>{ const b=r.enemies().find(e=>e.type==='brood'); return b?(b.alive?b.hp:0):0; };
+    log.push(' crate W '+until(()=>{ T.walkTo(7,22); T.push('right',4); },()=>hits()<=2)+' hp '+hits());
+    log.push(' crate E '+until(()=>{ T.walkTo(18,23); T.push('left',4); },()=>hits()<=1)+' hp '+hits());
+    log.push(' crate S '+until(()=>{ T.walkTo(12,27); T.push('up',3); },()=>hits()<=0)+' hp '+hits());
+    r.run(10); log.push(' door '+r.gstate()['boss']+' '+T.killNear(200)+' '+T.walkTo(35,23)); r.run(30);
+    log.push('RESULT '+r.info().state+' hp '+r.p().hp+' falls '+r.info().falls);
     return log.join('\n'); }
 };
 })();

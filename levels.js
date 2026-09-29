@@ -335,7 +335,7 @@ const LEVELS = [
   act:2, mode:'top', name:'The Hive Relay', place:'Relay Vault 7 · 05:55', theme:'hive',
   brief:"Whatever they dropped burrowed straight into Relay Vault 7 and grew a hive around it. Every signal in the region routes through that vault. Go in, reroute both terminals, and get back out.",
   outro:"",
-  actEnd:{title:'SIGNAL HOLDS',text:"Vault 7 is ours and the hive has gone quiet. Further down the line, something much bigger is waking up. End of Act 2. Acts 3 and 4 are on their way."},
+  actEnd:{title:'SIGNAL HOLDS',text:"Vault 7 is ours and the hive has gone quiet. Further down the line, something much bigger is waking up. End of Act 2."},
   map:[
     "#####################################",
     "#..........R#..       ..#...  ......#",
@@ -381,9 +381,184 @@ const LEVELS = [
     [15,22,"Push both crates onto the plates. Line them up first."],
     [27,21,"The last terminal. Hold it."]
   ]
+},
+// ================================================================== ACT 3 · UNDERTOW
+// ------------------------------------------------------------------ 11
+{
+  act:3, name:'Quarry Descent', place:'Harrow deep pit · 20:30', theme:'pit', W:150, H:64, fallDamage:true,
+  brief:"The ship dropped a drill into Harrow's old deep pit, and the relay at the bottom is the only line left into the valley. Get down there, and don't just jump: the drops are long enough to hurt now.",
+  outro:"The valley line is back. Something at the bottom of that pit was drilling towards the pumping station.",
+  build(B){
+    B.rock(1,30,7,11);                    // top ledge
+    B.steel(27,44,2,3);                   // beam over the first shaft: hook it and lower yourself
+    B.rock(1,70,22,26);                   // second ledge
+    B.platform(71,22,71,40,4,{speed:34}); // lift down to the third ledge
+    B.rock(75,110,40,44);                 // third ledge
+    B.girder(104,118,36);                 // girder over the second shaft
+    B.rock(106,148,56,63);                // the bottom
+    B.start(3,6); B.check(36,21); B.check(77,39); B.check(114,55);
+    [[12,6],[33,15],[45,21],[62,21],[100,39],[113,46],[124,55],[140,55]].forEach(r=>B.relay(...r));
+    B.drone(40,52,21); B.enemy('spitter',64,21); B.enemy('skitter',90,39); B.enemy('seeker',96,34);
+    B.enemy('skitter',120,55); B.enemy('spitter',146,55);
+    B.terminal(130,55,{time:16,waves:[[0.1,'seeker','hunter'],[0.4,'leech','leech','skitter'],[0.7,'skitter','skitter','seeker']]});
+    B.goal(144,55);
+    B.prop('cabin',{x:4,row:6}); B.prop('sign',{x:26,row:6}); B.prop('chains',{x:30,row:4,len:30}); B.prop('chains',{x:40,row:4,len:50});
+    B.prop('drum',{x:50,row:21}); B.prop('crates',{x:8,row:21}); B.prop('cone',{x:70.4,row:21}); B.prop('sign',{x:79,row:39});
+    B.prop('drum',{x:96,row:39}); B.prop('chains',{x:108,row:37,len:40}); B.prop('crates',{x:132,row:55}); B.prop('antenna',{x:110,row:55});
+  },
+  hints:[
+    [0,  "Quarry Descent. Long drops hurt now: fall more than about ten tiles and you lose a hard hat."],
+    [24, "Hook the beam over the shaft, step off, then hold <b>▼</b> to pay out cable and lower yourself. Let go near the bottom."],
+    [66, "Ride the lift down."],
+    [102,"Another shaft. Hook the girder, step off and lower yourself."],
+    [118,"The pit relay. Reroute it."]
+  ]
+},
+// ------------------------------------------------------------------ 12 (top-down)
+{
+  act:3, mode:'top', name:'Cable Tunnels', place:'Harrow cable tunnels · 22:15', theme:'station',
+  brief:"The drill broke into the old cable tunnels under the valley. The doors down here are on timers and the belts still run. Reroute the junction terminal and find the way out.",
+  outro:"Junction rerouted. The tunnels lead straight to the pumping station, and the water in them is rising.",
+  map:[
+    "############################################",
+    "#..........R.#.......... ...#..............#",
+    "#............#.......... .R.#...b<<<<<<<C..#",
+    "#............#.C........ ...#..............#",
+    "#.P..........AK......... ...#..............#",
+    "#............#.......... ...#..............#",
+    "#........a...#..>>>>>>>> .....K............#",
+    "#............#.......... ...#..............#",
+    "#............#.......... ...#.............R#",
+    "####################################B#######",
+    "#............#..............#....T.........#",
+    "#.R..........#..............#........K.....#",
+    "#............D.<<<<<<<<<<.c.#..............#",
+    "#..........K.#..............#..............#",
+    "#............#..............E..............#",
+    "#..X.........#..........S...#..v...........#",
+    "#............#.R............#..v...........#",
+    "#............#..............#     .........#",
+    "############################################"
+  ],
+  key:{ a:{t:'plate',g:1,hold:2}, A:{t:'door',g:1}, b:{t:'plate',g:2,hold:1.2}, B:{t:'door',g:2}, E:{t:'door',g:'term0'}, c:{t:'plate',g:3,hold:2.5}, D:{t:'door',g:3} },
+  terms:[{time:15,waves:[[0.1,'skitter','skitter'],[0.4,'leech','hunter'],[0.7,'skitter','skitter','leech']]}],
+  hints:[
+    [4,4,  "Timed plates: the door stays open for a moment after you step off. Run for it."],
+    [17,4, "Conveyor belts carry crates, and you. Push the crate onto the belt."],
+    [34,5, "This plate is too far from its door to run it. Let the belt deliver the crate onto it."],
+    [34,12,"Reroute the junction. Mind the belt into the pit."],
+    [24,13,"Timed door again, and it's a long way. Ride the belt to make it."],
+    [8,14, "The exit is just ahead."]
+  ]
+},
+// ------------------------------------------------------------------ 13
+{
+  act:3, name:'Pumping Station', place:'Valley pumping station · 00:40', theme:'pump', W:124, H:72,
+  flood:{row:73,trigger:4,speed:12,max:14},
+  brief:"They've jammed the station's pumps open and the whole shaft is flooding. The control terminal is at the very top. Climb, and don't stop. Some of the old walkways give way under you.",
+  outro:"Pumps reversed. The water's going down, and far below something huge has started to move.",
+  build(B){
+    const g=68;
+    B.rock(1,40,g,71);
+    // stack 1 up to deck 1 (row 49)
+    B.girder(14,20,63); B.girder(18,24,58); B.girder(12,20,53);
+    B.girder(18,34,49); B.crumble(35,40,49); B.girder(41,56,49);
+    // stack 2 up to deck 2 (row 30)
+    B.girder(52,58,44); B.crumble(56,62,39); B.girder(50,58,34);
+    B.girder(56,69,30); B.crumble(70,75,30); B.girder(76,94,30);
+    // stack 3 up to the control deck (row 11)
+    B.crumble(90,96,25); B.girder(94,100,20); B.crumble(88,96,15);
+    B.girder(94,121,11);
+    B.start(3,67); B.check(20,48); B.check(58,29); B.check(97,10);
+    [[10,67],[22,57],[38,47],[60,38],[73,28],[92,24],[98,19],[112,10]].forEach(r=>B.relay(...r));
+    B.drone(25,33,48); B.enemy('seeker',46,40); B.enemy('skitter',84,29); B.enemy('spitter',78,29); B.enemy('seeker',92,17);
+    B.terminal(106,10,{time:15,waves:[[0.1,'hunter','hunter'],[0.35,'leech','seeker'],[0.6,'skitter','skitter','leech'],[0.85,'seeker','seeker']]});
+    B.goal(118,10);
+    B.prop('crates',{x:28,row:67}); B.prop('tank',{x:36,row:67}); B.prop('vent',{x:8,row:67});
+    B.prop('tower',{x0:11.4,x1:25.6,top:49,row:67}); B.prop('tower',{x0:49.4,x1:63.6,top:30,row:48}); B.prop('tower',{x0:87.4,x1:101.6,top:11,row:29});
+    B.prop('antenna',{x:120,row:10});
+  },
+  hints:[
+    [0,  "Pumping Station. The water is coming up behind you. Climb!"],
+    [30, "Cracked walkway ahead: it gives way a moment after you land on it. Keep moving."],
+    [50, "Up the next stack. Some of these girders crumble too, so fire up again straight away."],
+    [86, "Last climb. The control terminal is above the water line."]
+  ]
+},
+// ------------------------------------------------------------------ 14 (top-down)
+{
+  act:3, mode:'top', name:'The Burrow', place:'Beneath the station · 02:20', theme:'burrow',
+  brief:"Whatever flooded the station came up from here: a burrow full of them, and no lights. Your headlamp is all you've got. Reroute the deep relay, then deal with what's guarding the way out.",
+  outro:"",
+  map:[
+    "########################################",
+    "#..........R.#..         ..#############",
+    "#.......S....#..         R.#############",
+    "#............#..         ..#############",
+    "#.P..........#..    .o   ..#############",
+    "#...............         ..#############",
+    "#............#K.         ..#############",
+    "#........S...#..    .    .o#############",
+    "#............#..    o    ..#############",
+    "#########################.##############",
+    "#............#......T......#############",
+    "#..R.........#..........K..#############",
+    "#.........K..#.............#############",
+    "#............#.............#############",
+    "#............E.............#############",
+    "#.Z..........#.............#############",
+    "#............#.R...........#############",
+    "#............#.............#############",
+    "######.#################################",
+    "#..........................#...........#",
+    "#.....K......C.............#.........R.#",
+    "#........................R.#...........#",
+    "#.......C...M..............#...........#",
+    "#................C.........#.......X...#",
+    "#..........................#...........#",
+    "#...C......................#...........#",
+    "#...........C........C.....F...........#",
+    "#.R........................#...........#",
+    "#..........................#...........#",
+    "########################################"
+  ],
+  key:{ E:{t:'door',g:'term0'}, F:{t:'door',g:'boss'} },
+  terms:[{time:15,waves:[[0.1,'skitter','skitter'],[0.4,'leech','seeker'],[0.7,'skitter','skitter','leech']]}],
+  hints:[
+    [3,4,  "No lights down here. Keep your headlamp pointed where you're going: the glowing eyes are skitters."],
+    [15,5, "Pull yourself across the chasm, post to post."],
+    [22,12,"Reroute the deep relay. It unlocks the door west."],
+    [6,21, "The Brood Mother. Punches bounce off her armour, so push crates into her. Three hits."],
+    [30,24,"She's down. Get out."]
+  ]
+},
+// ------------------------------------------------------------------ 15 (boss)
+{
+  act:3, name:'Ship Anchor', place:'Carrow gorge · 04:05', theme:'gorge', W:70, H:40,
+  brief:"The ship has dropped a tether into Carrow gorge, a living cable pumping energy up into it. Cut the four clamps holding it down. It will fight back: when a red band lights up across the gorge, get out of it.",
+  outro:"",
+  actEnd:{title:'TETHER CUT',text:"The tether whipped back into the clouds and the ship lurched away from the coast, trailing sparks. For the first time, it's running. End of Act 3. Act 4 is coming."},
+  build(B){
+    B.rock(1,68,36,39);
+    B.steel(10,60,3,4);                              // a high ceiling to swing from
+    // girder decks either side of the tether, one per clamp
+    B.girder(22,31,29); B.girder(39,48,29);
+    B.girder(22,31,22); B.girder(39,48,22);
+    B.girder(22,31,15); B.girder(39,48,15);
+    // side perches to dodge onto
+    B.girder(6,13,32); B.girder(57,64,32); B.girder(6,13,25); B.girder(57,64,25); B.girder(6,13,18); B.girder(57,64,18);
+    B.anchor(35,[35,28,21,14]);
+    B.start(4,35); B.check(64,35);
+    [[10,31],[60,31],[10,24],[60,24],[27,14],[43,14]].forEach(r=>B.relay(...r));
+    B.prop('sign',{x:3,row:35}); B.prop('crates',{x:14,row:35}); B.prop('drum',{x:52,row:35}); B.prop('cone',{x:66,row:35});
+  },
+  hints:[
+    [0,  "Ship Anchor. Punch the clamps off the tether (▼ + GRAB) from the girders at the same height. Don't touch the tether."],
+    [20, "When a red band lights up, get above or below it before it fires."]
+  ]
 }
 ];
 
 window.RR_LEVELS = LEVELS;
-window.RR_ACTS = ['Lights Out','Interference','Act 3','Act 4'];
+window.RR_ACTS = ['Lights Out','Interference','Undertow','Act 4'];
 })();

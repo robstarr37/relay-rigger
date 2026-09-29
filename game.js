@@ -93,6 +93,12 @@ const Snd=(()=>{
     latch(){tone(900,300,0.25,'sine',0.08); noise(0.1,0.06,3000,4);},
     beam(){tone(120,480,0.4,'sine',0.06); noise(0.4,0.05,2000,6,'bandpass',0,6000);},
     thunder(d){noise(1.8,0.3,260,0.8,'lowpass',d,50);},
+    creak(){tone(160,120,0.35,'sawtooth',0.05); noise(0.3,0.06,700,4);},
+    crumble(){noise(0.45,0.3,500,0.8,'lowpass',0,90); tone(110,50,0.4,'square',0.07);},
+    splash(){noise(0.5,0.25,1200,0.8,'lowpass',0,200);},
+    zap(){noise(0.35,0.3,3000,1,'bandpass',0,600); tone(900,120,0.35,'sawtooth',0.12);},
+    rumble(){noise(1.2,0.12,120,0.8,'lowpass',0,60);},
+    tick(){tone(1400,1400,0.02,'square',0.03);},
     scrape(){noise(0.14,0.08,600,1.5,'bandpass',0,300);},
     clunk(){noise(0.12,0.2,300,1,'lowpass'); tone(140,90,0.12,'square',0.08);},
     lever(){tone(500,900,0.08,'square',0.06); noise(0.06,0.1,2500,3);}
@@ -122,6 +128,13 @@ const THEMES={
     rain:true,aurora:0.25,ship:0,moon:false,pit:'water',rock:['#2c3236','#262b2f','#202428','#1a1d21'],grit:['#4c5a60','#6e7e84','#343e44'],grass:true},
   yard:{sky:['#0c0a1c','#3a2438','#8a4a3a'],mtn:'#2a1c2e',mtnHi:'#44304a',snow:'#5a4058',far:'city',near:'buildings',hill:'#150f1c',hillHi:'#2a1d30',tree:'#100b16',
     rain:false,aurora:0,ship:1,moon:true,pit:'dark',rock:['#3a3030','#332a2a','#2a2222','#221b1b'],grit:['#6a5a52','#8e7a6e','#463a36'],grass:false},
+  pit:{sky:['#0a0612','#1e1226','#3a2230'],mtn:'#1c1422',mtnHi:'#2e2236',snow:'#3e2e44',far:'towers',near:'pines',hill:'#120c16',hillHi:'#241a2a',tree:'#0e0912',
+    rain:false,aurora:0,ship:0,moon:false,pit:'dark',rock:['#3a2e28','#33281f','#2a211a','#221a14'],grit:['#6a5642','#8e7458','#46382a'],grass:false},
+  pump:{sky:['#030a14','#0a1a2a','#16303a'],mtn:'#0e1c26',mtnHi:'#1a3040',snow:'#2a4858',far:'city',near:'buildings',hill:'#08121a',hillHi:'#142632',tree:'#060e14',
+    rain:true,aurora:0,ship:1,moon:false,pit:'water',rock:['#2c3236','#262b2f','#202428','#1a1d21'],grit:['#4c5a60','#6e7e84','#343e44'],grass:false},
+  gorge:{sky:['#02060e','#0c1a22','#2a4a3a'],mtn:'#0c1a1c',mtnHi:'#18302e',snow:'#2a4a44',far:'towers',near:'pines',hill:'#07100f',hillHi:'#10221e',tree:'#050c0b',
+    rain:false,aurora:1,ship:2,moon:false,pit:'dark',rock:['#1e2826','#1a2220','#161c1a','#121614'],grit:['#3e4e48','#5a6e66','#2a3430'],grass:true},
+  burrow:{top:true,floor:['#1e1428','#22162e','#1a1024'],wallTop:'#3e2250',wallHi:'#5e3478',wallFace:'#180c20',accent:'#7dff6a',goo:true,dark:0.9},
   station:{top:true,floor:['#232845','#262c4c','#1f2440'],wallTop:'#3e4677',wallHi:'#5b66a0',wallFace:'#1b2044',accent:'#ffc23d',goo:false},
   hive:{top:true,floor:['#22172e','#261a34','#1d1328'],wallTop:'#4a2a5a',wallHi:'#6e3f82',wallFace:'#1e1026',accent:'#7dff6a',goo:true}
 };
@@ -134,7 +147,7 @@ function buildLevelData(def){
   W=def.W; H=def.H; LW=W*T; LH=H*T;
   map=Array.from({length:H},()=>new Array(W).fill(0));
   rockMap=Array.from({length:H},()=>new Uint8Array(W));
-  const d={start:[2,H-5],checks:[],relays:[],enemies:[],terms:[],goal:null,props:[],plats:[]};
+  const d={start:[2,H-5],checks:[],relays:[],enemies:[],terms:[],goal:null,props:[],plats:[],crumbles:[],anchor:null};
   const set=(x0,x1,y0,y1,v,rock)=>{ for(let y=Math.max(0,y0);y<=Math.min(H-1,y1);y++) for(let x=Math.max(0,x0);x<=Math.min(W-1,x1);x++){ map[y][x]=v; rockMap[y][x]=rock; } };
   const B={W,H,
     steel:(x0,x1,y0,y1)=>set(x0,x1,y0,y1,1,0), rock:(x0,x1,y0,y1)=>set(x0,x1,y0,y1,1,1),
@@ -146,11 +159,16 @@ function buildLevelData(def){
     goal:(x,y)=>{d.goal={tx:x,ty:y};},
     prop:(t,o)=>d.props.push(Object.assign({t},o)),
     // moving platform: w tiles wide; its top surface travels between (x0,y0) and (x1,y1)
+    // girders that give way ~0.7 s after you land on them, and grow back later
+    crumble:(x0,x1,y)=>{ set(x0,x1,y,y,2,0); for(let x=x0;x<=x1;x++) d.crumbles.push([x,y]); },
+    // boss: a tether at column x with a clamp at each of the given rows
+    anchor:(x,rows)=>{ d.anchor={tx:x,rows}; for(const r of rows) d.enemies.push({type:'clamp',x:x*T+8,y:r*T+8}); },
     platform:(x0,y0,x1,y1,w,o={})=>d.plats.push({x0:x0*T,y0:y0*T,x1:x1*T,y1:y1*T,w:w*T,speed:o.speed||40,phase:o.phase||0,pause:o.pause??0.9})
   };
   def.build(B);
   set(0,0,0,H-1,1,0); set(W-1,W-1,0,H-1,1,0);
   sparkTiles=[]; for(let y=0;y<H;y++) for(let x=0;x<W;x++) if(map[y][x]===3) sparkTiles.push([x,y]);
+  if(d.anchor&&!d.goal) d.goal={tx:d.anchor.tx,ty:Math.min(...d.anchor.rows)};
   if(!d.goal) d.goal={tx:W-6,ty:d.start[1]};
   return d;
 }
@@ -164,6 +182,7 @@ function loadLevel(i){
 }
 
 // ---------- state ----------
+let crumbles=[], water=null, anchor=null;
 let p, hook, rope, enemies, shots, relays, checks, terms, goal, parts, plats=[], cam={x:0,y:0}, state='title', clock=0, falls=0, got=0, cp=0, tnow=0;
 let bolt=0, nextBolt=6, shake=0, hitstop=0, flash=0, winT=0, fwT=0, reelAcc=0, stepPh=0, crackleT=0, lockMsgT=-9, allDoneT=-99;
 const DIRS=['left','right','up','down','grab'];
@@ -171,7 +190,8 @@ const K={}, TT={}, GP={}, I={}; DIRS.forEach(k=>{K[k]=TT[k]=GP[k]=I[k]=false;});
 let prevGrab=false;
 
 // enemy stats: hp, half-width, half-height (world units)
-const EN={drone:{hp:1,bx:7,by:5},hunter:{hp:1,bx:7,by:5},seeker:{hp:1,bx:7,by:6},skitter:{hp:2,bx:9,by:6},spitter:{hp:2,bx:8,by:8},leech:{hp:1,bx:6,by:6}};
+const EN={drone:{hp:1,bx:7,by:5},hunter:{hp:1,bx:7,by:5},seeker:{hp:1,bx:7,by:6},skitter:{hp:2,bx:9,by:6},spitter:{hp:2,bx:8,by:8},leech:{hp:1,bx:6,by:6},
+  brood:{hp:3,bx:15,by:13},clamp:{hp:4,bx:10,by:9}};
 const FLYERS={hunter:1,seeker:1,leech:1};
 function makeEnemy(type,x,y,o={}){
   const e={type,x,y,vx:0,vy:0,hp:EN[type].hp,alive:true,ph:Math.random()*6,dir:1,t:1+Math.random()*2,flash:0,stun:0,dash:0,ground:false,
@@ -201,6 +221,9 @@ function reset(){
   shots=[];
   relays=LD.relays.map(([x,y])=>({x:x*T+8,y:y*T+8,got:false,ph:Math.random()*6}));
   terms=LD.terms.map(makeTerm);
+  crumbles=LD.crumbles.map(([x,y])=>{ map[y][x]=2; return {x,y,t:-1,gone:false,back:0}; });
+  water=LDEF.flood?{y:LDEF.flood.row*T,active:false,wait:0,rumble:0}:null;
+  anchor=LD.anchor?{x:LD.anchor.tx*T+8,pt:3,st:5,band:null,dead:false,snap:0}:null;
   plats=LD.plats.map(q=>{ const o=Object.assign({},q,{x:q.x0,y:q.y0,dx:0,dy:0,hold:0,t:q.phase,len:Math.max(1,Math.hypot(q.x1-q.x0,q.y1-q.y0))}); placePlat(o); o.dx=o.dy=0; return o; });
   goal={x:LD.goal.tx*T+8,y:(LD.goal.ty+1)*T,tx:LD.goal.tx,top:Math.max(3,(LD.goal.ty+1)*T-110)};
   parts=[]; clock=0; falls=0; got=0; shake=0; hitstop=0; flash=0; lockMsgT=-9; allDoneT=-99;
@@ -260,10 +283,23 @@ function hurt(fall,srcX,srcY){
   if(fall || p.hp<=0){ if(p.hp<=0){p.hp=3;} falls++; respawn(); }
   else { const d=srcX!=null?(Math.sign(p.x+6-srcX)||-p.face):-p.face; p.vx=d*140; p.vy=-180; p.onGround=false; }
 }
-function respawn(){const c=checks[cp]; if(MODE==='top'){ p.x=c.tx*T+2; p.y=c.ty*T+2; p.fall=0; p.vx=p.vy=0; hook.state='idle'; p.inv=1.3; sparks(c.x,c.y-10,'#ffc23d',10,90); return; } p.x=c.x-6; p.y=c.y-p.h; p.vx=p.vy=0; hook.state='idle'; p.inv=1.3; sparks(c.x,c.y-10,'#ffc23d',10,90);}
+// never respawn into a crowd: wave/brood spawns near the checkpoint vanish, placed enemies get shoved back
+function clearRespawn(){
+  const cx0=p.x+6, cy0=p.y+p.h/2;
+  for(const e of enemies){ if(!e.alive||e.type==='brood'||e.type==='clamp') continue; const d=Math.hypot(e.x-cx0,e.y-cy0);
+    if(d<56){ if(e.wave||e.kid) killEnemy(e,true); else { const a=Math.atan2(e.y-cy0,e.x-cx0); e.stun=1.5; e.vx=Math.cos(a)*170; e.vy=MODE==='top'?Math.sin(a)*170:-120; e.ground=false; } } }
+  shots=shots.filter(q=>Math.hypot(q.x-cx0,q.y-cy0)>80);
+}
+function respawn(){ placeAtCheckpoint(); clearRespawn(); }
+function placeAtCheckpoint(){const c=checks[cp];
+  for(const q of crumbles) if(q.gone){ q.gone=false; q.t=-1; map[q.y][q.x]=2; }
+  if(water){ water.y=Math.max(water.y,c.y+6*T); water.wait=2.5; }
+  if(MODE==='top'){ p.x=c.tx*T+2; p.y=c.ty*T+2; p.fall=0; p.vx=p.vy=0; hook.state='idle'; p.inv=1.3; sparks(c.x,c.y-10,'#ffc23d',10,90); return; } p.x=c.x-6; p.y=c.y-p.h; p.vx=p.vy=0; hook.state='idle'; p.inv=1.3; sparks(c.x,c.y-10,'#ffc23d',10,90);}
 
-const ALIEN={seeker:1,skitter:1,spitter:1,leech:1};
+const ALIEN={seeker:1,skitter:1,spitter:1,leech:1,brood:1};
 function hitEnemy(e){
+  if(e.type==='brood'){ e.flash=0.1; sparks(e.x,e.y-6,'#c9c6d8',8,120); sfx.thud(); shake=Math.max(shake,1);
+    if(tnow-(e.clangT||-9)>2){ e.clangT=tnow; popup(e.x,e.y-30,'ARMOURED: USE A CRATE','#ffc23d'); } return; }
   e.hp--; e.flash=0.15;
   if(e.hp<=0){ killEnemy(e); return; }
   const d=Math.sign(e.x-(p.x+6))||1; e.stun=0.5;
@@ -287,7 +323,9 @@ function killEnemy(e,quiet){
   }
   ring(e.x,e.y,alien?'#b6ff5a':'#ffc23d',28,0.35);
   shake=Math.max(shake,3.5); hitstop=0.07; buzz(30);
-  popup(e.x,e.y-10,{drone:'SCRAPPED',hunter:'SCRAPPED',seeker:'SCRAPPED',skitter:'SQUASHED',spitter:'POPPED',leech:'PRIED OFF'}[e.type],alien?'#b6ff5a':'#ffc23d');
+  if(e.type==='brood'){ for(let i=0;i<4;i++){ burst(e.x+(Math.random()-0.5)*30,e.y+(Math.random()-0.5)*20,'#b6ff5a',16,160); ring(e.x,e.y,'#b6ff5a',60+i*20,0.6+i*0.15); } shake=8; hitstop=0.2; sfx.crumble(); }
+  if(e.type==='clamp'){ debris(e.x,e.y,['#3e426b','#5b66a0','#ff4150'],12); sfx.zap(); }
+  popup(e.x,e.y-10,{drone:'SCRAPPED',hunter:'SCRAPPED',seeker:'SCRAPPED',skitter:'SQUASHED',spitter:'POPPED',leech:'PRIED OFF',brood:'BROOD MOTHER DOWN',clamp:'CLAMP CUT'}[e.type],alien?'#b6ff5a':'#ffc23d');
 }
 
 function step(dt){
@@ -397,6 +435,18 @@ function updateEnemies(dt,harm){
       if(e.stun>0){}
       else if(e.charge>0){ e.charge-=dt; if(e.charge<=0){ const a=Math.atan2(dy,dx), s=105; shots.push({x:e.x+Math.cos(a)*8,y:e.y+Math.sin(a)*8,vx:Math.cos(a)*s,vy:Math.sin(a)*s,life:3.2}); sfx.spit(); e.cool=2.4; } }
       else { e.cool-=dt; if(e.cool<=0&&harm&&d<200&&(MODE!=='top'||losTop(e.x,e.y,pcx,pcy))){ e.charge=0.75; sfx.charge(); } }
+    } else if(e.type==='brood'){
+      e.dir=pcx>e.x?1:-1;
+      if(e.stun<=0&&harm){
+        e.t-=dt; e.cool-=dt;
+        if(e.t<=0){ e.t=6.5; const kids=enemies.filter(q=>q.alive&&q.kid).length;
+          if(kids<2){ const c=[]; for(let y=-5;y<=5;y++) for(let x=-5;x<=5;x++){ const tx=Math.floor(e.x/T)+x, ty=Math.floor(e.y/T)+y, dd=Math.hypot(x,y); if(dd<2.5||dd>5||wallT(tx,ty)||pitT(tx,ty)||crateAt(tx,ty)) continue; if(!losTop(e.x,e.y,tx*T+8,ty*T+8)) continue; c.push([tx,ty]); }
+            if(c.length){ const at=c[(Math.random()*c.length)|0], k=makeEnemy('skitter',at[0]*T+8,at[1]*T+8,{wave:true}); k.kid=true; enemies.push(k); beam(k.x,k.y); sfx.beam(); } } }
+        if(e.cool<=0&&Math.hypot(pcx-e.x,pcy-e.y)<230&&losTop(e.x,e.y,pcx,pcy)){ e.cool=4; const a0=Math.atan2(pcy-e.y,pcx-e.x);
+          for(const da of [-0.3,0,0.3]) shots.push({x:e.x+Math.cos(a0+da)*16,y:e.y+Math.sin(a0+da)*16,vx:Math.cos(a0+da)*80,vy:Math.sin(a0+da)*80,life:3.5}); sfx.spit(); }
+      }
+    } else if(e.type==='clamp'){
+      e.dir=pcx>e.x?1:-1;
     } else if(e.type==='leech'){
       const tm=e.term;
       if(!tm||tm.state==='done'){ killEnemy(e,true); continue; }
@@ -406,7 +456,7 @@ function updateEnemies(dt,harm){
         else { const s=Math.min(d/dt,52); e.x+=dx/d*s*dt; e.y+=dy/d*s*dt+Math.sin(e.ph*5)*16*dt; } }
     }
     // contact damage (leeches only sabotage)
-    if(harm&&e.alive&&e.type!=='leech'){
+    if(harm&&e.alive&&e.type!=='leech'&&e.type!=='clamp'){
       const ey=(e.type==='drone'||e.type==='hunter')?e.y+Math.sin(e.ph*3)*2:e.y;
       if(p.x<e.x+b.bx&&p.x+p.w>e.x-b.bx&&p.y<ey+b.by&&p.y+p.h>ey-b.by) hurt(false,e.x,ey);
     }
@@ -505,6 +555,17 @@ function update(dt){
   const wasGround=p.onGround; p.landV=0;
   const n=4; for(let i=0;i<n;i++) step(dt/n);
   if(p.onGround&&!wasGround&&p.landV>200){ dust(p.x+6,p.y+p.h,Math.min(10,p.landV/60|0)); sfx.land(p.landV); if(p.landV>420) shake=Math.max(shake,1.5); }
+  // long drops hurt on levels with fall damage (drops of more than ~10 tiles)
+  if(p.onGround&&!wasGround&&LDEF.fallDamage&&p.landV>500&&p.inv<=0){ popup(p.x+6,p.y-8,'HARD LANDING','#ff6a2c'); hurt(false,p.x+6); p.vx=0; p.vy=0; }
+  updateCrumbles(dt);
+  if(water){
+    if(!water.active&&p.x>=LDEF.flood.trigger*T){ water.active=true; popup(p.x+6,p.y-20,'WATER RISING!','#5ae0e8'); sfx.alarm(); }
+    if(water.active){ if(water.wait>0) water.wait-=dt; else water.y=Math.max(LDEF.flood.max*T,water.y-LDEF.flood.speed*dt);
+      water.rumble-=dt; if(water.rumble<=0){ water.rumble=2.5; if(water.y>LDEF.flood.max*T+4) sfx.rumble(); } }
+    if(p.y+p.h>water.y+10){ sfx.splash(); burst(p.x+6,water.y,'#7fd0e8',14,90); hurt(true); }
+    for(const e of enemies) if(e.alive&&e.type==='skitter'&&e.y>water.y+4) killEnemy(e,true);
+  }
+  if(anchor) updateAnchor(dt);
   if(Math.abs(p.vx)>1&&p.onGround){ p.walk+=dt*10; if(Math.floor(p.walk/Math.PI)!==stepPh){ stepPh=Math.floor(p.walk/Math.PI); sfx.step(); if(Math.random()<0.5) dust(p.x+6-p.face*4,p.y+p.h,1,-p.face); } }
   if(reelAcc>5){ reelAcc=0; sfx.reel(); }
 
@@ -524,7 +585,7 @@ function update(dt){
   // void
   if(p.y>LH+40) hurt(true);
   // goal (locked until every terminal is rerouted)
-  if(p.x+p.w>(goal.tx-1)*T&&Math.abs(p.y+p.h-goal.y)<24){
+  if(!anchor&&p.x+p.w>(goal.tx-1)*T&&Math.abs(p.y+p.h-goal.y)<24){
     if(terms.every(t=>t.state==='done')) win();
     else if(tnow-lockMsgT>2.5){ lockMsgT=tnow; popup(goal.x,goal.y-60,'UPLINK OFFLINE','#ff4150'); sfx.deny(); }
   }
@@ -534,6 +595,39 @@ function update(dt){
   // camera
   const tx=p.x+6-VW/2+p.face*28, ty=p.y+10-VH/2+8, k=1-Math.exp(-dt*6);
   cam.x+=(tx-cam.x)*k; cam.y+=(ty-cam.y)*k; clampCam();
+}
+const CRUMBLE_T=0.7;
+function updateCrumbles(dt){
+  for(const c of crumbles){
+    if(c.gone){ c.back-=dt;
+      if(c.back<=0&&!(p.x+p.w>c.x*T&&p.x<(c.x+1)*T&&p.y+p.h>c.y*T&&p.y<(c.y+1)*T)){ c.gone=false; c.t=-1; map[c.y][c.x]=2; sparks(c.x*T+8,c.y*T+3,'#b09c82',3,50); }
+      continue; }
+    if(c.t<0){
+      const stand=p.onGround&&!p.plat&&Math.floor((p.y+p.h+1)/T)===c.y&&p.x+p.w>c.x*T+1&&p.x<(c.x+1)*T-1;
+      if(stand){ c.t=CRUMBLE_T; sfx.creak(); }
+    } else { c.t-=dt;
+      if(c.t<=0){ c.gone=true; c.back=4.5; map[c.y][c.x]=0; debris(c.x*T+8,c.y*T+4,['#8a7a66','#5a4c3c','#b09c82'],6); dust(c.x*T+8,c.y*T+4,3); sfx.crumble();
+        if(hook.state==='att'&&!hook.plat&&hook.tx===c.x&&hook.ty===c.y) hook.state='back'; } }
+  }
+}
+// the ship's anchor tether: fires telegraphed energy bands at the player's height and sends seekers until every clamp is cut
+function updateAnchor(dt){
+  const a=anchor, clamps=enemies.filter(e=>e.alive&&e.type==='clamp');
+  if(!clamps.length){ if(!a.dead){ a.dead=true; a.band=null; shake=8; flash=0.4; sfx.crumble(); sfx.zap();
+      for(let y=-SKY;y<LH;y+=24){ sparks(a.x,y,'#7dff6a',4,200); burst(a.x,y,'#b6ff5a',3,120); }
+      for(const e of enemies) if(e.alive&&e.type==='seeker') killEnemy(e,true);
+      popup(a.x,p.y-30,'TETHER SNAPPED','#b6ff5a'); win(); }
+    return; }
+  const lvl=LD.anchor.rows.length-clamps.length, pcy=p.y+p.h/2;
+  a.pt-=dt;
+  if(a.pt<=0&&!a.band){ a.band={y:clamp(pcy,0,LH),tel:Math.max(0.75,1.15-0.12*lvl),on:0}; a.pt=Math.max(2.4,4.2-0.6*lvl); sfx.charge(); }
+  if(a.band){ const b=a.band;
+    if(b.tel>0){ b.tel-=dt; if(b.tel<=0){ b.on=0.35; sfx.zap(); shake=Math.max(shake,2.5); } }
+    else { b.on-=dt; if(Math.abs(pcy-b.y)<22) hurt(false,a.x); if(b.on<=0) a.band=null; } }
+  a.st-=dt;
+  if(a.st<=0){ a.st=Math.max(4,8-lvl); if(enemies.filter(e=>e.alive&&e.type==='seeker').length<1+Math.ceil(lvl/2)){
+      const e=makeEnemy('seeker',a.x+(Math.random()<0.5?-1:1)*(VW/2+20),p.y-40,{wave:true}); enemies.push(e); } }
+  if(Math.abs(p.x+6-a.x)<12) hurt(false,a.x);
 }
 function clampCam(){
   if(MODE==='top'){ cam.x=LW<=VW?(LW-VW)/2:clamp(cam.x,0,LW-VW); cam.y=LH<=VH?(LH-VH)/2:clamp(cam.y,0,LH-VH); return; }
@@ -550,17 +644,18 @@ function updateParts(dt){
 const RANGE_TOP=120, WALK_TOP=74;
 const DV={left:[-1,0],right:[1,0],up:[0,-1],down:[0,1]};
 const GCOLS=['#ffc23d','#5ae0e8','#ff6a2c','#b6ff5a','#e878ff','#ff4150','#8fd0ff','#ffffff'];
-let crates=[], levers=[], filled=new Set(), gstate={}, gcol={}, tdLook=null, snap=null, topHint=null;
+let crates=[], levers=[], filled=new Set(), gstate={}, gcol={}, gLast={}, gHold={}, tdLook=null, snap=null, topHint=null;
+const CONV=46;
 const tk=(x,y)=>y*W+x;
 function buildTopData(def){
   const rows=def.map; H=rows.length; W=Math.max(...rows.map(r=>r.length)); LW=W*T; LH=H*T;
   map=Array.from({length:H},()=>new Array(W).fill(1)); rockMap=[]; sparkTiles=[];
-  const d={top:true,start:[1,1],checks:[],relays:[],enemies:[],terms:[],goal:null,props:[],plats:[],crates:[],posts:[],plates:[],doors:[],levers:[],bridges:[]};
+  const d={top:true,start:[1,1],checks:[],relays:[],enemies:[],terms:[],goal:null,props:[],plats:[],crates:[],posts:[],plates:[],doors:[],levers:[],bridges:[],conv:[],crumbles:[],anchor:null};
   let ti=0;
   for(let y=0;y<H;y++) for(let x=0;x<W;x++){
     const ch=rows[y][x]||'#', k=def.key&&def.key[ch];
     let v=0;
-    if(k){ const o={tx:x,ty:y,g:String(k.g)};
+    if(k){ const o={tx:x,ty:y,g:String(k.g),hold:k.hold||0};
       if(k.t==='bridge'){ v=4; d.bridges.push(o); } else if(k.t==='plate') d.plates.push(o); else if(k.t==='door') d.doors.push(o); else if(k.t==='lever') d.levers.push(o); }
     else switch(ch){
       case '#': v=1; break;
@@ -576,6 +671,11 @@ function buildTopData(def){
       case 'Z': d.enemies.push({type:'spitter',x:x*T+8,y:y*T+8}); break;
       case 'Q': d.enemies.push({type:'seeker',x:x*T+8,y:y*T+8}); break;
       case 'H': d.enemies.push({type:'hunter',x:x*T+8,y:y*T+8}); break;
+      case 'M': d.enemies.push({type:'brood',x:x*T+16,y:y*T+16}); break;
+      case '>': d.conv.push([x,y,1,0]); break;
+      case '<': d.conv.push([x,y,-1,0]); break;
+      case '^': d.conv.push([x,y,0,-1]); break;
+      case 'v': d.conv.push([x,y,0,1]); break;
     }
     map[y][x]=v;
   }
@@ -588,14 +688,15 @@ function resetTop(){
   const s=LD.start;
   checks=[s,...LD.checks].map(([x,y],i)=>({x:x*T+8,y:(y+1)*T-3,tx:x,ty:y,on:i===0,raise:i===0?1:0}));
   p={x:s[0]*T+2,y:s[1]*T+2,w:12,h:12,vx:0,vy:0,face:'down',onGround:true,hp:3,inv:0,walk:0,landV:0,fall:0,pushT:0,plat:null,moving:false};
-  hook={state:'idle',x:0,y:0,dx:0,dy:0,len:0}; rope=0; plats=[];
+  hook={state:'idle',x:0,y:0,dx:0,dy:0,len:0}; rope=0; plats=[]; crumbles=[]; water=null; anchor=null;
   enemies=LD.enemies.map(e=>makeEnemy(e.type,e.x,e.y,e)); shots=[];
   relays=LD.relays.map(([x,y])=>({x:x*T+8,y:y*T+8,got:false,ph:Math.random()*6}));
   terms=LD.terms.map(t=>Object.assign(makeTerm(t),{top:true}));
   crates=LD.crates.map(([x,y])=>({tx:x,ty:y,x:x*T+8,y:y*T+8,mv:null,dead:false}));
   levers=LD.levers.map(l=>Object.assign({on:false},l));
   filled=new Set();
-  tdLook={door:new Map(),bridge:new Map(),plate:new Map(),lever:new Map(),post:new Set(),term:new Set()};
+  tdLook={door:new Map(),bridge:new Map(),plate:new Map(),lever:new Map(),post:new Set(),term:new Set(),conv:new Map()};
+  LD.conv.forEach(([x,y,dx,dy])=>tdLook.conv.set(tk(x,y),[dx,dy])); gLast={}; gHold={};
   LD.doors.forEach(o=>tdLook.door.set(tk(o.tx,o.ty),o)); LD.bridges.forEach(o=>tdLook.bridge.set(tk(o.tx,o.ty),o));
   LD.plates.forEach(o=>tdLook.plate.set(tk(o.tx,o.ty),o)); levers.forEach(o=>tdLook.lever.set(tk(o.tx,o.ty),o));
   LD.posts.forEach(([x,y])=>tdLook.post.add(tk(x,y))); LD.terms.forEach(t=>tdLook.term.add(tk(t.tx,t.ty)));
@@ -619,6 +720,7 @@ function plateDown(o){
   return p.fall<=0&&Math.floor((p.x+6)/T)===o.tx&&Math.floor((p.y+6)/T)===o.ty;
 }
 function groupOn(g){
+  if(g==='boss') return !enemies.some(e=>e.alive&&e.type==='brood');
   if(g.startsWith('term')){ const t=terms[+g.slice(4)]; return !!t&&t.state==='done'; }
   if(levers.some(l=>l.g===g&&l.on)) return true;
   const pl=LD.plates.filter(o=>o.g===g); return pl.length>0&&pl.every(plateDown);
@@ -626,7 +728,14 @@ function groupOn(g){
 function updateGroups(silent){
   const seen=new Set();
   for(const o of [...LD.doors,...LD.bridges,...LD.plates,...levers]){ const g=o.g; if(seen.has(g)) continue; seen.add(g);
-    const on=groupOn(g);
+    let on=groupOn(g);
+    // timed plates keep their group on for a few seconds after they are released
+    const hold=Math.max(0,...LD.plates.filter(q=>q.g===g).map(q=>q.hold||0));
+    gHold[g]=0;
+    if(on) gLast[g]=tnow;
+    else if(hold&&gLast[g]!=null&&tnow-gLast[g]<hold){ on=true; const left=hold-(tnow-gLast[g]); if(Math.floor(left*2)!==Math.floor((gHold['_'+g]||99)*2)) sfx.tick(); gHold['_'+g]=left; gHold[g]=left/hold; }
+    // doors never shut on the worker or a crate standing in them
+    if(!on&&gstate[g]) for(const d of LD.doors) if(d.g===g&&(crateAt(d.tx,d.ty)||(p.x+p.w>d.tx*T&&p.x<(d.tx+1)*T&&p.y+p.h>d.ty*T&&p.y<(d.ty+1)*T))){ on=true; break; }
     if(!silent&&gstate[g]!==undefined&&gstate[g]!==on){
       const dr=LD.doors.find(q=>q.g===g), br=LD.bridges.find(q=>q.g===g), at=dr||br;
       if(at){ sfx.clunk(); shake=Math.max(shake,1);
@@ -662,11 +771,22 @@ function moveTop(dx,dy){
 }
 function tryMoveCrate(c,dx,dy){
   const nx=c.tx+dx, ny=c.ty+dy;
+  const bm=enemies.find(e=>e.alive&&e.type==='brood'&&Math.abs(nx*T+8-e.x)<20&&Math.abs(ny*T+8-e.y)<20);
+  if(bm){ broodHit(bm,c); return false; }
   if(wallT(nx,ny)||crateAt(nx,ny)) return false;
   if(Math.abs(nx*T+8-(p.x+6))<13&&Math.abs(ny*T+8-(p.y+6))<13) return false;
   c.mv={fx:c.x,fy:c.y,t:0}; c.tx=nx; c.ty=ny; sfx.scrape(); return true;
 }
+function broodHit(e,c){
+  c.dead=true; debris(c.x,c.y,['#8a6c48','#5a4630','#3d2f20'],10); dust(c.x,c.y,6);
+  e.hp--; e.flash=0.3; e.stun=2.4; shake=Math.max(shake,5); hitstop=0.1; flash=0.1; sfx.punch(); sfx.squish(); buzz([30,30,30]);
+  sparks(e.x,e.y,'#b6ff5a',16,200);
+  if(e.hp<=0) killEnemy(e); else popup(e.x,e.y-34,e.hp===1?'ONE PLATE LEFT':'PLATE CRACKED','#ffc23d');
+}
 function updateCrates(dt){
+  for(const c of crates){ if(c.dead||c.mv) continue;
+    const cvd=tdLook.conv.get(tk(c.tx,c.ty));
+    if(cvd){ c.cv=(c.cv||0)+dt; if(c.cv>0.32){ c.cv=0; tryMoveCrate(c,cvd[0],cvd[1]); } } else c.cv=0; }
   for(const c of crates){ if(c.dead||!c.mv) continue;
     c.mv.t=Math.min(1,c.mv.t+dt/0.15); c.x=lerp(c.mv.fx,c.tx*T+8,c.mv.t); c.y=lerp(c.mv.fy,c.ty*T+8,c.mv.t);
     if(c.mv.t>=1){ c.mv=null;
@@ -753,6 +873,8 @@ function updateTop(dt,edge){
     if(blkX&&!iy&&!crateAt(blkX[0],blkX[1])){ const ty=Math.floor((p.y+6)/T); if(!solidT(blkX[0],ty)) moveTop(0,clamp(ty*T+2-p.y,-70*dt,70*dt)); }
     if(blkY&&!ix&&!crateAt(blkY[0],blkY[1])){ const tx=Math.floor((p.x+6)/T); if(!solidT(tx,blkY[1])) moveTop(clamp(tx*T+2-p.x,-70*dt,70*dt),0); }
     if(ix||iy){ p.moving=true; p.walk+=dt*10; if(Math.floor(p.walk/Math.PI)!==stepPh){ stepPh=Math.floor(p.walk/Math.PI); sfx.step(); } }
+    const cvd=tdLook.conv.get(tk(Math.floor((p.x+6)/T),Math.floor((p.y+6)/T)));
+    if(cvd){ moveTop(cvd[0]*CONV*dt,0); moveTop(0,cvd[1]*CONV*dt); }
     if(pitT(Math.floor((p.x+6)/T),Math.floor((p.y+6)/T))){ p.fall=0.5; p.vx=p.vy=0; hook.state='idle'; sfx.fall(); }
   }
   if(edge&&p.fall<=0&&hook.state!=='pull'&&hook.state!=='drag') fireTop();
@@ -805,6 +927,9 @@ function buildTopLayer(){
       if(ty>0&&map[ty-1][tx]===1) r(ax,ay,S,4,'rgba(0,0,10,0.35)');
     }
   }
+  // conveyor belts (the moving chevrons are drawn each frame)
+  for(const [x,y,dx,dy] of LD.conv){ const ax=x*S, ay=y*S;
+    r(ax,ay,S,S,'#15182f'); if(dx){ r(ax,ay+2,S,3,'#3e426b'); r(ax,ay+S-5,S,3,'#3e426b'); } else { r(ax+2,ay,3,S,'#3e426b'); r(ax+S-5,ay,3,S,'#3e426b'); } }
   // posts (bollards you can grapple to pull yourself across)
   for(const [x,y] of LD.posts){ const ax=x*S, ay=y*S;
     r(ax+6,ay+18,20,10,'#15182f'); r(ax+8,ay+6,16,20,'#3e426b'); r(ax+8,ay+6,16,3,'#6a72a8'); r(ax+8,ay+12,16,4,'#ff6a2c'); r(ax+8,ay+12,16,1,'#ffa06f'); r(ax+22,ay+6,2,20,'#2a2e52'); }
@@ -827,10 +952,16 @@ function drawTop(){
     if(gstate[b.g]){ R(x,y+2,32,28,'#6e5a40'); for(let i=0;i<32;i+=6) R(x+i,y+2,1,28,'#4a3c2a'); R(x,y+2,32,2,'#3e426b'); R(x,y+28,32,2,'#3e426b'); }
     else { for(let i=0;i<32;i+=6){ R(x+i,y+2,3,1,gcol[b.g]); R(x+i,y+29,3,1,gcol[b.g]); } } }
   for(const o of LD.plates){ const x=SX(o.tx*T+8), y=SY(o.ty*T+8); if(!vis(x,y)) continue; const dn=plateDown(o);
-    R(x-12,y-12,24,24,'#15182f'); R(x-10,y-10,20,20,dn?'#2a5a40':'#3e426b'); R(x-10,y-10,20,dn?1:3,dn?'#5fe39a':'#6a72a8'); R(x-2,y-2,4,4,gcol[o.g]); }
+    R(x-12,y-12,24,24,'#15182f'); R(x-10,y-10,20,20,dn?'#2a5a40':'#3e426b'); R(x-10,y-10,20,dn?1:3,dn?'#5fe39a':'#6a72a8'); R(x-2,y-2,4,4,gcol[o.g]);
+    if(o.hold) for(let i=0;i<8;i++){ const a=i/8*Math.PI*2; R(x+Math.round(Math.cos(a)*8),y+Math.round(Math.sin(a)*8),1,1,'#ffffff'); } }
   for(const o of LD.doors){ const x=SX(o.tx*T), y=SY(o.ty*T); if(!vis(x,y)) continue; const open=gstate[o.g];
-    if(open){ R(x,y,32,5,'#2e3360'); R(x,y+27,32,5,'#2e3360'); R(x+13,y+13,6,6,gcol[o.g]); }
+    if(open){ R(x,y,32,5,'#2e3360'); R(x,y+27,32,5,'#2e3360'); R(x+13,y+13,6,6,gcol[o.g]);
+      if(gHold[o.g]>0){ R(x+2,y+6,28,3,'#1d1f33'); R(x+2,y+6,Math.round(28*gHold[o.g]),3,gHold[o.g]<0.35&&(tnow*8|0)%2?'#ffffff':'#ff4150'); } }
     else { R(x,y,32,32,'#2e3360'); for(let i=0;i<32;i+=8){ R(x+i,y+4,4,22,'#1d1f33'); R(x+i+4,y+4,4,22,gcol[o.g]); } R(x,y,32,3,'#5b66a0'); R(x,y+26,32,6,'#1b2044'); R(x+14,y+27,4,3,'#ff4150'); } }
+  for(const [cxT,cyT,dx,dy] of LD.conv){ const x=SX(cxT*T), y=SY(cyT*T); if(!vis(x,y)) continue; const o=Math.floor(tnow*CONV*ART)%16;
+    for(let i=-16;i<32;i+=16){ const a=i+(dx||dy?o*(dx+dy):0); if(a<0||a>26) continue;
+      if(dx){ const cx0=x+(dx>0?a:31-a); for(let j=0;j<6;j++){ R(cx0-dx*j,y+10+j,2,1,'#ffc23d'); R(cx0-dx*j,y+21-j,2,1,'#ffc23d'); } }
+      else { const cy0=y+(dy>0?a:31-a); for(let j=0;j<6;j++){ R(x+10+j,cy0-dy*j,1,2,'#ffc23d'); R(x+21-j,cy0-dy*j,1,2,'#ffc23d'); } } } }
   for(const l of levers){ const x=SX(l.tx*T+8), y=SY(l.ty*T+8); if(!vis(x,y)) continue;
     R(x-10,y+2,20,10,'#3e426b'); R(x-10,y+2,20,2,'#6a72a8'); R(x-3,y+4,6,4,gcol[l.g]);
     const ex=x+(l.on?9:-9); pline(cx,x,y+4,ex,y-10,'#8f93b8',2); R(ex-2,y-13,5,5,l.on?'#5fe39a':'#ff4150'); }
@@ -843,10 +974,31 @@ function drawTop(){
   drawEnemies();
   const lampPos=drawPlayerTop();
   drawParts(false);
+  if(TH.dark) drawDarkness();
   drawGlows(lampPos);
   cx.drawImage(vignette,0,0);
   if(flash>0){ cx.fillStyle=`rgba(255,65,80,${flash*1.2})`; cx.fillRect(0,0,BW,BH); }
   if(state==='play'&&p.hp===1){ cx.globalAlpha=0.18+0.1*Math.sin(tnow*6); cx.drawImage(vignette,0,0); cx.fillStyle='rgba(255,40,60,0.12)'; cx.fillRect(0,0,BW,BH); cx.globalAlpha=1; }
+}
+let darkC=null, darkX=null;
+// darkness: black overlay with holes cut for the headlamp and every light source
+function drawDarkness(){
+  if(!darkC||darkC.width!==BW||darkC.height!==BH) [darkC,darkX]=mk(BW,BH);
+  const d=darkX; d.globalCompositeOperation='source-over'; d.globalAlpha=1; d.clearRect(0,0,BW,BH); d.fillStyle=`rgba(1,1,6,${TH.dark})`; d.fillRect(0,0,BW,BH);
+  d.globalCompositeOperation='destination-out';
+  const W0=glow('#ffffff'), hole=(x,y,s,a=1)=>{ if(x<-s||y<-s||x>BW+s||y>BH+s) return; d.globalAlpha=a; d.drawImage(W0,Math.round(x-s/2),Math.round(y-s/2),s,s); };
+  hole(SX(p.x+6),SY(p.y+2),120,1); hole(SX(p.x+6),SY(p.y+2),60,1);
+  const a={right:0,down:Math.PI/2,left:Math.PI,up:-Math.PI/2}[p.face]; d.save(); d.translate(SX(p.x+6),SY(p.y+2)); d.rotate(a); d.globalAlpha=1; d.drawImage(lamp,0,-46,220,92); d.drawImage(lamp,0,-46,220,92); d.restore();
+  for(const l of lights) hole(l.x-camX,l.y-camY,l.size*2.4,0.9);
+  for(const tm of terms) hole(SX(tm.x),SY(tm.y)-18,80,0.85);
+  for(const r of relays) if(!r.got) hole(SX(r.x),SY(r.y),44,0.7);
+  for(const c of checks) if(c.on) hole(SX(c.x),SY(c.y)-40,70,0.8);
+  for(const [x,y] of LD.posts) hole(SX(x*T+8),SY(y*T+8),34,0.6);
+  for(const s of shots) hole(SX(s.x),SY(s.y),30,0.8);
+  for(const q of parts) if(q.t==='beam') hole(SX(q.x),SY(q.y),50,q.life/q.full);
+  hole(SX(goal.x),SY(goal.y),70,0.7);
+  d.globalCompositeOperation='source-over'; d.globalAlpha=1;
+  cx.drawImage(darkC,0,0);
 }
 function drawPlayerTop(){
   if(p.fall>0){ cx.globalAlpha=Math.max(0,p.fall/0.5); }
@@ -944,6 +1096,7 @@ function buildLayer(){
   const A=v=>Math.round(v*ART);
   const S=T*ART;
   const surf=row=>A((row+1)*T);
+  const crumbleKeys=new Set(LD.crumbles.map(([x,y])=>y*W+x));
   const rockC=TH.rock||['#262840','#212339','#1c1d33','#17182b'], grit=TH.grit||['#4a4e78','#6c71a3','#33365a'];
 
   // back structures first
@@ -994,6 +1147,7 @@ function buildLayer(){
       if(tile(tx-1,ty)!==1) r(ax,ay,2,S,'#5b66a0');
       if(tile(tx+1,ty)!==1) r(ax+S-2,ay,2,S,'#1c2144');
     } else if(v===2){ // girder
+      if(crumbleKeys.has(ty*W+tx)) continue;
       const band=Math.floor(tx/2)%2===0;
       const main=band?'#ff6a2c':'#e6e2d8', hi=band?'#ffa983':'#ffffff', dk=band?'#a73d17':'#9d9aa8', dd=band?'#6e2410':'#5f5c6c';
       pline(L,ax+1,ay+7,ax+16,ay+17,dd,2); pline(L,ax+16,ay+17,ax+31,ay+7,dd,2);
@@ -1079,7 +1233,7 @@ function buildLayer(){
     for(let i=0;i<=n;i++) r(Math.round(lerp(ax,bx,i/n))-1,Math.round(lerp(ay,by,i/n))-1,3,3,'#2a2f5c');
     for(const [ex,ey] of [[ax,ay],[bx,by]]) { r(ex-4,ey-4,8,8,'#3e426b'); r(ex-2,ey-2,4,4,'#1d2045'); } }
   // transmitter mast (goal)
-  { const gx=A(LD.goal.tx*T+8), base=A((LD.goal.ty+1)*T), top=A(Math.max(3,(LD.goal.ty+1)*T-110));
+  if(!LD.anchor&&!LDEF.noMast){ const gx=A(LD.goal.tx*T+8), base=A((LD.goal.ty+1)*T), top=A(Math.max(3,(LD.goal.ty+1)*T-110));
     for(let y=base;y>top;y-=2){ const k=(base-y)/(base-top), hw=Math.round(9-k*6), band=Math.floor((base-y)/18)%2;
       const c=band?'#e6e2d8':'#ff6a2c', cd=band?'#9d9aa8':'#a73d17';
       r(gx-hw,y-2,2,2,c); r(gx+hw-2,y-2,2,2,cd); }
@@ -1232,6 +1386,31 @@ function drawSparks(){
     if(hash(f,tx)%5===0) sparks(tx*T+8,ty*T+12,'#ffe27a',2,120);
   }
 }
+function drawCrumbles(){
+  for(const c of crumbles){ const x=SX(c.x*T), y=SY(c.y*T); if(x<-40||x>BW+10||y<-40||y>BH+10) continue;
+    if(c.gone){ for(let i=0;i<32;i+=6) R(x+i,y+2,3,1,'#3a3450'); continue; }
+    const sh=c.t>=0?Math.round((Math.random()-0.5)*3):0, X=x+sh;
+    R(X,y,32,7,'#8a7a66'); R(X,y,32,1,'#b09c82'); R(X,y+7,32,3,'#5a4c3c'); R(X,y+10,32,1,'rgba(0,0,10,0.4)');
+    pline(cx,X+5,y+1,X+9,y+6,'#4a3e30',1); pline(cx,X+18,y+2,X+15,y+6,'#4a3e30',1); pline(cx,X+26,y+1,X+29,y+5,'#4a3e30',1);
+    R(X+2,y+10,4,6,'#5a4c3c'); R(X+26,y+10,4,6,'#5a4c3c');
+    if(c.t>=0&&(tnow*16|0)%2) R(X,y,32,1,'#ff6a2c'); }
+}
+function drawWater(){
+  if(!water) return; const y=SY(water.y); if(y>=BH) return;
+  cx.fillStyle='rgba(28,86,124,0.55)'; cx.fillRect(0,Math.max(0,y),BW,BH-Math.max(0,y));
+  for(let x=0;x<BW;x+=4){ const wy=y+Math.round(Math.sin((x+camX)*0.05+tnow*3)*1.5); R(x,wy-1,4,2,'#7fd0e8'); }
+  if(water.active&&water.y>LDEF.flood.max*T+4) for(let i=0;i<6;i++){ const bx=(hash(i,Math.floor(tnow*2))%BW); R(bx,y+6+(i*13)%30,2,2,'rgba(160,220,240,0.5)'); }
+}
+function drawAnchor(){
+  const x=SX(anchor.x), pulse=0.5+0.5*Math.sin(tnow*4);
+  if(anchor.dead){ return; }
+  R(x-10,0,20,BH,'#1a1030'); R(x-6,0,12,BH,'#2a1846'); R(x-2,0,4,BH,pulse>0.5?'#b6ff5a':'#7dff6a');
+  for(let y=(-camY%24+24)%24-24;y<BH;y+=24){ R(x-11,y,22,3,'#3a2458'); R(x-11,y,22,1,'#5a3a80'); }
+  const b=anchor.band;
+  if(b){ const y=SY(b.y);
+    if(b.tel>0){ cx.globalAlpha=0.18+0.18*((tnow*10|0)%2); R(0,y-44,BW,88,'#ff4150'); cx.globalAlpha=1; R(0,y-44,BW,1,'#ff4150'); R(0,y+43,BW,1,'#ff4150'); }
+    else { cx.globalAlpha=0.75; R(0,y-40,BW,80,'#7dff6a'); cx.globalAlpha=1; R(0,y-8,BW,16,'#f0ffd0'); } }
+}
 function drawPlats(){
   for(const q of plats){ const x=SX(q.x), y=SY(q.y), w=Math.round(q.w*ART); if(x>BW+10||x+w<-10) continue;
     R(x,y,w,2,'#ffe08a'); R(x,y+2,w,6,'#ffc23d'); for(let i=2;i<w-2;i+=8) R(x+i,y+3,4,4,'#3a2e10');
@@ -1314,6 +1493,17 @@ function drawEnemies(){
       Rv(-2,-2,4,8,'#5a1f48');
       Rv(-9,-14,18,13,'#7a2a5e'); Rv(-7,-16,14,2,'#8e3a70'); Rv(-6,-15,5,1,'#b35a90'); Rv(-9,-3,18,2,'#5a1f48');
       Rv(-3+e.dir*3,-11,6,6,e.charge>0?'#d6ff9a':(pulse>0.5?'#5fbf4a':'#3d8f3a')); Rv(-2+e.dir*3,-10,2,2,'#f0ffd0');
+    } else if(e.type==='brood'){
+      const st=e.stun>0, jx=st?Math.round((Math.random()-0.5)*3):0, X=x+jx, br=Math.round(Math.sin(tnow*2+e.ph)*1.5);
+      for(let i=0;i<6;i++){ const lx=X-26+i*10, ph=Math.sin(tnow*3+i)*2; pline(cx,lx,y+6,lx-4+Math.round(ph),y+20,C('#2c1a3a'),3); }
+      R(X-30,y-14+br,60,32,C('#5a2d86')); R(X-26,y-20+br,52,6,C('#6e3f9a')); R(X-30,y+14+br,60,4,C('#3a1a5a'));
+      for(let i=0;i<4;i++){ const on=(tnow*2+i)%2<1; R(X-22+i*13,y+2+br,8,8,C(on?'#7dff6a':'#3d8f3a')); R(X-20+i*13,y+4+br,3,3,'#e8ffd0'); }
+      for(let i=0;i<e.hp;i++){ const px=X-24+i*17; R(px,y-26+br,16,10,C(st?((tnow*10|0)%2?'#ff4150':'#6f906a'):'#6f906a')); R(px,y-26+br,16,2,C('#9dc090')); R(px+15,y-24+br,1,8,C('#3e5a40')); }
+      R(X-6+e.dir*14,y-12+br,5,5,'#b6ff5a'); R(X+2+e.dir*14,y-12+br,5,5,'#b6ff5a'); R(X-4+e.dir*14,y-10+br,2,2,'#1a1024');
+    } else if(e.type==='clamp'){
+      R(x-14,y-10,28,20,C('#3e426b')); R(x-14,y-10,28,2,C('#5b66a0')); R(x-14,y+8,28,2,C('#1d2045'));
+      R(x-16,y-6,4,12,C('#2e3360')); R(x+12,y-6,4,12,C('#2e3360'));
+      for(let i=0;i<4;i++) R(x-11+i*6,y-3,4,4,i<e.hp?((tnow*3+i)%2<1?'#ff4150':'#a0202e'):'#1d1f33');
     } else if(e.type==='leech'){
       const lat=e.latched;
       R(x-6,y-6,12,7,C('#3fb0c0')); R(x-5,y-8,10,2,C('#5ae0e8')); R(x-3,y-9,6,1,C('#9af4f8'));
@@ -1324,6 +1514,7 @@ function drawEnemies(){
   for(const s of shots){ const x=SX(s.x), y=SY(s.y); R(x-2,y-2,5,5,'#7dff6a'); R(x-1,y-1,3,3,'#f0ffd0'); }
 }
 function drawGoal(){
+  if(LD.anchor) return;
   const gx=SX(goal.x), ty=SY(goal.top);
   if(gx<-80||gx>BW+80) return;
   const won=state==='winning'||state==='win', open=terms.every(t=>t.state==='done');
@@ -1412,15 +1603,18 @@ function drawGlows(lampPos){
     else if(e.type==='skitter') gl(SX(e.x+e.dir*6),SY(e.y-1),'#b6ff5a',16,0.45);
     else if(e.type==='spitter') gl(SX(e.x+e.dir*1.5),SY(e.y+(e.ceil?4:-4)),'#7dff6a',e.charge>0?46:24,e.charge>0?0.8:0.35);
     else if(e.type==='leech') gl(SX(e.x),SY(e.y),'#5ae0e8',e.latched?40:28,0.55);
+    else if(e.type==='brood') gl(SX(e.x),SY(e.y),'#7dff6a',110,0.35);
+    else if(e.type==='clamp') gl(SX(e.x),SY(e.y),'#ff4150',40,0.5);
   }
   for(const s of shots) gl(SX(s.x),SY(s.y),'#7dff6a',24,0.8);
+  if(anchor&&!anchor.dead){ const ax=SX(anchor.x); for(let y=-40;y<BH+40;y+=60) gl(ax,y+((tnow*40)%60),'#7dff6a',80,0.25); if(anchor.band&&anchor.band.tel<=0) for(let x=0;x<BW;x+=90) gl(x,SY(anchor.band.y),'#7dff6a',140,0.4); }
   for(const q of plats){ gl(SX(q.x)+3,SY(q.y)+10,'#5fe39a',14,0.5); gl(SX(q.x+q.w)-4,SY(q.y)+10,'#5fe39a',14,0.5); }
   for(const tm of terms){ const col=tm.state==='done'?'#5fe39a':tm.state==='active'?(tm.drain?'#5ae0e8':'#ffc23d'):'#ff4150';
     gl(SX(tm.x)+6,SY(tm.y)-49,col,26,0.7); gl(SX(tm.x),SY(tm.y)-27,'#5fe39a',40,tm.state==='idle'?0.08:0.25); }
   for(const c of checks) if(c.on) gl(SX(c.x)+1,SY(c.y)-52,'#ffc23d',40,0.55);
   for(const [tx,ty] of sparkTiles){ gl(SX(tx*T+8),SY(ty*T+12),'#ffe27a',48,0.3+0.3*Math.random()); }
   const gx=SX(goal.x), gty=MODE==='top'?SY(goal.y):SY(goal.top)+1, won=state==='winning'||state==='win', open=terms.every(t=>t.state==='done');
-  if(won||(tnow%1.2)<0.6||MODE==='top') gl(gx,gty,won?'#ffc23d':open?'#5fe39a':'#ff4150',won?90:MODE==='top'?54:30,MODE==='top'?0.45:0.8);
+  if(!LD.anchor&&(won||(tnow%1.2)<0.6||MODE==='top')) gl(gx,gty,won?'#ffc23d':open?'#5fe39a':'#ff4150',won?90:MODE==='top'?54:30,MODE==='top'?0.45:0.8);
   if(MODE==='top'){ for(const o of LD.plates) gl(SX(o.tx*T+8),SY(o.ty*T+8),gcol[o.g],18,plateDown(o)?0.7:0.3); for(const o of LD.doors) if(gstate[o.g]) gl(SX(o.tx*T+16),SY(o.ty*T+16),gcol[o.g],22,0.5); for(const l of levers) gl(SX(l.tx*T+8)+(l.on?9:-9),SY(l.ty*T)-3,l.on?'#5fe39a':'#ff4150',16,0.6); }
   if(won){ for(let i=0;i<3;i++){ const k=((tnow*0.7+i/3)%1), r=Math.round(14+k*220); cx.globalAlpha=(1-k)*0.6; cx.strokeStyle='#ffc23d'; cx.lineWidth=2; cx.beginPath(); cx.arc(gx,gty,r,Math.PI*0.1,Math.PI*0.9,true); cx.stroke(); } }
   if(lampPos&&MODE==='top'&&state!=='winning'&&state!=='win'){ cx.globalAlpha=0.3; const a={right:0,down:Math.PI/2,left:Math.PI,up:-Math.PI/2}[p.face];
@@ -1454,10 +1648,13 @@ function draw(){
   drawBg();
   blitLevel();
   drawSparks();
+  if(anchor) drawAnchor();
   drawPlats();
+  drawCrumbles();
   drawTerms(); drawGoal(); drawChecks(); drawRelays(); drawEnemies();
   const lampPos=drawPlayer();
   drawParts(false);
+  drawWater();
   drawGlows(lampPos);
   drawRain();
   cx.drawImage(vignette,0,0);
@@ -1720,7 +1917,7 @@ if(/[?&]debug\b/.test(location.search)) window.__rr={
   start(i){ openBrief(i); startLevel(); return this.info(); },
   teleport(x,y){ p.x=x; p.y=y; p.vx=p.vy=0; hook.state='idle'; },
   tile, enemies:()=>enemies, terms:()=>terms, p:()=>p,
-  mode:()=>MODE, plats:()=>plats, hook:()=>hook, crates:()=>crates, gstate:()=>gstate, levers:()=>levers, pitT, wallT, solidT, LD:()=>LD
+  mode:()=>MODE, plats:()=>plats, crumbles:()=>crumbles, water:()=>water, anchor:()=>anchor, hook:()=>hook, crates:()=>crates, gstate:()=>gstate, levers:()=>levers, pitT, wallT, solidT, LD:()=>LD
 };
 
 if('serviceWorker' in navigator && /^https?:$/.test(location.protocol)) addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));

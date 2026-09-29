@@ -35,7 +35,7 @@ const TB = window.TB = {
   fightTop(ti,max=120){
     for(let f=0;f<max*60;){ const tm=r.terms()[ti]; if(tm.state==='done') return 'done in '+(f/60).toFixed(1)+'s, hp '+r.p().hp+', falls '+r.info().falls;
       const [px,py]=this.ctr(); let tgt=null,bd=1e9;
-      for(const e of r.enemies()){ if(!e.alive) continue; if(e.type==='leech'&&!e.latched) continue; if(!this.sees(e)) continue; const d=Math.hypot(e.x-px,e.y-py); if(d<bd){bd=d;tgt=e;} }
+      for(const e of r.enemies()){ if(!e.alive) continue; if(e.type==='leech'&&!e.latched) continue; if(e.type==='brood') continue; if(!this.sees(e)) continue; const d=Math.hypot(e.x-px,e.y-py); if(d<bd){bd=d;tgt=e;} }
       if(tgt&&bd<110){ const dx=tgt.x-px, dy=tgt.y-py; let dir=null; if(Math.abs(dy)<9) dir=dx>0?'right':'left'; else if(Math.abs(dx)<9) dir=dy>0?'down':'up';
         if(dir){ this.face(dir); r.run(1,{grab:true}); r.run(10); f+=12; }
         else { const k={}; if(Math.abs(dx)<Math.abs(dy)) k[dx>0?'right':'left']=true; else k[dy>0?'down':'up']=true; r.run(3,k); f+=3; } }
@@ -75,7 +75,7 @@ const TB = window.TB = {
   until(keys,cond,max=1200){ for(let f=0;f<max;f++){ if(cond()) return f; r.run(1,keys); if(r.info().falls>0) return -2; } return -1; },
   sees(e){ const [px,py]=this.ctr(), d=Math.hypot(e.x-px,e.y-py), n=Math.ceil(d/6); for(let i=1;i<n;i++){ const k=i/n; if(r.wallT(Math.floor((px+(e.x-px)*k)/16),Math.floor((py+(e.y-py)*k)/16))) return false; } return true; },
   // clear nearby visible enemies (top-down)
-  killNear(rad=130){ for(let k=0;k<80;k++){ const [px,py]=this.ctr(); const e=r.enemies().find(e=>e.alive&&e.type!=='leech'&&Math.hypot(e.x-px,e.y-py)<rad&&this.sees(e)); if(!e) return 'clear';
+  killNear(rad=130){ for(let k=0;k<80;k++){ const [px,py]=this.ctr(); const e=r.enemies().find(e=>e.alive&&e.type!=='leech'&&e.type!=='brood'&&Math.hypot(e.x-px,e.y-py)<rad&&this.sees(e)); if(!e) return 'clear';
       const dx=e.x-px, dy=e.y-py;
       if(Math.abs(dy)<9||Math.abs(dx)<9){ this.face(Math.abs(dx)>Math.abs(dy)?(dx>0?'right':'left'):(dy>0?'down':'up')); r.run(1,{grab:true}); r.run(12); }
       else r.run(4,{[Math.abs(dx)<Math.abs(dy)?(dx>0?'right':'left'):(dy>0?'down':'up')]:true}); }

@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<title>Relay Rigger</title>
+<meta name="description" content="Swing up a storm-wrecked radio tower with a winch gauntlet. No jump.">
+<meta name="theme-color" content="#10122a">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Relay Rigger">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/favicon-32.png" type="image/png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Stencil+Display:wght@700;900&family=IBM+Plex+Mono:wght@400;600&display=swap">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<canvas id="game" aria-label="Relay Rigger game screen"></canvas>
+
+<!-- HUD -->
+<div id="hud" class="hud" aria-live="off" hidden>
+  <span class="pips" id="hp" aria-label="Hard hat"></span>
+  <span class="stat"><span class="l">Relays</span><b id="rel">0/7</b></span>
+  <span class="stat"><span class="l">Cable</span><b id="cab">— m</b></span>
+  <span class="stat"><span class="l">Off air</span><b id="tim">00:00.0</b></span>
+</div>
+<button id="pauseBtn" class="icon-btn" type="button" aria-label="Pause" hidden>
+  <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><rect x="5" y="4" width="5" height="16" fill="currentColor"/><rect x="14" y="4" width="5" height="16" fill="currentColor"/></svg>
+</button>
+<p id="hint" class="hint"></p>
+
+<!-- touch controls -->
+<div id="touch" hidden>
+  <div id="stickZone" aria-label="Direction pad">
+    <div class="dpad" id="dpad">
+      <i data-d="up"></i><i data-d="left"></i><i data-d="right"></i><i data-d="down"></i><b></b>
+    </div>
+  </div>
+  <div id="grabZone"><div class="grab" id="grabBtn">GRAB</div></div>
+</div>
+
+<!-- title -->
+<div class="ov" id="ovTitle">
+  <div class="card">
+    <h1>RELAY <span>RIGGER</span></h1>
+    <p class="tag">No jump. One winch gauntlet. 13&nbsp;m of cable.</p>
+    <p class="story">Last night's storm knocked seven relay boxes loose and took the Kestrel Ridge transmitter off air. Swing your way up the tower and get it broadcasting again.</p>
+    <button class="go" id="startBtn" type="button">Start shift</button>
+    <p class="best" id="bestLine"></p>
+    <div class="keys only-keys">
+      <span><kbd>←</kbd><kbd>→</kbd> walk · pump swing</span>
+      <span><kbd>↑</kbd> aim up · reel in</span>
+      <span><kbd>↓</kbd> aim ahead · pay out</span>
+      <span><kbd>Space</kbd> hold to grab · tap to punch · release to fling</span>
+      <span><kbd>Esc</kbd> pause · <kbd>M</kbd> sound</span>
+    </div>
+    <p class="keys only-touch">Left thumb: move and aim. Right thumb: hold <b>GRAB</b>.</p>
+    <p class="tip" id="installTip" hidden></p>
+    <p class="note">An original game. Characters, setting, art and names are all new; only the general swing-instead-of-jump idea is shared with the genre.</p>
+  </div>
+</div>
+
+<!-- pause -->
+<div class="ov" id="ovPause" hidden>
+  <div class="card">
+    <h2>ON BREAK</h2>
+    <div class="menu">
+      <button class="go" id="resumeBtn" type="button">Resume</button>
+      <button class="alt" id="restartBtn" type="button">Restart shift</button>
+      <button class="alt" id="soundBtn" type="button">Sound: on</button>
+      <button class="alt" id="fsBtn" type="button" hidden>Fullscreen</button>
+      <button class="alt" id="quitBtn" type="button">Title screen</button>
+    </div>
+  </div>
+</div>
+
+<!-- win -->
+<div class="ov" id="ovWin" hidden>
+  <div class="card">
+    <h2>BACK ON AIR</h2>
+    <p id="winStats" class="stats"></p>
+    <p id="winBest" class="best"></p>
+    <button class="go" id="againBtn" type="button">Run it again</button>
+  </div>
+</div>
+
+<div id="rotate" hidden>
+  <svg viewBox="0 0 48 48" width="56" height="56" aria-hidden="true"><rect x="14" y="6" width="20" height="36" rx="3" fill="none" stroke="currentColor" stroke-width="3"/><path d="M8 30a16 16 0 0 0 10 12" fill="none" stroke="currentColor" stroke-width="3"/><path d="M6 36l2-7 6 4" fill="none" stroke="currentColor" stroke-width="3"/></svg>
+  <span>Turn your phone sideways for the full view</span>
+</div>
+
+<script src="game.js"></script>
+</body>
+</html>

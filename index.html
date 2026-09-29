@@ -24,10 +24,12 @@
 
 <!-- HUD -->
 <div id="hud" class="hud" aria-live="off" hidden>
+  <span class="stat lvl"><b id="lvl">L1</b></span>
   <span class="pips" id="hp" aria-label="Hard hat"></span>
   <span class="stat"><span class="l">Relays</span><b id="rel">0/7</b></span>
-  <span class="stat"><span class="l">Cable</span><b id="cab">— m</b></span>
-  <span class="stat"><span class="l">Off air</span><b id="tim">00:00.0</b></span>
+  <span class="stat" id="netStat"><span class="l">Network</span><b id="net">0/1</b></span>
+  <span class="stat hide-narrow"><span class="l">Cable</span><b id="cab">— m</b></span>
+  <span class="stat"><span class="l">Time</span><b id="tim">00:00.0</b></span>
 </div>
 <button id="pauseBtn" class="icon-btn" type="button" aria-label="Pause" hidden>
   <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><rect x="5" y="4" width="5" height="16" fill="currentColor"/><rect x="14" y="4" width="5" height="16" fill="currentColor"/></svg>
@@ -49,8 +51,11 @@
   <div class="card">
     <h1>RELAY <span>RIGGER</span></h1>
     <p class="tag">No jump. One winch gauntlet. 13&nbsp;m of cable.</p>
-    <p class="story">Last night's storm knocked seven relay boxes loose and took the Kestrel Ridge transmitter off air. Swing your way up the tower and get it broadcasting again.</p>
-    <button class="go" id="startBtn" type="button">Start shift</button>
+    <p class="story">Something is jamming the broadcast network, and it isn't the weather. Swing up the towers, reroute the terminals and keep the lines open long enough to warn everyone.</p>
+    <div class="menu row">
+      <button class="go" id="startBtn" type="button">Start shift</button>
+      <button class="alt" id="levelsBtn" type="button">Levels</button>
+    </div>
     <p class="best" id="bestLine"></p>
     <div class="keys only-keys">
       <span><kbd>←</kbd><kbd>→</kbd> walk · pump swing</span>
@@ -65,13 +70,34 @@
   </div>
 </div>
 
+<!-- level select -->
+<div class="ov" id="ovLevels" hidden>
+  <div class="card">
+    <h2>SHIFT ROSTER</h2>
+    <div class="lvl-list" id="levelList"></div>
+    <button class="alt" id="levelsBack" type="button">Back</button>
+  </div>
+</div>
+
+<!-- level briefing -->
+<div class="ov" id="ovBrief" hidden>
+  <div class="card">
+    <p class="kicker" id="briefNum">LEVEL 1 OF 5</p>
+    <h2 id="briefName"></h2>
+    <p class="tag" id="briefPlace"></p>
+    <p class="story" id="briefText"></p>
+    <p class="brief-meta" id="briefMeta"></p>
+    <button class="go" id="briefGo" type="button">Clock in</button>
+  </div>
+</div>
+
 <!-- pause -->
 <div class="ov" id="ovPause" hidden>
   <div class="card">
     <h2>ON BREAK</h2>
     <div class="menu">
       <button class="go" id="resumeBtn" type="button">Resume</button>
-      <button class="alt" id="restartBtn" type="button">Restart shift</button>
+      <button class="alt" id="restartBtn" type="button">Restart level</button>
       <button class="alt" id="soundBtn" type="button">Sound: on</button>
       <button class="alt" id="fsBtn" type="button" hidden>Fullscreen</button>
       <button class="alt" id="quitBtn" type="button">Title screen</button>
@@ -79,13 +105,29 @@
   </div>
 </div>
 
-<!-- win -->
+<!-- level complete -->
 <div class="ov" id="ovWin" hidden>
   <div class="card">
-    <h2>BACK ON AIR</h2>
+    <h2 id="winTitle">NETWORK SECURED</h2>
+    <p id="winOutro" class="story"></p>
     <p id="winStats" class="stats"></p>
     <p id="winBest" class="best"></p>
-    <button class="go" id="againBtn" type="button">Run it again</button>
+    <div class="menu row">
+      <button class="go" id="nextBtn" type="button">Next level</button>
+      <button class="alt" id="againBtn" type="button">Replay</button>
+      <button class="alt" id="winLevelsBtn" type="button">Levels</button>
+    </div>
+  </div>
+</div>
+
+<!-- ending -->
+<div class="ov" id="ovEnd" hidden>
+  <div class="card">
+    <p class="kicker">ALL CHANNELS</p>
+    <h1>WARNING <span>BROADCAST</span></h1>
+    <p class="story" id="endText"></p>
+    <p class="stats" id="endStats"></p>
+    <button class="go" id="endBtn" type="button">Back to title</button>
   </div>
 </div>
 
@@ -94,6 +136,7 @@
   <span>Turn your phone sideways for the full view</span>
 </div>
 
+<script src="levels.js"></script>
 <script src="game.js"></script>
 </body>
 </html>

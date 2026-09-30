@@ -76,134 +76,37 @@ const LEVELS = [
 },
 // ------------------------------------------------------------------ 3
 {
-  act:1, name:'Blackwater Dam', place:'Emergency antenna BW-1 · 23:50', theme:'dam', W:155, H:30,
+  act:1, name:'Blackwater Dam', place:'Emergency antenna BW-1 · 23:50', theme:'dam',
+  sgen:{seed:3,len:400,tier:2,g:26,pool:['flat','gap','ceilingSwing','cableHazard','climbOver','drones','ceilingRun','ferry','nest']},
   brief:"The dam antenna carries every emergency channel in the valley. Something is feeding on its terminal from the inside. Get up there and take it back.",
   outro:"Emergency channels restored. There were lights over the mountains all night, and they're moving toward the city.",
-  build(B){
-    const g=26;
-    B.rock(1,39,g,29); B.rock(52,66,g,29); B.rock(79,153,g,29);
-    M.cableHazard(B,11,g);        // sparks 18..20
-    M.ceilingSwing(B,35,g);       // pit 40..51
-    M.ceilingSwing(B,62,g);       // pit 67..78
-    M.towerClimb(B,90,g,150);     // deck row 7
-    B.start(2,25); B.check(38,25); B.check(55,25); B.check(82,25); B.check(100,6);
-    [[6,25],[16,18],[46,27],[73,27],[100,15],[92,10],[140,6]].forEach(r=>B.relay(...r));
-    B.enemy('spitter',24,25); B.enemy('seeker',58,17); B.drone(81,88,25);
-    B.enemy('skitter',109,6); B.enemy('spitter',138,6);
-    B.terminal(118,6,{time:16,waves:[[0.08,'seeker','hunter'],[0.3,'leech','leech'],[0.55,'skitter','skitter','seeker'],[0.8,'leech','leech','hunter']]});
-    B.goal(147,6);
-    B.prop('cabin',{x:3,row:25}); B.prop('sign',{x:9,row:25}); B.prop('cone',{x:39.4,row:25});
-    B.prop('drum',{x:26,row:25}); B.prop('crates',{x:58,row:25}); B.prop('cone',{x:66.4,row:25});
-    B.prop('tower',{x0:89.4,x1:103.6,top:7,row:25}); B.prop('pylon',{x:120,top:8,row:25}); B.prop('pylon',{x:136,top:8,row:25});
-    B.prop('chains',{x:43,row:15,len:30}); B.prop('chains',{x:49,row:15,len:18}); B.prop('chains',{x:70,row:15,len:36}); B.prop('chains',{x:76,row:15,len:24});
-    B.prop('dish',{x:128,row:6}); B.prop('fence',{x0:106,x1:148,row:25});
-  },
-  hints:[
-    [0,  "Blackwater Dam. Climb the girder over the live cable."],
-    [24, "A spitter pod. Punch its plasma out of the air, or punch the pod twice."],
-    [36, "Two long swings over the spillway. Let go at the top of each arc."],
-    [86, "Up the dam tower: fire up, reel in, step over."]
-  ]
+
 },
 // ------------------------------------------------------------------ 4
 {
-  act:1, name:'Meridian Rooftops', place:'City relay grid · 01:05', theme:'city', W:190, H:30,
+  act:1, name:'Meridian Rooftops', place:'City relay grid · 01:05', theme:'city',
+  sgen:{seed:4,len:430,tier:2,g:26,terminals:2,steel:true,pool:['flat','gap','ceilingSwing','climbOver','drones','anchorRun','crumbleBridge','nest','ceilingRun']},
   brief:"There's a ship over Meridian City. The rooftop relay grid is the only way left to get a warning out, and they're tearing it down block by block. Two terminals to reroute.",
   outro:"Meridian's grid is ours again. One link is left: the Skyline Uplink can reach the whole coast.",
-  build(B){
-    const g=26;
-    B.steel(1,14,g,29); B.steel(20,49,g,29); B.steel(62,125,g,29); B.steel(131,188,g,29);
-    M.girderGap(B,15,g);          // pit 15..19
-    M.ceilingSwing(B,45,g);       // billboard slab, pit 50..61
-    M.climbOver(B,101,g);         // stairwell block 113..117
-    M.girderGap(B,126,g);         // pit 126..130
-    M.towerClimb(B,146,g,188);    // deck row 7
-    B.start(2,25); B.check(21,25); B.check(64,25); B.check(119,25); B.check(131,25); B.check(156,6);
-    [[10,25],[34,25],[56,27],[103,21],[140,25],[156,15],[180,6]].forEach(r=>B.relay(...r));
-    B.enemy('skitter',30,25); B.drone(36,44,25); B.enemy('spitter',68,15);
-    B.enemy('seeker',95,19); B.enemy('spitter',144,25); B.enemy('skitter',165,6); B.enemy('seeker',176,3);
-    B.terminal(84,25,{time:14,waves:[[0.1,'hunter','hunter'],[0.4,'skitter','skitter'],[0.7,'leech','leech','seeker']]});
-    B.terminal(170,6,{time:16,waves:[[0.08,'seeker','seeker'],[0.4,'leech','leech','skitter'],[0.7,'hunter','hunter','skitter']]});
-    B.goal(184,6);
-    B.prop('vent',{x:5,row:25}); B.prop('antenna',{x:11,row:25}); B.prop('tank',{x:26,row:25});
-    B.prop('vent',{x:41,row:25}); B.prop('antenna',{x:66,row:25}); B.prop('dish',{x:75,row:25});
-    B.prop('vent',{x:92,row:25}); B.prop('tank',{x:122,row:25}); B.prop('antenna',{x:135,row:25});
-    B.prop('tower',{x0:145.4,x1:159.6,top:7,row:25}); B.prop('pylon',{x:172,top:8,row:25});
-  },
-  hints:[
-    [0,  "Meridian City. Rooftop to rooftop — don't look down."],
-    [40, "A spitter hangs under the billboard. Punch it before you swing, or swing fast."],
-    [62, "Two terminals on this route. Reroute this one first."],
-    [100,"Climb over the stairwell block."],
-    [140,"Up the broadcast tower to the second terminal."]
-  ]
+
 },
 // ------------------------------------------------------------------ 5
 {
-  act:1, name:'Skyline Uplink', place:'Coastal uplink SK-1 · 03:33', theme:'uplink', W:130, H:46,
+  act:1, name:'Skyline Uplink', place:'Coastal uplink SK-1 · 03:33', theme:'uplink',
+  sgen:{seed:5,len:440,tier:2,g:38,terminals:2,steel:true,pool:['flat','gap','ceilingSwing','climbOver','drones','anchorRun','ceilingRun','liftUp','dropDown','nest']},
   brief:"This is it. Reroute both uplink terminals and the warning goes out to every radio, phone and screen on the coast. They know it too. Expect everything.",
   outro:"",
   actEnd:{title:'WARNING BROADCAST',text:"Every radio, phone and screen on the coast just heard the warning. The roads are filling, the shelters are opening, and the ship over Meridian has stopped moving. You kept the lines open."},
-  build(B){
-    const g=42;
-    B.steel(1,33,g,45); B.steel(39,54,g,45); B.steel(67,128,g,45);
-    M.girderGap(B,34,g);          // pit 34..38
-    M.ceilingSwing(B,50,g);       // gantry, pit 55..66
-    M.towerClimb(B,80,g,125);     // deck row 23
-    M.towerClimb(B,110,23,128);   // second tower from that deck, top deck row 4
-    B.girder(104,115,4);          // widen the top deck so the final fight has room
-    B.start(3,41); B.check(40,41); B.check(68,41); B.check(90,22); B.check(117,3);
-    [[9,41],[25,41],[61,43],[90,31],[82,26],[113,17],[117,7]].forEach(r=>B.relay(...r));
-    B.drone(12,22,41); B.enemy('skitter',28,41); B.enemy('skitter',46,41); B.enemy('seeker',48,36);
-    B.enemy('spitter',58,31); B.enemy('spitter',83,41); B.enemy('skitter',95,22);
-    B.terminal(100,22,{time:15,waves:[[0.08,'seeker','hunter','hunter'],[0.35,'leech','leech','skitter'],[0.6,'skitter','skitter','seeker'],[0.85,'leech','leech','leech']]});
-    B.terminal(121,3,{time:18,waves:[[0.05,'seeker','seeker'],[0.25,'leech','leech','skitter'],[0.5,'hunter','hunter','seeker','seeker'],[0.7,'leech','leech','skitter','skitter'],[0.9,'seeker','seeker','leech']]});
-    B.goal(126,3);
-    B.prop('antenna',{x:6,row:41}); B.prop('vent',{x:18,row:41}); B.prop('tank',{x:44,row:41});
-    B.prop('dish',{x:71,row:41}); B.prop('tower',{x0:79.4,x1:93.6,top:23,row:41});
-    B.prop('tower',{x0:109.4,x1:123.6,top:4,row:22}); B.prop('pylon',{x:104,top:24,row:41}); B.prop('pylon',{x:118,top:24,row:41});
-  },
-  hints:[
-    [0,  "Skyline Uplink. The last transmitter that can reach the whole coast."],
-    [45, "Swing the gap under the gantry."],
-    [78, "Two terminals, two towers. Everything they have is coming."],
-    [108,"One more climb."]
-  ]
+
 },
 // ================================================================== ACT 2 · INTERFERENCE
 // ------------------------------------------------------------------ 6
 {
-  act:2, name:'Pylon Run', place:'Northern trunk line · 22:10', theme:'storm', W:230, H:28,
+  act:2, name:'Pylon Run', place:'Northern trunk line · 22:10', theme:'storm',
+  sgen:{seed:6,len:460,tier:2,g:26,pool:['flat','gap','ceilingRun','climbOver','drones','cableHazard','anchorRun','crumbleBridge','nest']},
   brief:"The warning got out, and they noticed. Storm cells are rolling down the northern trunk line and the pylons are dropping one by one. Ride the storm and keep the line alive.",
   outro:"The line is holding. But the junk wrapped round the pylons wasn't storm damage. It was growing.",
-  build(B){
-    const g=24;
-    B.rock(1,14,g,27); B.rock(20,52,g,27); B.rock(77,140,g,27); B.rock(146,228,g,27);
-    M.girderGap(B,15,g);           // pit 15..19
-    M.cableHazard(B,34,g);         // sparks 41..43
-    M.ceilingRun(B,48,g,24);       // one long ceiling, pit 53..76: chain swings across
-    M.climbOver(B,100,g);          // pillar 112..116
-    M.girderGap(B,141,g);          // pit 141..145
-    M.towerClimb(B,160,g,200);     // deck row 5
-    M.cableHazard(B,205,g);        // sparks 212..214
-    B.start(2,23); B.check(47,23); B.check(79,23); B.check(119,23); B.check(158,23); B.check(170,4); B.check(202,23);
-    [[8,23],[39,16],[58,22],[70,22],[102,19],[170,13],[162,8],[195,4],[210,16]].forEach(r=>B.relay(...r));
-    B.drone(24,32,23); B.enemy('skitter',90,23); B.enemy('seeker',96,17);
-    B.enemy('skitter',182,4); B.drone(188,196,4); B.enemy('seeker',218,17);
-    B.terminal(128,23,{time:15,waves:[[0.1,'hunter','hunter'],[0.4,'skitter','skitter'],[0.7,'seeker','leech','leech']]});
-    B.goal(224,23);
-    B.prop('cabin',{x:3,row:23}); B.prop('sign',{x:32.5,row:23}); B.prop('cone',{x:52.4,row:23}); B.prop('cone',{x:77.2,row:23});
-    B.prop('chains',{x:57,row:13,len:24}); B.prop('chains',{x:66,row:13,len:40}); B.prop('chains',{x:73,row:13,len:20});
-    B.prop('drum',{x:122,row:23}); B.prop('tower',{x0:159.4,x1:173.6,top:5,row:23}); B.prop('pylon',{x:184,top:6,row:23}); B.prop('pylon',{x:196,top:6,row:23});
-    B.prop('sign',{x:203.5,row:23}); B.prop('fence',{x0:217,x1:228,row:23});
-  },
-  hints:[
-    [0,  "Pylon Run. The storm's up, so keep moving."],
-    [44, "One long ceiling over the gap. Swing, let go at the top, and fire again straight away. Chain it all the way across."],
-    [98, "Over the pillar: fire up, reel in, step across."],
-    [140,"Up the pylon tower."],
-    [199,"Drop down and climb over the last live cable."]
-  ]
+
 },
 // ------------------------------------------------------------------ 7 (top-down)
 {
@@ -215,66 +118,19 @@ const LEVELS = [
 },
 // ------------------------------------------------------------------ 8
 {
-  act:2, name:'Floodgate', place:'Carrow Dam spillway · 02:05', theme:'flood', W:250, H:30,
+  act:2, name:'Floodgate', place:'Carrow Dam spillway · 02:05', theme:'flood',
+  sgen:{seed:8,len:470,tier:2,g:38,pool:['flat','gap','ceilingSwing','ferry','liftUp','dropDown','anchorRun','drones','nest','crumbleBridge']},
   brief:"They opened the floodgates to drown the valley relays. The ferries and service lifts still run on backup power. Ride them across the spillway and take the dam terminal back.",
   outro:"Gates shut, relays dry. Whatever opened them knew exactly which valve to turn.",
-  build(B){
-    const g=26;
-    B.rock(1,16,g,29); B.rock(35,60,g,29); B.rock(98,130,g,29); B.steel(131,150,12,29); B.rock(187,248,g,29);
-    B.platform(17,26,31,26,4);                      // ferry over the first pit (17..34)
-    M.anchorRun(B,56,g,4);                          // girder hops, pit 61..97
-    B.platform(127,26,127,12,4,{speed:34});         // service lift up the dam wall
-    B.platform(151,16,165,16,4);                    // two spillway ferries that meet in the middle
-    B.platform(169,16,183,16,4,{phase:1});
-    B.start(2,25); B.check(36,25); B.check(100,25); B.check(133,11); B.check(189,25);
-    [[8,25],[26,25],[75,13],[110,25],[145,11],[158,15],[176,15],[230,25]].forEach(r=>B.relay(...r));
-    B.drone(40,50,25); B.enemy('skitter',112,25); B.enemy('seeker',160,10);
-    B.enemy('skitter',205,25); B.drone(214,224,25); B.enemy('spitter',236,25);
-    B.terminal(141,11,{time:16,waves:[[0.08,'seeker','hunter'],[0.35,'leech','leech','skitter'],[0.65,'hunter','hunter','seeker'],[0.85,'leech','skitter']]});
-    B.goal(244,25);
-    B.prop('cabin',{x:3,row:25}); B.prop('sign',{x:15,row:25}); B.prop('cone',{x:35.4,row:25}); B.prop('drum',{x:45,row:25});
-    B.prop('fence',{x0:102,x1:108,row:25}); B.prop('crates',{x:114,row:25}); B.prop('dish',{x:147,row:11}); B.prop('antenna',{x:133,row:11});
-    B.prop('sign',{x:189.5,row:25}); B.prop('fence',{x0:196,x1:212,row:25}); B.prop('cone',{x:226,row:25});
-  },
-  hints:[
-    [0,  "Floodgate. Step onto the ferry platform and ride it across."],
-    [52, "Separate girders over the spillway. Swing from one to the next: let go at the top of each arc and fire again."],
-    [118,"Ride the service lift up the dam wall."],
-    [146,"Drop onto the ferry as it passes below. The two ferries meet in the middle, so step across."],
-    [188,"Almost there. Watch for the spitter by the mast."]
-  ]
+
 },
 // ------------------------------------------------------------------ 9
 {
-  act:2, name:'Freight Yard', place:'Harlow freight yard · 04:30', theme:'yard', W:290, H:30,
+  act:2, name:'Freight Yard', place:'Harlow freight yard · 04:30', theme:'yard',
+  sgen:{seed:9,len:500,tier:2,g:38,terminals:2,pool:['flat','gap','ceilingRun','climbOver','liftUp','dropDown','ferry','anchorRun','drones','nest','crumbleBridge','cableHazard']},
   brief:"The freight yard's crane lines carry the backbone cables for three cities, and the ship is hovering right over them. Two terminals, a long way apart. Don't stop moving.",
   outro:"Both yard terminals rerouted. Before it pulled back, the ship dropped something into the hills. Something big.",
-  build(B){
-    const g=26;
-    B.rock(1,30,g,29); B.rock(36,60,g,29); B.rock(85,125,g,29); B.rock(154,189,g,29); B.steel(190,205,10,29); B.rock(206,230,g,29); B.rock(268,288,g,29);
-    M.girderGap(B,31,g);                            // pit 31..35
-    B.platform(61,20,80,20,4,{speed:40});           // crane platform over pit 61..84: hook it and ride
-    M.ceilingRun(B,121,g,28);                       // gantry chain swing, pit 126..153
-    B.platform(186,26,186,10,4,{speed:34});         // lift up the container stack
-    M.anchorRun(B,226,g,4);                         // girder hops, pit 231..267
-    B.start(2,25); B.check(37,25); B.check(87,25); B.check(156,25); B.check(192,9); B.check(208,25); B.check(269,25);
-    [[10,25],[33,18],[70,19],[110,25],[137,22],[147,22],[198,9],[245,13],[280,25]].forEach(r=>B.relay(...r));
-    B.drone(12,24,25); B.enemy('skitter',50,25); B.enemy('seeker',72,14); B.enemy('skitter',118,25);
-    B.enemy('spitter',171,25); B.enemy('skitter',201,9); B.enemy('hunter',216,19); B.enemy('seeker',250,17);
-    B.terminal(100,25,{time:15,waves:[[0.1,'hunter','skitter'],[0.4,'seeker','leech','leech'],[0.7,'skitter','skitter','hunter']]});
-    B.terminal(276,25,{time:17,waves:[[0.08,'seeker','seeker'],[0.3,'leech','leech','skitter'],[0.55,'hunter','hunter','skitter'],[0.8,'leech','leech','seeker']]});
-    B.goal(285,25);
-    B.prop('crates',{x:4,row:25}); B.prop('tank',{x:20,row:25}); B.prop('cone',{x:30.4,row:25}); B.prop('drum',{x:45,row:25}); B.prop('cone',{x:60.4,row:25});
-    B.prop('antenna',{x:90,row:25}); B.prop('vent',{x:104,row:25}); B.prop('chains',{x:130,row:15,len:30}); B.prop('chains',{x:141,row:15,len:44}); B.prop('chains',{x:150,row:15,len:24});
-    B.prop('crates',{x:160,row:25}); B.prop('tank',{x:178,row:25}); B.prop('antenna',{x:204,row:9}); B.prop('sign',{x:224,row:25}); B.prop('crates',{x:271,row:25});
-  },
-  hints:[
-    [0,  "Harlow freight yard, the longest run yet."],
-    [55, "The crane platform swings over the gap. Hook it from below, reel in to climb aboard, and ride it."],
-    [118,"Chain your swings under the gantry."],
-    [180,"Take the lift up the container stack."],
-    [222,"Girder hops over the last gap."]
-  ]
+
 },
 // ------------------------------------------------------------------ 10 (top-down)
 {

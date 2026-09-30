@@ -26,7 +26,7 @@ const SECTIONS={
     build(B,x,g){ B.steel(x,x+24,g-13,g-12); B.prop('chains',{x:x+8,row:g-11,len:30}); B.prop('chains',{x:x+14,row:g-11,len:44}); B.relay(x+11,g+1); B.prop('cone',{x:x+17.4,row:g-1}); },
     check(T,x,g){ return 'swing '+T.swingAcross(x+4,g,x+17); } },
   ceilingRun:{w:38,tier:2,ground:[[0,4],[31,37]],hint:"One long ceiling over the gap. Swing, let go at the top, fire again straight away. Chain it across.",
-    build(B,x,g){ B.steel(x,x+36,g-13,g-12); B.prop('chains',{x:x+9,row:g-11,len:24}); B.prop('chains',{x:x+18,row:g-11,len:40}); B.prop('chains',{x:x+26,row:g-11,len:20}); B.relay(x+17,g+1); B.enemy('seeker',x+22,g-5); },
+    build(B,x,g){ B.steel(x,x+36,g-13,g-12); B.prop('chains',{x:x+9,row:g-11,len:24}); B.prop('chains',{x:x+18,row:g-11,len:40}); B.prop('chains',{x:x+26,row:g-11,len:20}); B.relay(x+17,g+1); },
     check(T,x,g){ return 'run '+T.swingAcross(x+4,g,x+31); } },
   anchorRun:{w:48,tier:2,ground:[[0,4],[42,47]],hint:"Separate girders over the pit. Swing from one to the next: let go at the top of each arc and fire again.",
     build(B,x,g){ for(let i=0;i<4;i++){ const c=x+11+8*i; B.girder(c-2,c+1,g-12); } B.relay(x+19,g-13); B.prop('sign',{x:x+2,row:g-1}); },
@@ -37,9 +37,9 @@ const SECTIONS={
   climbOver:{w:18,tier:1,ground:[[0,17]],hint:"Over the pillar: fire up, reel in, step across.",
     build(B,x,g){ B.girder(x,x+5,g-4); B.girder(x+6,x+11,g-10); B.steel(x+12,x+16,g-10,g-1); B.relay(x+8,g-11); },
     check(T,x,g){ return 'over '+T.walkFight(x+2)+' '+T.climb()+' '+T.walkSide(x+8)+' '+T.climb()+' '+T.walkTill(x+17,g); } },
-  crumbleBridge:{w:23,tier:2,ground:[[0,3],[19,22]],hint:"This bridge crumbles behind you. Don't stop.",
-    build(B,x,g){ B.crumble(x+4,x+18,g); B.prop('cone',{x:x+2.4,row:g-1}); },
-    check(T,x,g){ return 'crumble '+T.walkFight(x+2)+' '+T.walkTill(x+19,g,true); } },
+  crumbleBridge:{w:25,tier:2,ground:[[0,5],[21,24]],hint:"This bridge crumbles behind you. Don't stop.",
+    build(B,x,g){ B.crumble(x+6,x+20,g); B.prop('cone',{x:x+2.4,row:g-1}); },
+    check(T,x,g){ const r=T.r; let s='crumble '+T.walkFight(x+3); for(let i=0;i<8;i++){ T.walkFight(x+3); r.run(10); } T.until({},()=>!r.crumbles().some(c=>c.gone||c.t>=0),400); return s+' '+T.walkTill(x+21,g,true); } },
   ferry:{w:26,tier:2,ground:[[0,3],[22,25]],hint:"Step onto the ferry platform and ride it across.",
     build(B,x,g){ B.platform(x+4,g,x+18,g,4); B.relay(x+12,g-3); },
     check(T,x,g){ return 'ferry '+T.ridePlatform(x+3,x+4,x+18,g,x+22); } },
@@ -49,6 +49,16 @@ const SECTIONS={
   nest:{w:18,tier:2,ground:[[0,17]],
     build(B,x,g){ B.enemy('spitter',x+5,g-1); B.enemy('skitter',x+11,g-1); B.prop('crates',{x:x+13,row:g-1}); B.relay(x+8,g-1); },
     check(T,x){ return 'nest '+T.walkFight(x+17); } },
+  liftUp:{w:22,tier:2,dg:-12,ground:[[0,13]],hint:"Ride the lift up.",
+    build(B,x,g,c){ B.platform(x+10,g,x+10,g-12,4,{speed:34}); B.steel(x+14,x+21,g-12,c.H-1); B.prop('antenna',{x:x+18,row:g-13}); B.relay(x+18,g-13); },
+    check(T,x,g){ const r=T.r; let s='lift '+T.walkFight(x+9); const q=r.plats().find(q=>Math.abs(q.x0-(x+10)*16)<8&&Math.abs(q.y0-g*16)<8); if(!q) return s+' no lift';
+      const on=()=>r.p().plat===q&&r.p().onGround; T.until({},()=>q.y>=g*16-2&&q.hold>0.6,1500); // board as soon as it has arrived
+      T.until({right:true},()=>on()&&Math.abs(r.p().x+6-(q.x+q.w/2))<10,300);
+      const up=T.until({},()=>r.p().onGround&&r.info().ty<=g-12+0.5,2400); // ride up (or get scooped up while waiting in the shaft)
+      return s+' '+(up>=0?'up ':'never rose ')+T.walkTill(x+15,g-12); } },
+  dropDown:{w:14,tier:2,dg:12,grounds:g=>[[0,5,g],[6,13,g+12]],
+    build(B,x,g){ B.prop('sign',{x:x+3,row:g-1}); B.relay(x+9,g+11); },
+    check(T,x,g){ return 'drop '+T.walkTill(x+9,g+12); } },
   towerDeck:{w:60,tier:1,ground:[[0,59]],hint:"Climb the tower one girder at a time: fire up, reel in, step over. Reroute the terminal on the deck.",
     build(B,x,g,c){ B.girder(x+4,x+10,g-5); B.girder(x+8,x+14,g-10); B.girder(x+2,x+10,g-15); B.girder(x+8,x+52,g-19);
       B.terminal(x+30,g-20,c.term); B.check(x+12,g-20); B.relay(x+6,g-16); B.relay(x+44,g-20);
@@ -59,32 +69,34 @@ const SECTIONS={
 
 function composeSide(def){
   const G=def.sgen; seed=G.seed||1; for(let i=0;i<5;i++) rnd();
-  const g=G.g||26, H=g+4, tier=G.tier||1, len=G.len||360;
+  const g0=G.g||26, tier=G.tier||1, len=G.len||360, nTerms=G.terminal===false?0:(G.terminals||1);
+  const deckAt=nTerms===1?[0.55]:nTerms===2?[0.38,0.76]:[0.3,0.58,0.85];
   const pool=(G.pool||Object.keys(SECTIONS).filter(k=>!['start','goal','towerDeck'].includes(k)&&SECTIONS[k].tier<=tier)).filter(k=>SECTIONS[k]);
   const hazards=pool.filter(k=>!['flat','drones','nest'].includes(k)), breathers=pool.filter(k=>['flat','drones','nest'].includes(k));
-  const list=[{name:'start'}]; let x=SECTIONS.start.w, last='start', run=0, deckDone=false;
+  const list=[{name:'start',x:0,g:g0}]; let x=SECTIONS.start.w, g=g0, last='start', run=0, decks=0;
+  const fits=k=>{ const dg=SECTIONS[k].dg||0; return g+dg>=22&&g+dg<=(G.maxG||g0+12); };
   while(x<len-SECTIONS.goal.w-40){
     let name;
-    if(!deckDone&&x>len*0.55&&G.terminal!==false){ name='towerDeck'; deckDone=true; }
+    if(decks<nTerms&&x>len*deckAt[decks]&&g>=22){ name='towerDeck'; decks++; }
     else if((run>=2||last==='climbOver')&&breathers.length){ name=pick(breathers.filter(k=>k!==last)); }
-    else { const opts=hazards.filter(k=>k!==last); name=opts.length?pick(opts):pick(pool); }
+    else { const opts=hazards.filter(k=>k!==last&&fits(k)&&!(k==='crumbleBridge'&&(last==='nest'||last==='drones'))); name=opts.length?pick(opts):pick(breathers.length?breathers:pool); }
     run=['flat','drones','nest'].includes(name)?0:run+1;
-    list.push({name,x}); x+=SECTIONS[name].w; last=name;
+    list.push({name,x,g}); x+=SECTIONS[name].w; g+=SECTIONS[name].dg||0; last=name;
   }
-  if(!deckDone&&G.terminal!==false){ list.push({name:'towerDeck',x}); x+=SECTIONS.towerDeck.w; }
-  list.push({name:'goal',x}); const W=x+SECTIONS.goal.w+2;
-  list[0].x=0;
-  const hints=[], ctx={tier,term:G.term||{time:14,waves:[[0.1,'hunter','hunter'],[0.4,'skitter','hunter'],[0.75,'skitter','skitter','seeker']]},termIndex:0};
+  while(decks<nTerms){ list.push({name:'towerDeck',x,g}); x+=SECTIONS.towerDeck.w; decks++; }
+  list.push({name:'goal',x,g}); const W=x+SECTIONS.goal.w+2, H=Math.max(...list.map(s=>s.g))+4;
+  const hints=[], ctx={H:0,tier,term:G.term||{time:14,waves:[[0.1,'hunter','hunter'],[0.4,'skitter','hunter'],[0.75,'skitter','skitter','seeker']]},termIndex:0};
   const ENEMY_HINTS={skitter:"Skitters take <b>two</b> punches: ▼ + GRAB, twice.",seeker:"Purple seekers hunt you and lunge. Punch them before they close in.",spitter:"A spitter pod. Punch its plasma out of the air, or punch the pod twice."};
   for(const s of list){ const sec=SECTIONS[s.name]; if(sec.hint&&!taught.has(s.name)){ taught.add(s.name); hints.push([s.x,sec.hint]); } }
   const probe={ drone(){}, enemy(t,x){ if(ENEMY_HINTS[t]&&!taught.has('enemy:'+t)){ taught.add('enemy:'+t); hints.push([x-4,ENEMY_HINTS[t]]); } } };
-  { const noop=()=>{}; const PB=new Proxy(probe,{get:(o,k)=>o[k]||noop}); const s0=seed; seed=(G.seed||1)*7+3; for(const s of list) SECTIONS[s.name].build(PB,s.x,g,ctx); seed=s0; }
-  const sections=list.map(s=>({name:s.name,x:s.x,w:SECTIONS[s.name].w}));
+  { const noop=()=>{}; const PB=new Proxy(probe,{get:(o,k)=>o[k]||noop}); const s0=seed; seed=(G.seed||1)*7+3; for(const s of list) SECTIONS[s.name].build(PB,s.x,s.g,ctx); seed=s0; }
+  const sections=list.map(s=>({name:s.name,x:s.x,w:SECTIONS[s.name].w,g:s.g}));
+  ctx.H=H;
   const rock=G.steel?'steel':'rock';
   const build=B=>{ seed=(G.seed||1)*7+3;
-    for(const s of list){ const sec=SECTIONS[s.name]; for(const [a,b] of sec.ground) B[rock](s.x+a,s.x+b,g,H-1);
-      if(sec.tier>0&&s.name!=='towerDeck'&&s.name!=='goal') B.check(s.x+1,g-1);
-      sec.build(B,s.x,g,ctx); } };
+    for(const s of list){ const sec=SECTIONS[s.name]; const grounds=sec.grounds?sec.grounds(s.g):sec.ground.map(([a,b])=>[a,b,s.g]); for(const [a,b,row] of grounds) B[rock](s.x+a,s.x+b,row,H-1);
+      if(sec.tier>0&&s.name!=='towerDeck'&&s.name!=='goal') B.check(s.x+1,s.g-1);
+      sec.build(B,s.x,s.g,ctx); } };
   return {W,H,build,hints,sections};
 }
 function composeAll(levels){ taught.clear(); for(const k of ['gap','ceilingSwing','climbOver','cableHazard','towerDeck']) taught.add(k); /* level 1 teaches these by hand */ for(const lv of levels) if(lv.mode!=='top'&&lv.sgen){ const c=composeSide(lv); Object.assign(lv,{W:c.W,H:c.H,build:c.build,hints:c.hints,sections:c.sections}); } }

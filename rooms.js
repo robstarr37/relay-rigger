@@ -50,7 +50,8 @@ const TYPES={
     build(c){ c.put(2,1,'S'); c.put(10,7,'S'); c.put(6,4,'R'); c.put(3,6,'C'); c.put(9,2,'C'); },
     solve(T,R){ return 'den '+T.killNear(220); } },
   // rewards
-  partRoom:{ reward:true, build(c){ c.put(6,4,'*'); c.put(2,1,'R'); if(!c.secret&&rnd()<0.5) c.put(10,7,'S'); }, solve(T,R){ T.killNear(200); return T.collect(...R.g(6,4)); } },
+  hatRoom:{ reward:true, build(c){ c.put(6,4,'$'); c.put(10,1,'R'); }, solve(){ return 'hat room'; } },
+  partRoom:{ reward:true, build(c){ c.put(6,4,'*'); c.put(2,1,'R'); if(c.secret) c.put(10,7,'$'); else if(rnd()<0.5) c.put(10,7,'S'); }, solve(T,R){ T.killNear(200); return T.collect(...R.g(6,4)); } },
   startRoom:{ build(c){ c.put(6,4,'P'); }, solve(){ return 'start'; } },
   exitRoom:{ build(c){ c.put(6,4,'X'); c.put(10,1,'R'); }, solve(T,R){ return 'exit '+T.walkTo(...R.g(6,4)); } },
   terminalRoom:{ build(c){ c.put(6,1,'T'); c.put(2,7,'C'); c.put(10,7,'C'); }, solve(T,R){ return 'terminal '+T.walkTo(...R.g(6,2))+' '+T.fightTop(R.termIndex); } },
@@ -93,6 +94,7 @@ function compose(def){
   const partCells=[]; if(wantFuse&&early.length) partCells.push(early.pop()); const rest=shuffle(early.concat(later)); while(partCells.length<need+wantFuse&&rest.length) partCells.push(rest.pop());
   const termNeed=Math.max(1,partCells.length-wantFuse);
   for(const c of partCells){ c.type='partRoom'; const leaf=Object.keys(c.links).length===1; if(leaf&&rnd()<(G.secret??0.5)){ const side=Object.keys(c.links)[0]; c.links[side].kind='secret'; c.links[side].to.links[OPP[side]].kind='secret'; } }
+  { const spare=shuffle(branches.filter(c=>!c.type&&Object.keys(c.links).length===1)); const hr=spare.pop(); if(hr){ hr.type='hatRoom'; const side=Object.keys(hr.links)[0]; hr.links[side].kind='secret'; hr.links[side].to.links[OPP[side]].kind='secret'; } }
   for(const c of branches) if(!c.type) c.type=rnd()<0.6?'den':'partRoom'; // spare part rooms give a little slack
   const spareParts=branches.filter(c=>c.type==='partRoom'&&!partCells.includes(c)); for(const c of spareParts) c.type='den';
   // ---- emit tiles

@@ -160,7 +160,7 @@ function buildLevelData(def){
   W=def.W; H=def.H; LW=W*T; LH=H*T;
   map=Array.from({length:H},()=>new Array(W).fill(0));
   rockMap=Array.from({length:H},()=>new Uint8Array(W));
-  const d={start:[2,H-5],checks:[],relays:[],enemies:[],terms:[],goal:null,props:[],plats:[],crumbles:[],anchor:null,zips:[],core:null};
+  const d={start:[2,H-5],checks:[],relays:[],enemies:[],terms:[],goal:null,props:[],plats:[],crumbles:[],anchor:null,zips:[],core:null,cracks:[],hats:[]};
   const set=(x0,x1,y0,y1,v,rock)=>{ for(let y=Math.max(0,y0);y<=Math.min(H-1,y1);y++) for(let x=Math.max(0,x0);x<=Math.min(W-1,x1);x++){ map[y][x]=v; rockMap[y][x]=rock; } };
   const B={W,H,
     steel:(x0,x1,y0,y1)=>set(x0,x1,y0,y1,1,0), rock:(x0,x1,y0,y1)=>set(x0,x1,y0,y1,1,1),
@@ -176,6 +176,9 @@ function buildLevelData(def){
     crumble:(x0,x1,y)=>{ set(x0,x1,y,y,2,0); for(let x=x0;x<=x1;x++) d.crumbles.push([x,y]); },
     // zip line: hook the cable and slide along it (x,y are tiles; the cable runs through tile centres)
     zip:(x0,y0,x1,y1)=>d.zips.push({x0:x0*T+8,y0:y0*T+8,x1:x1*T+8,y1:y1*T+8}),
+    // a solid tile with a hairline crack: the cable breaks it open. A hat placed on a solid tile is sealed inside until the crack breaks.
+    crack:(x,y,rock)=>{ set(x,x,y,y,1,rock?1:0); d.cracks.push([x,y]); },
+    hat:(x,y)=>d.hats.push([x,y]),
     // final boss: the core at (x,y), shielded until every generator is destroyed
     core:(x,y,gens)=>{ d.core={tx:x,ty:y}; d.enemies.push({type:'core',x:x*T+8,y:y*T+8}); for(const [gx,gy] of gens) d.enemies.push({type:'gen',x:gx*T+8,y:gy*T+8}); },
     // boss: a tether at column x with a clamp at each of the given rows
@@ -201,7 +204,8 @@ function loadLevel(i){
 }
 
 // ---------- state ----------
-let crumbles=[], water=null, anchor=null, wind=null, zips=[], boss=null, beamsT=[];
+let crumbles=[], water=null, anchor=null, wind=null, zips=[], boss=null, beamsT=[], hats=[], cracks=new Set(), cpDeaths=0;
+const maxHp=()=>(LDEF&&LDEF.act||1)>=3?5:3;
 let p, hook, rope, enemies, shots, relays, checks, terms, goal, parts, plats=[], cam={x:0,y:0}, state='title', clock=0, falls=0, got=0, cp=0, tnow=0;
 let bolt=0, nextBolt=6, shake=0, hitstop=0, flash=0, winT=0, fwT=0, reelAcc=0, stepPh=0, crackleT=0, lockMsgT=-9, allDoneT=-99;
 const DIRS=['left','right','up','down','grab','pulse'];
@@ -236,13 +240,14 @@ function reset(){
   if(MODE==='top'){ resetTop(); return; }
   const s=LD.start;
   checks=[s,...LD.checks].map(([x,y],i)=>({x:x*T+8,y:(y+1)*T,on:i===0,raise:i===0?1:0}));
-  p={x:s[0]*T+2,y:(s[1]+1)*T-20,w:12,h:20,vx:0,vy:0,face:1,onGround:false,hp:3,inv:0,walk:0,landV:0,plat:null};
+  p={x:s[0]*T+2,y:(s[1]+1)*T-20,w:12,h:20,vx:0,vy:0,face:1,onGround:false,hp:maxHp(),inv:0,walk:0,landV:0,plat:null};
   hook={state:'idle',x:0,y:0,dx:0,dy:0,len:0,tile:0,tx:0,ty:0}; rope=0;
   enemies=LD.enemies.map(e=>makeEnemy(e.type,e.x,e.y,e));
   shots=[];
   relays=LD.relays.map(([x,y])=>({x:x*T+8,y:y*T+8,got:false,ph:Math.random()*6}));
   terms=LD.terms.map(makeTerm);
   crumbles=LD.crumbles.map(([x,y])=>{ map[y][x]=2; return {x,y,t:-1,gone:false,back:0}; });
+  resetHats(); cpDeaths=0;
   water=LDEF.flood?{y:LDEF.flood.row*T,active:false,wait:0,rumble:0}:null;
   anchor=LD.anchor?{x:LD.anchor.tx*T+8,pt:3,st:5,band:null,dead:false,snap:0}:null;
   boss=LD.core?{pt:3,st:6,band:null,dead:false,phase:1,hx:LD.core.tx*T+8,hy:LD.core.ty*T+8,t:0}:null;
@@ -289,7 +294,37 @@ function beam(x,y){parts.push({t:'beam',x,y,life:0.6,full:0.6,add:true});}
 // relays and parts are collected by walking into them or by passing the cable's hook over them
 function collectRelay(r){ r.got=true; got++; burst(r.x,r.y,'#5fe39a',14,100); sparks(r.x,r.y,'#5fe39a',10,120); ring(r.x,r.y,'#5fe39a',24,0.4); popup(r.x,r.y-12,`RELAY ${got}/${relays.length}`,'#5fe39a'); sfx.relay(); buzz(15); }
 function collectPart(q){ q.got=true; partsHeld++; burst(q.x,q.y,'#ffc23d',14,100); sparks(q.x,q.y,'#ffe08a',10,120); ring(q.x,q.y,'#ffc23d',24,0.4); popup(q.x,q.y-12,`PART ${pickups.filter(z=>z.got).length}/${pickups.length}`,'#ffc23d'); sfx.part(); buzz(15); }
+function resetHats(){
+  hats=LD.hats.map(([x,y])=>({x:x*T+8,y:y*T+8,tx:x,ty:y,got:false,ph:Math.random()*6}));
+  // cracks re-seal only on a fresh start of the level: map tiles were rebuilt by buildLevelData
+  cracks=new Set(LD.cracks.map(([x,y])=>x+','+y)); for(const [x,y] of LD.cracks) map[y][x]=1;
+  if(MODE==='side'&&strips) strips.cache.clear();
+}
+// a hat is only visible (and collectable) once no solid tile covers it
+const hatOpen=h=>MODE==='top'?!hid(h.tx,h.ty):map[h.ty][h.tx]!==1;
+function collectHat(h){
+  if(p.hp>=maxHp()){ if(tnow-(h.askT||-9)>2){ h.askT=tnow; popup(h.x,h.y-12,'HARD HATS FULL','#ffc23d'); } return; }
+  h.got=true; p.hp++; burst(h.x,h.y,'#ffe08a',14,100); sparks(h.x,h.y,'#fff6c8',10,120); ring(h.x,h.y,'#ffc23d',24,0.4); popup(h.x,h.y-12,'HARD HAT +1','#ffe08a'); sfx.check(); buzz(15);
+}
+function breakCrack(tx,ty){
+  cracks.delete(tx+','+ty); map[ty][tx]=0;
+  for(const h of hats) if(!h.got&&Math.abs(h.tx-tx)<=1&&Math.abs(h.ty-ty)<=1&&map[h.ty][h.tx]===1) map[h.ty][h.tx]=0; // open the pocket behind it
+  if(strips){ for(const i of [Math.floor(tx*T*ART/SW),Math.floor((tx*T*ART+31)/SW)]) strips.cache.delete(i); }
+  debris(tx*T+8,ty*T+8,[TH.rock?TH.rock[0]:'#333a66','#5b66a0','#15182f'],12); dust(tx*T+8,ty*T+8,8); shake=Math.max(shake,3); sfx.secret(); buzz([20,30,20]);
+  popup(tx*T+8,ty*T-6,'CRACKED OPEN','#b6ff5a');
+}
+// three deaths at one checkpoint send you back to the start: parts, relays and solved puzzles stay; enemies and hidden hats come back
+function restartRun(){
+  cpDeaths=0; cp=0; p.hp=maxHp();
+  enemies=LD.enemies.map(e=>makeEnemy(e.type,e.x,e.y,e)); shots=[];
+  for(const h of hats) h.got=false;
+  for(const c of crumbles){ c.gone=false; c.t=-1; map[c.y][c.x]=2; }
+  if(water){ water.y=LDEF.flood.row*T; water.active=false; }
+  for(const tm of terms) if(tm.state==='active'){ tm.state='idle'; tm.prog=0; tm.wi=0; }
+  placeAtCheckpoint(); popup(p.x+p.w/2,p.y-20,'BACK TO THE START','#ff4150'); sfx.alarm(); flash=0.3;
+}
 function hookPickups(){
+  for(const h of hats) if(!h.got&&hatOpen(h)&&Math.abs(hook.x-h.x)<11&&Math.abs(hook.y-h.y)<11) collectHat(h);
   for(const r of relays) if(!r.got&&Math.abs(hook.x-r.x)<11&&Math.abs(hook.y-r.y)<11) collectRelay(r);
   if(MODE==='top') for(const q of pickups) if(!q.got&&!hid(q.tx,q.ty)&&Math.abs(hook.x-q.x)<11&&Math.abs(hook.y-q.y)<11) collectPart(q);
 }
@@ -304,14 +339,14 @@ function hurt(fall,srcX,srcY){
   if(MODE==='top'){
     p.hp--; p.inv=1.3; if(hook.state!=='idle') hook.state='back'; burst(p.x+6,p.y+6,'#ff6a2c',12);
     shake=Math.max(shake,4); flash=0.25; buzz(45); sfx.hurt();
-    if(p.hp<=0){ p.hp=3; falls++; respawn(); }
+    if(p.hp<=0){ p.hp=maxHp(); falls++; respawn(); }
     else { const a=Math.atan2((p.y+6)-(srcY!=null?srcY:p.y+6),(p.x+6)-(srcX!=null?srcX:p.x+6)); p.vx=Math.cos(a)*170; p.vy=Math.sin(a)*170; }
     return;
   }
   p.hp--; p.inv=1.3; hook.state='back'; burst(p.x+6,p.y+8,'#ff6a2c',12);
   shake=Math.max(shake,fall?3:4); flash=0.25; buzz(fall?90:45);
   if(fall) sfx.fall(); else sfx.hurt();
-  if(fall || p.hp<=0){ if(p.hp<=0){p.hp=3;} falls++; respawn(); }
+  if(fall || p.hp<=0){ if(p.hp<=0){p.hp=maxHp();} falls++; respawn(); }
   else { const d=srcX!=null?(Math.sign(p.x+6-srcX)||-p.face):-p.face; p.vx=d*140; p.vy=-180; p.onGround=false; }
 }
 // never respawn into a crowd: wave/brood spawns near the checkpoint vanish, placed enemies get shoved back
@@ -321,7 +356,7 @@ function clearRespawn(){
     if(d<56){ if(e.wave||e.kid) killEnemy(e,true); else { const a=Math.atan2(e.y-cy0,e.x-cx0); e.stun=1.5; e.vx=Math.cos(a)*170; e.vy=MODE==='top'?Math.sin(a)*170:-120; e.ground=false; } } }
   shots=shots.filter(q=>Math.hypot(q.x-cx0,q.y-cy0)>80);
 }
-function respawn(){ placeAtCheckpoint(); clearRespawn(); }
+function respawn(){ cpDeaths++; if(cpDeaths>=3){ restartRun(); clearRespawn(); return; } placeAtCheckpoint(); clearRespawn(); }
 function placeAtCheckpoint(){const c=checks[cp];
   for(const q of crumbles) if(q.gone){ q.gone=false; q.t=-1; map[q.y][q.x]=2; }
   if(water){ water.y=Math.max(water.y,c.y+6*T); water.wait=2.5; }
@@ -401,6 +436,7 @@ function step(dt){
         Object.assign(hook,{state:'zip',zip:zp,t,v:p.vx*ux+p.vy*uy,ux,uy,L,plat:null}); hook.x=zp.x0+ux*L*t; hook.y=zp.y0+uy*L*t; sfx.attach(); buzz(8); sparks(hook.x,hook.y,'#fff6c8',5,90);
         break; }
       const tx=Math.floor(hook.x/T), ty=Math.floor(hook.y/T);
+      if(cracks.has(tx+','+ty)){ breakCrack(tx,ty); hook.state='back'; break; }
       const pq=plats.find(q=>hook.x>=q.x&&hook.x<=q.x+q.w&&hook.y>=q.y&&hook.y<=q.y+12);
       const v=pq?2:tile(tx,ty);
       if(v===1||v===2){
@@ -662,8 +698,9 @@ function update(dt){
   // relays
   for(const r of relays){ if(r.got) continue;
     if(Math.abs(p.x+6-r.x)<11&&Math.abs(p.y+10-r.y)<14) collectRelay(r); }
+  for(const h of hats){ if(h.got||!hatOpen(h)) continue; if(Math.abs(p.x+6-h.x)<11&&Math.abs(p.y+10-h.y)<14) collectHat(h); }
   // checkpoints
-  checks.forEach((c,i)=>{ if(i>cp&&Math.abs(p.x+6-c.x)<10&&Math.abs(p.y+p.h-c.y)<24){cp=i;c.on=true;burst(c.x,c.y-16,'#ffc23d',10,70);popup(c.x,c.y-34,'CHECKPOINT','#ffc23d');sfx.check();} });
+  checks.forEach((c,i)=>{ if(i>cp&&Math.abs(p.x+6-c.x)<10&&Math.abs(p.y+p.h-c.y)<24){cp=i;cpDeaths=0;c.on=true;burst(c.x,c.y-16,'#ffc23d',10,70);popup(c.x,c.y-34,'CHECKPOINT','#ffc23d');sfx.check();} });
   // void
   if(p.y>LH+40) hurt(true);
   // goal (locked until every terminal is rerouted)
@@ -762,7 +799,7 @@ function buildTopData(def){
   if(def.gen&&!def.map) window.RR_ROOMS.composeAll(LEVELS);
   const rows=def.map; H=rows.length; W=Math.max(...rows.map(r=>r.length)); LW=W*T; LH=H*T;
   map=Array.from({length:H},()=>new Array(W).fill(1)); rockMap=[]; sparkTiles=[];
-  const d={top:true,start:[1,1],checks:[],relays:[],enemies:[],terms:[],goal:null,props:[],plats:[],crates:[],posts:[],plates:[],doors:[],levers:[],bridges:[],conv:[],crumbles:[],anchor:null,zips:[],core:null,beams:[],teles:[],secrets:[],parts:[],fuses:[]};
+  const d={top:true,start:[1,1],checks:[],relays:[],enemies:[],terms:[],goal:null,props:[],plats:[],crates:[],posts:[],plates:[],doors:[],levers:[],bridges:[],conv:[],crumbles:[],anchor:null,zips:[],core:null,beams:[],teles:[],secrets:[],parts:[],fuses:[],cracks:[],hats:[]};
   let ti=0;
   for(let y=0;y<H;y++) for(let x=0;x<W;x++){
     const ch=rows[y][x]||'#', k=def.key&&def.key[ch];
@@ -792,6 +829,7 @@ function buildTopData(def){
       case '%': v=1; d.secrets.push([x,y]); break;
       case '@': d.crates.push([x,y,1]); break;
       case '*': d.parts.push([x,y]); break;
+      case '$': d.hats.push([x,y]); break;
       case '>': d.conv.push([x,y,1,0]); break;
       case '<': d.conv.push([x,y,-1,0]); break;
       case '^': d.conv.push([x,y,0,-1]); break;
@@ -809,8 +847,8 @@ function buildTopData(def){
 function resetTop(){
   const s=LD.start;
   checks=[s,...LD.checks].map(([x,y],i)=>({x:x*T+8,y:(y+1)*T-3,tx:x,ty:y,on:i===0,raise:i===0?1:0}));
-  p={x:s[0]*T+2,y:s[1]*T+2,w:12,h:12,vx:0,vy:0,face:'down',onGround:true,hp:3,inv:0,walk:0,landV:0,fall:0,pushT:0,plat:null,moving:false};
-  hook={state:'idle',x:0,y:0,dx:0,dy:0,len:0}; rope=0; plats=[]; crumbles=[]; water=null; anchor=null; wind=null; zips=[]; boss=null;
+  p={x:s[0]*T+2,y:s[1]*T+2,w:12,h:12,vx:0,vy:0,face:'down',onGround:true,hp:maxHp(),inv:0,walk:0,landV:0,fall:0,pushT:0,plat:null,moving:false};
+  hook={state:'idle',x:0,y:0,dx:0,dy:0,len:0}; rope=0; plats=[]; crumbles=[]; water=null; anchor=null; resetHats(); cpDeaths=0; wind=null; zips=[]; boss=null;
   beamsT=LD.beams.map(b=>Object.assign({tiles:[],active:false,warn:false},b));
   enemies=LD.enemies.map(e=>makeEnemy(e.type,e.x,e.y,e)); shots=[];
   relays=LD.relays.map(([x,y])=>({x:x*T+8,y:y*T+8,got:false,ph:Math.random()*6}));
@@ -841,7 +879,7 @@ function resetPuzzle(){
   if(MODE!=='top'||!snap) return;
   crates=snap.crates.map(c=>({tx:c.tx,ty:c.ty,x:c.tx*T+8,y:c.ty*T+8,mv:null,dead:c.dead,heavy:c.heavy}));
   levers.forEach((l,i)=>{l.on=snap.levers[i];}); filled=new Set(snap.filled);
-  respawn(); updateGroups(true); popup(p.x+6,p.y-10,'PUZZLE RESET','#ffc23d');
+  placeAtCheckpoint(); clearRespawn(); updateGroups(true); popup(p.x+6,p.y-10,'PUZZLE RESET','#ffc23d');
 }
 
 // groups: a door/bridge group is on when any lever in it is on, or every plate in it is held down, or its terminal is done
@@ -996,7 +1034,7 @@ function updateHookTop(dt){
 }
 function topFell(){
   p.hp--; falls++; flash=0.25; buzz(90); shake=Math.max(shake,2);
-  if(p.hp<=0) p.hp=3;
+  if(p.hp<=0) p.hp=maxHp();
   respawn();
 }
 function topSkitter(e,dt,harm){
@@ -1059,7 +1097,8 @@ function updateTop(dt,edge){
   updateTerms(dt);
   for(const r of relays){ if(r.got) continue;
     if(Math.abs(p.x+6-r.x)<11&&Math.abs(p.y+6-r.y)<11) collectRelay(r); }
-  checks.forEach((c,i)=>{ if(i>cp&&Math.abs(p.x+6-c.x)<26&&Math.abs(p.y+6-(c.ty*T+8))<26){ cp=i; c.on=true; burst(c.x,c.y-16,'#ffc23d',10,70); popup(c.x,c.y-34,'CHECKPOINT','#ffc23d'); sfx.check(); takeSnap(); } });
+  for(const h of hats){ if(h.got||!hatOpen(h)) continue; if(Math.abs(p.x+6-h.x)<11&&Math.abs(p.y+6-h.y)<11) collectHat(h); }
+  checks.forEach((c,i)=>{ if(i>cp&&Math.abs(p.x+6-c.x)<26&&Math.abs(p.y+6-(c.ty*T+8))<26){ cp=i; cpDeaths=0; c.on=true; burst(c.x,c.y-16,'#ffc23d',10,70); popup(c.x,c.y-34,'CHECKPOINT','#ffc23d'); sfx.check(); takeSnap(); } });
   if(LD.rooms){ const R=LD.rooms, cx0=Math.floor((Math.floor((p.x+6)/T)-1)/R.px), cy0=Math.floor((Math.floor((p.y+6)/T)-1)/R.py), id=cy0*R.cols+cx0;
     if(id!==curCell){ const prev=curCell; curCell=id; visited.add(id);
       if(prev>=0){ const c=R.cells[prev]; const left=c&&pickups.some(q=>!q.got&&!hid(q.tx,q.ty)&&q.tx>=c.ox&&q.tx<c.ox+13&&q.ty>=c.oy&&q.ty<c.oy+9);
@@ -1186,7 +1225,7 @@ function drawTop(){
     R(x-14,y-14,28,28,'#15182f'); R(x-12,y-12,24,24,open?'#1d4a36':'#3a1a24');
     for(let i=0;i<24;i+=6) R(x-12+i,y-12,3,24,open?'#2a6a4a':'#5a2030');
     R(x-3,y-8+((tnow*8|0)%4),6,3,open?'#5fe39a':'#ff4150'); R(x-2,y-4+((tnow*8|0)%4),4,2,open?'#5fe39a':'#ff4150'); }
-  drawTerms(); drawChecks(); drawRelays();
+  drawTerms(); drawChecks(); drawRelays(); drawHats();
   for(const c of crates) if(!c.dead&&!hid(c.tx,c.ty)){ if(c.heavy) drawBlock(SX(c.x),SY(c.y)); else drawCrate(SX(c.x),SY(c.y)); }
   drawEnemies();
   const lampPos=drawPlayerTop();
@@ -1215,6 +1254,7 @@ function drawDarkness(){
   for(const [x,y] of LD.posts) hole(SX(x*T+8),SY(y*T+8),34,0.6);
   for(const c of crates) if(!c.dead) hole(SX(c.x),SY(c.y),36,0.45);
   for(const q of pickups) if(!q.got&&!hid(q.tx,q.ty)) hole(SX(q.x),SY(q.y),44,0.75);
+  for(const h of hats) if(!h.got&&hatOpen(h)) hole(SX(h.x),SY(h.y),40,0.7);
   for(const f of fuses) hole(SX(f.tx*T+8),SY(f.ty*T+8),40,0.7);
   for(const b of beamsT) if(b.active) for(const [tx,ty] of b.tiles) hole(SX(tx*T+8),SY(ty*T+8),40,0.6);
   for(const t of LD.teles) hole(SX(t.tx*T+8),SY(t.ty*T+8),50,0.8);
@@ -1333,6 +1373,7 @@ function buildLayer(){
   strips={n:Math.ceil(LW*ART/SW),cache:new Map()}; lights=[];
   const [dc,dx]=mk(1,1); paintLayer(dx,0,0,true);
 }
+function drawCrackLines(L,ax,ay,col){ pline(L,ax+9,ay+3,ax+15,ay+13,col,1); pline(L,ax+15,ay+13,ax+13,ay+25,col,1); pline(L,ax+15,ay+13,ax+23,ay+18,col,1); L.fillStyle=col; L.fillRect(ax+14,ay+12,2,2); }
 function getStrip(i){
   const have=strips.cache.get(i); if(have) return have;
   const w=Math.min(SW,LW*ART-i*SW), [c,x]=mk(w,LH*ART); x.translate(-i*SW,0); paintLayer(x,i*SW,i*SW+w,false); strips.cache.set(i,c); return c;
@@ -1371,6 +1412,7 @@ function paintLayer(L,x0,x1,collect){
   for(let ty=0;ty<H;ty++) for(let tx=tx0;tx<tx1;tx++){
     const v=map[ty][tx]; if(!v) continue;
     const ax=tx*S, ay=ty*S, h=hash(tx,ty);
+    const cracked=cracks.has(tx+','+ty);
     if(v===1 && rockMap[ty][tx]){ // earth / rock / concrete
       let depth=0; while(depth<3&&ty-depth-1>=0&&map[ty-depth-1][tx]===1) depth++;
       r(ax,ay,S,S,rockC[depth]);
@@ -1383,6 +1425,7 @@ function paintLayer(L,x0,x1,collect){
       }
       if(tile(tx-1,ty)===0) r(ax,ay,2,S,grit[2]);
       if(tile(tx+1,ty)===0) r(ax+S-2,ay,2,S,'#121324');
+      if(cracked) drawCrackLines(L,ax,ay,rockC[3]);
     } else if(v===1){ // steel
       r(ax,ay,S,S,'#333a66');
       r(ax,ay,S,1,'#454f8a'); r(ax,ay,1,S,'#454f8a'); r(ax+S-1,ay,1,S,'#232a4f'); r(ax,ay+S-1,S,1,'#232a4f');
@@ -1394,6 +1437,7 @@ function paintLayer(L,x0,x1,collect){
       if(tile(tx,ty+1)!==1&&ty<H-1){ for(let y=0;y<6;y++) for(let x=0;x<S;x++) r(ax+x,ay+S-6+y,1,1,(((ax+x)+y)>>2)%2?'#ffc23d':'#1d1f33'); r(ax,ay+S-7,S,1,'#1c2144'); }
       if(tile(tx-1,ty)!==1) r(ax,ay,2,S,'#5b66a0');
       if(tile(tx+1,ty)!==1) r(ax+S-2,ay,2,S,'#1c2144');
+      if(cracked) drawCrackLines(L,ax,ay,'#1c2144');
     } else if(v===2){ // girder
       if(crumbleKeys.has(ty*W+tx)) continue;
       const band=Math.floor(tx/2)%2===0;
@@ -1720,6 +1764,10 @@ function drawChecks(){
       R(x+2+i,fy+o,1,9-(c.on?0:Math.round(i*0.25)),c.on?(i<7?'#ff6a2c':'#ffc23d'):'#4b4f7c'); }
   }
 }
+function drawHats(){
+  for(const h of hats){ if(h.got||!hatOpen(h)) continue; const x=SX(h.x), y=SY(h.y+Math.sin(tnow*3+h.ph)*1.5); if(x<-30||x>BW+30||y<-30||y>BH+30) continue;
+    R(x-9,y+2,18,3,'#c8961c'); R(x-7,y-4,14,6,'#f2c230'); R(x-5,y-6,10,2,'#f2c230'); R(x-4,y-5,4,2,'#ffe487'); R(x-1,y-6,2,4,'#ffd84e'); R(x-9,y+2,18,1,'#ffe487'); }
+}
 function drawRelays(){
   for(const r of relays){ if(r.got||(MODE==='top'&&hid(Math.floor(r.x/T),Math.floor(r.y/T)))) continue;
     const x=SX(r.x), y=SY(r.y+Math.sin(tnow*3+r.ph)*1.5); if(x<-30||x>BW+30) continue;
@@ -1888,6 +1936,7 @@ function drawGlows(lampPos){
     if(l.blink&&(tnow%l.blink)>l.blink/2) continue;
     gl(x,y,l.col,l.size,l.flick?0.45+0.08*Math.sin(tnow*13)*Math.sin(tnow*7):0.7); }
   for(const r of relays) if(!r.got&&!(MODE==='top'&&hid(Math.floor(r.x/T),Math.floor(r.y/T)))){ gl(SX(r.x),SY(r.y),'#5fe39a',44,0.28+0.12*Math.sin(tnow*4+r.ph)); }
+  for(const h of hats) if(!h.got&&hatOpen(h)) gl(SX(h.x),SY(h.y),'#ffe08a',40,0.3+0.12*Math.sin(tnow*4+h.ph));
   for(const e of enemies) if(e.alive&&!(MODE==='top'&&hid(Math.floor(e.x/T),Math.floor(e.y/T)))){
     if(e.type==='drone'||e.type==='hunter') gl(SX(e.x+e.dir*2),SY(e.y+Math.sin(e.ph*3)*2),'#ff4150',26,0.6);
     else if(e.type==='seeker') gl(SX(e.x+e.dir*2),SY(e.y),'#7dff6a',30,0.6);
@@ -1947,7 +1996,7 @@ function draw(){
   if(boss&&boss.band) drawBand(boss.band);
   drawPlats();
   drawCrumbles();
-  drawTerms(); drawGoal(); drawChecks(); drawRelays(); drawEnemies();
+  drawTerms(); drawGoal(); drawChecks(); drawRelays(); drawHats(); drawEnemies();
   const lampPos=drawPlayer();
   drawParts(false);
   drawWater();
@@ -1988,9 +2037,9 @@ function hud(){
   const net=terms.length?(act?Math.floor(act.prog*100)+'%':nt+'/'+terms.length):'';
   const pk=MODE==='top'&&pickups.length?pickups.filter(q=>q.got).length+'/'+pickups.length+(partsHeld?' ('+partsHeld+' held)':''):'';
   const pu=pulseOn()?(pulseCd<=0?'READY':Math.ceil(pulseCd)+'s'):'';
-  const key=p.hp+'|'+got+'|'+cab+'|'+fmt(clock)+'|'+net+'|'+pk+'|'+pu;
+  const key=p.hp+'/'+maxHp()+'|'+got+'|'+cab+'|'+fmt(clock)+'|'+net+'|'+pk+'|'+pu;
   if(key!==lastHud){ lastHud=key;
-    hpEl.innerHTML=[0,1,2].map(i=>`<i class="${i<p.hp?'':'off'}"></i>`).join('');
+    hpEl.innerHTML=Array.from({length:maxHp()},(_,i)=>`<i class="${i<p.hp?'':'off'}"></i>`).join('');
     hudEl.classList.toggle('low',p.hp===1);
     partStat.hidden=!pk; partEl.textContent=pk;
     pulseStat.hidden=!pu; pulseEl.textContent=pu; pulseStat.classList.toggle('net-on',pu==='READY'); pulseBtn.classList.toggle('cd',pulseCd>0);
@@ -2233,7 +2282,7 @@ if(/[?&]debug\b/.test(location.search)) window.__rr={
   start(i){ openBrief(i); startLevel(); return this.info(); },
   teleport(x,y){ p.x=x; p.y=y; p.vx=p.vy=0; hook.state='idle'; },
   tile, enemies:()=>enemies, terms:()=>terms, p:()=>p,
-  mode:()=>MODE, plats:()=>plats, pickups:()=>pickups, partsHeld:()=>partsHeld, fuses:()=>fuses, crumbles:()=>crumbles, water:()=>water, pulseCd:()=>pulseCd, def:()=>LDEF, visited:()=>visited, anchor:()=>anchor, wind:()=>wind, zips:()=>zips, boss:()=>boss, beams:()=>beamsT, hook:()=>hook, crates:()=>crates, gstate:()=>gstate, levers:()=>levers, pitT, wallT, solidT, LD:()=>LD
+  mode:()=>MODE, plats:()=>plats, pickups:()=>pickups, partsHeld:()=>partsHeld, fuses:()=>fuses, crumbles:()=>crumbles, water:()=>water, pulseCd:()=>pulseCd, hats:()=>hats, cracks:()=>cracks, cpDeaths:()=>cpDeaths, maxHp, def:()=>LDEF, visited:()=>visited, anchor:()=>anchor, wind:()=>wind, zips:()=>zips, boss:()=>boss, beams:()=>beamsT, hook:()=>hook, crates:()=>crates, gstate:()=>gstate, levers:()=>levers, pitT, wallT, solidT, LD:()=>LD
 };
 
 if('serviceWorker' in navigator && /^https?:$/.test(location.protocol)) addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));

@@ -7,9 +7,9 @@ const until=(act,check,tries=5)=>{ for(let i=0;i<tries;i++){ if(check()) return 
 const WALK = window.WALK = {
   substation9(calm){ const log=[]; r.start(6); if(calm) r.enemies().forEach(e=>{e.alive=false;}); r.run(30);
     log.push('R1 secret: '+T.grappleSecret(6,8,'down',6,9)+' | part 1: '+T.collect(3,11)+' | crate->plate '+T.walkTo(6,2)+' '+T.push('down',2)+' '+T.walkTo(5,5)+' '+T.push('right',3)+' door A '+r.gstate()['1']);
-    log.push('R2 lever: '+T.walkTo(13,3)); T.face('up'); T.grab(); log.push(' nook '+r.gstate()['6']+' | block W '+T.walkTo(15,7)+' '+T.push('up',4));
-    log.push(' post east: '+T.walkTo(17,4)); T.face('right'); T.grab(); log.push(' at '+T.tileOf()+' | block E '+T.walkTo(22,7)+' '+T.push('up',4)+' door B '+r.gstate()['2']+' | part 2: '+T.collect(25,8));
-    log.push('R3: '+T.walkTo(27,4)+' secret '+T.grappleSecret(28,8,'down',28,9)+' | part 3: '+T.collect(27,11)+' | crate->plate '+T.walkTo(28,2)+' '+T.push('right',4)+' cage '+r.gstate()['4']+' | fuse: '+T.fitFuse(38,7,'down')+' door E '+r.gstate()['3']);
+    log.push('R2 lever: '+T.killNear(200)+' '+T.walkTo(13,3)); T.face('up'); T.grab(); log.push(' nook '+r.gstate()['6']+' | block W '+T.walkTo(15,7)+' '+T.push('up',4));
+    log.push(' post east: '+until(()=>{ T.walkTo(17,4); T.killNear(120); T.face('right'); T.grab(); },()=>T.tileOf()[0]>=19,6)); log.push(' at '+T.tileOf()+' '+T.killNear(200)+' | block E '+T.walkTo(22,7)+' '+T.push('up',4)+' door B '+r.gstate()['2']+' | part 2: '+T.collect(25,8));
+    log.push('R3: '+T.walkTo(27,4)+' '+T.killNear(220)+' secret '+T.grappleSecret(28,8,'down',28,9)+' | part 3: '+T.collect(27,11)+' | crate->plate '+T.walkTo(28,2)+' '+T.push('right',4)+' cage '+r.gstate()['4']+' | fuse: '+T.fitFuse(38,7,'down')+' door E '+r.gstate()['3']);
     log.push('terminal: '+T.walkTo(36,14)+' fitted '+r.terms()[0].have+'/'+r.terms()[0].need+' held '+r.partsHeld()+' | '+T.fightTop(0)); r.run(10);
     log.push('exit: '+T.killNear(200)+' '+T.walkTo(3,15)); r.run(30);
     log.push('RESULT '+r.info().state+' hp '+r.p().hp+' falls '+r.info().falls+' parts '+r.pickups().filter(q=>q.got).length+'/'+r.pickups().length);

@@ -42,6 +42,12 @@ const TB = window.TB = {
       else { const wx=tm.x, wy=tm.y+8; if(Math.hypot(wx-px,wy-py)>6){ const k={}; if(Math.abs(wx-px)>3) k[wx>px?'right':'left']=true; if(Math.abs(wy-py)>3) k[wy>py?'down':'up']=true; r.run(3,k); f+=3; } else { r.run(10); f+=10; } } }
     return 'timeout at '+r.terms()[ti].prog.toFixed(2); },
   crates(){ return JSON.stringify(r.crates().filter(c=>!c.dead).map(c=>[c.tx,c.ty])); },
+  // walk onto a part and confirm it was picked up
+  collect(x,y){ const before=r.partsHeld(); const w=this.walkTo(x,y); return w==='ok'&&r.partsHeld()===before+1?'got part ('+r.partsHeld()+' held)':'MISSED part at '+x+','+y+' ('+w+')'; },
+  // stand next to a cracked wall, face it and grapple; confirm it opened
+  grappleSecret(sx,sy,face,wx,wy){ const w=this.walkTo(sx,sy); if(w!=='ok') return w; this.face(face); this.grab(); return r.wallT(wx,wy)?'STILL WALL at '+wx+','+wy:'opened '+wx+','+wy; },
+  // walk into a fuse box from an adjacent tile
+  fitFuse(sx,sy,dir){ const w=this.walkTo(sx,sy); if(w!=='ok') return w; r.run(30,{[dir]:true}); r.run(5); const f=r.fuses().find(f=>Math.abs(f.tx-sx)+Math.abs(f.ty-sy)===1); return f?('fuse '+f.fitted+'/'+f.need):'no fuse next to '+sx+','+sy; },
   // ---- side-view helpers ----
   // swing across a gap from ground edge tile edgeTx: fire, pump with the swing, pay out to `rope`, let go at the forward peak, fire again
   chain(lv,edgeTx,g,landTx,opts={}){ r.start(lv); if(!opts.keepEnemies) r.enemies().forEach(e=>{e.alive=false;}); r.teleport((edgeTx-2)*16,g*16-20); r.run(10);

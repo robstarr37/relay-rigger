@@ -103,6 +103,9 @@ const Snd=(()=>{
     gust(d){noise(d,0.16,500,0.9,'bandpass',0,900);},
     warp(){tone(300,1400,0.25,'sine',0.08); tone(1400,300,0.25,'triangle',0.05,0.1);},
     laser(){tone(1200,600,0.12,'sawtooth',0.05);},
+    part(){[880,1320,1760].forEach((f,i)=>tone(f,f,0.09,'triangle',0.08,i*0.05));},
+    fit(){tone(300,300,0.06,'square',0.08); tone(600,900,0.15,'triangle',0.07,0.06);},
+    secret(){noise(0.5,0.25,700,0.8,'lowpass',0,120); [523,659,784,1047].forEach((f,i)=>tone(f,f,0.12,'triangle',0.07,0.15+i*0.07));},
     scrape(){noise(0.14,0.08,600,1.5,'bandpass',0,300);},
     clunk(){noise(0.12,0.2,300,1,'lowpass'); tone(140,90,0.12,'square',0.08);},
     lever(){tone(500,900,0.08,'square',0.06); noise(0.06,0.1,2500,3);}
@@ -218,7 +221,7 @@ function makeTerm(t){
   const x=t.tx*T+8, y=(t.ty+1)*T, sr=t.ty+1;
   let a=t.tx, b=t.tx; const ok=tx=>{const v=tile(tx,sr); return (v===1||v===2)&&tile(tx,t.ty)===0;};
   while(a>1&&ok(a-1)) a--; while(b<W-2&&ok(b+1)) b++;
-  return {x,y,tx:t.tx,prog:0,state:'idle',time:t.cfg.time||14,waves:t.cfg.waves||[],wi:0,seg:[a,b],typeT:0,working:false,drain:0};
+  return {x,y,tx:t.tx,prog:0,state:'idle',time:t.cfg.time||14,waves:t.cfg.waves||[],wi:0,seg:[a,b],typeT:0,working:false,drain:0,need:t.cfg.parts||0,have:0};
 }
 
 function placePlat(q){ const k=(1-Math.cos(Math.PI*q.t))/2, nx=lerp(q.x0,q.x1,k), ny=lerp(q.y0,q.y1,k); q.dx=nx-q.x; q.dy=ny-q.y; q.x=nx; q.y=ny; }
@@ -548,6 +551,14 @@ function updateTerms(dt){
   for(const tm of terms){ if(tm.state==='done') continue;
     const near=MODE==='top'?(p.fall<=0&&Math.hypot(p.x+6-tm.x,p.y+6-(tm.y-8))<24):(p.onGround&&Math.abs(p.x+6-tm.x)<14&&Math.abs(p.y+p.h-tm.y)<3);
     const still=MODE==='top'?!(I.left||I.right||I.up||I.down):!I.left&&!I.right;
+    tm.near=near;
+    // a terminal that still needs parts takes whatever the worker is carrying, and won't start until it has them all
+    if(tm.have<tm.need){ tm.working=false;
+      if(near&&still&&hook.state==='idle'){
+        if(partsHeld>0){ const n=Math.min(partsHeld,tm.need-tm.have); partsHeld-=n; tm.have+=n; sfx.fit(); sparks(tm.x,tm.y-20,'#ffc23d',10,120);
+          popup(tm.x,tm.y-66,tm.have<tm.need?`PART FITTED ${tm.have}/${tm.need}`:'PARTS FITTED','#ffc23d'); }
+        else if(tnow-(tm.askT||-9)>3){ tm.askT=tnow; sfx.deny(); popup(tm.x,tm.y-66,`NEEDS ${tm.need-tm.have} MORE PART${tm.need-tm.have>1?'S':''}`,'#ff6a2c'); } }
+      continue; }
     tm.working=near&&hook.state==='idle'&&still&&p.inv<1.0;
     if(tm.working&&tm.state==='idle'){ tm.state='active'; sfx.boot(); popup(tm.x,tm.y-66,'REROUTING','#5fe39a'); }
     const leeches=enemies.filter(e=>e.alive&&e.type==='leech'&&e.term===tm&&e.latched).length;
@@ -703,7 +714,8 @@ function updateCore(dt){
     if(enemies.filter(e=>e.alive&&(e.type==='seeker'||e.type==='hunter')).length<2) enemies.push(makeEnemy(type,core.x+(Math.random()<0.5?-1:1)*(VW/2+20),pcy-40,{wave:true})); }
 }
 function clampCam(){
-  if(MODE==='top'){ cam.x=LW<=VW?(LW-VW)/2:clamp(cam.x,0,LW-VW); cam.y=LH<=VH?(LH-VH)/2:clamp(cam.y,0,LH-VH); return; }
+  if(MODE==='top'){ const mx=isTouch?VW*0.2:T, mt=isTouch?T*2:T, mb=isTouch?VH*0.34:T;
+    cam.x=clamp(cam.x,-mx,Math.max(-mx,LW-VW+mx)); cam.y=clamp(cam.y,-mt,Math.max(-mt,LH-VH+mb)); return; }
   cam.x=clamp(cam.x,0,Math.max(0,LW-VW)); cam.y=clamp(cam.y,-SKY,Math.max(-SKY,LH-VH)); }
 function updateParts(dt){
   for(const q of parts){ q.x+=(q.vx||0)*dt; q.y+=(q.vy||0)*dt; q.vy=(q.vy||0)+(q.g||0)*dt; q.life-=dt;
@@ -717,19 +729,21 @@ function updateParts(dt){
 const RANGE_TOP=120, WALK_TOP=74;
 const DV={left:[-1,0],right:[1,0],up:[0,-1],down:[0,1]};
 const GCOLS=['#ffc23d','#5ae0e8','#ff6a2c','#b6ff5a','#e878ff','#ff4150','#8fd0ff','#ffffff'];
-let crates=[], levers=[], filled=new Set(), gstate={}, gcol={}, gLast={}, gHold={}, tdLook=null, snap=null, topHint=null;
+let pickups=[], partsHeld=0, fuses=[], crates=[], levers=[], filled=new Set(), gstate={}, gcol={}, gLast={}, gHold={}, tdLook=null, snap=null, topHint=null;
 const CONV=46;
 const tk=(x,y)=>y*W+x;
 function buildTopData(def){
   const rows=def.map; H=rows.length; W=Math.max(...rows.map(r=>r.length)); LW=W*T; LH=H*T;
   map=Array.from({length:H},()=>new Array(W).fill(1)); rockMap=[]; sparkTiles=[];
-  const d={top:true,start:[1,1],checks:[],relays:[],enemies:[],terms:[],goal:null,props:[],plats:[],crates:[],posts:[],plates:[],doors:[],levers:[],bridges:[],conv:[],crumbles:[],anchor:null,zips:[],core:null,beams:[],teles:[]};
+  const d={top:true,start:[1,1],checks:[],relays:[],enemies:[],terms:[],goal:null,props:[],plats:[],crates:[],posts:[],plates:[],doors:[],levers:[],bridges:[],conv:[],crumbles:[],anchor:null,zips:[],core:null,beams:[],teles:[],secrets:[],parts:[],fuses:[]};
   let ti=0;
   for(let y=0;y<H;y++) for(let x=0;x<W;x++){
     const ch=rows[y][x]||'#', k=def.key&&def.key[ch];
     let v=0;
-    if(k){ const o={tx:x,ty:y,g:String(k.g),hold:k.hold||0};
+    if(k){ const o={tx:x,ty:y,g:String(k.g),hold:k.hold||0,latch:!!k.latch};
       if(k.t==='bridge'){ v=4; d.bridges.push(o); }
+      else if(k.t==='fuse'){ d.fuses.push(Object.assign(o,{need:k.need||1})); }
+      else if(k.t==='block'){ d.crates.push([x,y,1]); }
       else if(k.t==='beam'){ v=1; d.beams.push(Object.assign(o,{dir:k.dir,on:k.on||0,off:k.off||0,ph:k.ph||0,g:k.g!=null?String(k.g):null})); }
       else if(k.t==='tele'){ d.teles.push(Object.assign(o,{id:String(k.id)})); }
       else if(k.t==='plate') d.plates.push(o); else if(k.t==='door') d.doors.push(o); else if(k.t==='lever') d.levers.push(o); }
@@ -748,6 +762,9 @@ function buildTopData(def){
       case 'Q': d.enemies.push({type:'seeker',x:x*T+8,y:y*T+8}); break;
       case 'H': d.enemies.push({type:'hunter',x:x*T+8,y:y*T+8}); break;
       case 'M': d.enemies.push({type:'brood',x:x*T+16,y:y*T+16}); break;
+      case '%': v=1; d.secrets.push([x,y]); break;
+      case '@': d.crates.push([x,y,1]); break;
+      case '*': d.parts.push([x,y]); break;
       case '>': d.conv.push([x,y,1,0]); break;
       case '<': d.conv.push([x,y,-1,0]); break;
       case '^': d.conv.push([x,y,0,-1]); break;
@@ -757,7 +774,7 @@ function buildTopData(def){
   }
   for(const t of d.teles) t.partner=d.teles.find(q=>q!==t&&q.id===t.id);
   if(!d.goal) d.goal={tx:W-2,ty:H-2};
-  gcol={}; let n=0; for(const o of [...d.plates,...d.levers,...d.doors,...d.bridges,...d.beams.filter(b=>b.g)]) if(!(o.g in gcol)&&!o.g.startsWith('term')) gcol[o.g]=GCOLS[(n++)%GCOLS.length];
+  gcol={}; let n=0; for(const o of [...d.plates,...d.levers,...d.doors,...d.bridges,...d.fuses,...d.beams.filter(b=>b.g)]) if(!(o.g in gcol)&&!o.g.startsWith('term')) gcol[o.g]=GCOLS[(n++)%GCOLS.length];
   for(const o of d.doors) if(o.g.startsWith('term')) gcol[o.g]='#5fe39a';
   return d;
 }
@@ -770,12 +787,16 @@ function resetTop(){
   enemies=LD.enemies.map(e=>makeEnemy(e.type,e.x,e.y,e)); shots=[];
   relays=LD.relays.map(([x,y])=>({x:x*T+8,y:y*T+8,got:false,ph:Math.random()*6}));
   terms=LD.terms.map(t=>Object.assign(makeTerm(t),{top:true}));
-  crates=LD.crates.map(([x,y])=>({tx:x,ty:y,x:x*T+8,y:y*T+8,mv:null,dead:false}));
+  crates=LD.crates.map(([x,y,hv])=>({tx:x,ty:y,x:x*T+8,y:y*T+8,mv:null,dead:false,heavy:!!hv}));
+  pickups=LD.parts.map(([x,y])=>({x:x*T+8,y:y*T+8,tx:x,ty:y,got:false,ph:Math.random()*6})); partsHeld=0;
+  fuses=LD.fuses.map(f=>Object.assign({fitted:0},f));
   levers=LD.levers.map(l=>Object.assign({on:false},l));
   filled=new Set();
   tdLook={door:new Map(),bridge:new Map(),plate:new Map(),lever:new Map(),post:new Set(),term:new Set(),conv:new Map()};
   LD.conv.forEach(([x,y,dx,dy])=>tdLook.conv.set(tk(x,y),[dx,dy])); gLast={}; gHold={};
   tdLook.tele=new Map(LD.teles.map(t=>[tk(t.tx,t.ty),t]));
+  tdLook.secret=new Set(LD.secrets.map(([x,y])=>tk(x,y))); tdLook.fuse=new Map(fuses.map(f=>[tk(f.tx,f.ty),f]));
+  for(const [x,y] of LD.secrets) map[y][x]=1;
   LD.doors.forEach(o=>tdLook.door.set(tk(o.tx,o.ty),o)); LD.bridges.forEach(o=>tdLook.bridge.set(tk(o.tx,o.ty),o));
   LD.plates.forEach(o=>tdLook.plate.set(tk(o.tx,o.ty),o)); levers.forEach(o=>tdLook.lever.set(tk(o.tx,o.ty),o));
   LD.posts.forEach(([x,y])=>tdLook.post.add(tk(x,y))); LD.terms.forEach(t=>tdLook.term.add(tk(t.tx,t.ty)));
@@ -785,10 +806,10 @@ function resetTop(){
   cam={x:p.x-VW/2,y:p.y-VH/2}; clampCam();
   takeSnap();
 }
-function takeSnap(){ snap={crates:crates.map(c=>({tx:c.tx,ty:c.ty,dead:c.dead})),levers:levers.map(l=>l.on),filled:[...filled]}; }
+function takeSnap(){ snap={crates:crates.map(c=>({tx:c.tx,ty:c.ty,dead:c.dead,heavy:c.heavy})),levers:levers.map(l=>l.on),filled:[...filled]}; }
 function resetPuzzle(){
   if(MODE!=='top'||!snap) return;
-  crates=snap.crates.map(c=>({tx:c.tx,ty:c.ty,x:c.tx*T+8,y:c.ty*T+8,mv:null,dead:c.dead}));
+  crates=snap.crates.map(c=>({tx:c.tx,ty:c.ty,x:c.tx*T+8,y:c.ty*T+8,mv:null,dead:c.dead,heavy:c.heavy}));
   levers.forEach((l,i)=>{l.on=snap.levers[i];}); filled=new Set(snap.filled);
   respawn(); updateGroups(true); popup(p.x+6,p.y-10,'PUZZLE RESET','#ffc23d');
 }
@@ -799,6 +820,7 @@ function plateDown(o){
   return p.fall<=0&&Math.floor((p.x+6)/T)===o.tx&&Math.floor((p.y+6)/T)===o.ty;
 }
 function groupOn(g){
+  if(fuses.some(f=>f.g===g&&f.fitted>=f.need)) return true;
   if(g==='boss') return !enemies.some(e=>e.alive&&e.type==='brood');
   if(g.startsWith('term')){ const t=terms[+g.slice(4)]; return !!t&&t.state==='done'; }
   if(levers.some(l=>l.g===g&&l.on)) return true;
@@ -806,13 +828,15 @@ function groupOn(g){
 }
 function updateGroups(silent){
   const seen=new Set();
-  for(const o of [...LD.doors,...LD.bridges,...LD.plates,...levers,...LD.beams.filter(b=>b.g)]){ const g=o.g; if(seen.has(g)) continue; seen.add(g);
+  for(const o of [...LD.doors,...LD.bridges,...LD.plates,...levers,...fuses,...LD.beams.filter(b=>b.g)]){ const g=o.g; if(seen.has(g)) continue; seen.add(g);
     let on=groupOn(g);
     // timed plates keep their group on for a few seconds after they are released
     const hold=Math.max(0,...LD.plates.filter(q=>q.g===g).map(q=>q.hold||0));
     gHold[g]=0;
     if(on) gLast[g]=tnow;
     else if(hold&&gLast[g]!=null&&tnow-gLast[g]<hold){ on=true; const left=hold-(tnow-gLast[g]); if(Math.floor(left*2)!==Math.floor((gHold['_'+g]||99)*2)) sfx.tick(); gHold['_'+g]=left; gHold[g]=left/hold; }
+    // a latched door stays open once it has opened (so a plate you can only reach from one side never traps you)
+    if(!on&&gstate[g]&&LD.doors.some(d=>d.g===g&&d.latch)) on=true;
     // doors never shut on the worker or a crate standing in them
     if(!on&&gstate[g]) for(const d of LD.doors) if(d.g===g&&(crateAt(d.tx,d.ty)||(p.x+p.w>d.tx*T&&p.x<(d.tx+1)*T&&p.y+p.h>d.ty*T&&p.y<(d.ty+1)*T))){ on=true; break; }
     if(!silent&&gstate[g]!==undefined&&gstate[g]!==on){
@@ -832,7 +856,7 @@ function pitT(x,y){
 function crateAt(x,y){ return crates.find(c=>!c.dead&&c.tx===x&&c.ty===y); }
 function wallT(x,y){
   if(x<0||y<0||x>=W||y>=H) return true;
-  const k=tk(x,y); return map[y][x]===1||doorClosed(x,y)||tdLook.post.has(k)||tdLook.lever.has(k)||tdLook.term.has(k);
+  const k=tk(x,y); return map[y][x]===1||doorClosed(x,y)||tdLook.post.has(k)||tdLook.lever.has(k)||tdLook.term.has(k)||tdLook.fuse.has(k);
 }
 const solidT=(x,y)=>wallT(x,y)||!!crateAt(x,y);
 // top-down line of sight: blocked by walls and closed doors, not by pits
@@ -870,6 +894,18 @@ function updateBeams(){
       if(b.tiles.some(([x,y])=>x===ptx&&y===pty)){ const horiz=dx!==0; hurt(false,horiz?p.x+6:b.tx*T+8+((p.x+6)>=b.tx*T+8?-0.1:0.1),horiz?b.ty*T+8+((p.y+6)>=b.ty*T+8?-0.1:0.1):p.y+6); } }
   }
 }
+function fitFuse(f){
+  if(f.fitted>=f.need) return;
+  if(partsHeld>0){ const n=Math.min(partsHeld,f.need-f.fitted); partsHeld-=n; f.fitted+=n; sfx.fit(); sparks(f.tx*T+8,f.ty*T+8,'#ffc23d',10,110);
+    popup(f.tx*T+8,f.ty*T-8,f.fitted<f.need?`FUSE ${f.fitted}/${f.need}`:'POWER ON','#ffc23d'); }
+  else if(tnow-(f.askT||-9)>2.5){ f.askT=tnow; sfx.deny(); popup(f.tx*T+8,f.ty*T-8,`NEEDS ${f.need-f.fitted} PART${f.need-f.fitted>1?'S':''}`,'#ff6a2c'); }
+}
+// a cracked wall gives way to the cable and opens a passage
+function breakSecret(x,y){
+  tdLook.secret.delete(tk(x,y)); map[y][x]=0; LD.secrets=LD.secrets.filter(([a,b])=>a!==x||b!==y);
+  buildTopLayer(); debris(x*T+8,y*T+8,[TH.wallTop,TH.wallHi,'#15182f'],14); dust(x*T+8,y*T+8,10); shake=Math.max(shake,3); sfx.secret(); buzz([20,30,20]);
+  popup(x*T+8,y*T-6,'HIDDEN PASSAGE','#b6ff5a');
+}
 function broodHit(e,c){
   c.dead=true; debris(c.x,c.y,['#8a6c48','#5a4630','#3d2f20'],10); dust(c.x,c.y,6);
   e.hp--; e.flash=0.3; e.stun=2.4; shake=Math.max(shake,5); hitstop=0.1; flash=0.1; sfx.punch(); sfx.squish(); buzz([30,30,30]);
@@ -902,7 +938,10 @@ function updateHookTop(dt){
       if(sh){ sh.life=0; burst(sh.x,sh.y,'#b6ff5a',8,80); sparks(sh.x,sh.y,'#b6ff5a',6,120); sfx.pop(); hook.state='back'; break; }
       const tx=Math.floor(hook.x/T), ty=Math.floor(hook.y/T), k=tk(tx,ty);
       const c=crateAt(tx,ty);
+      if(c&&c.heavy){ sparks(hook.x-hook.dx*3,hook.y-hook.dy*3,'#c9c6d8',5,80); sfx.thud(); if(tnow-lockMsgT>2){ lockMsgT=tnow-1; popup(c.x,c.y-18,'TOO HEAVY: PUSH IT','#c9c6d8'); } hook.state='back'; break; }
       if(c){ hook.state='drag'; hook.crate=c; sfx.attach(); buzz(8); break; }
+      if(tdLook.fuse.has(k)){ fitFuse(tdLook.fuse.get(k)); hook.state='back'; break; }
+      if(tdLook.secret.has(k)){ breakSecret(tx,ty); hook.state='back'; break; }
       if(tdLook.post.has(k)){
         const lx=tx-hook.dx, ly=ty-hook.dy;
         hook.state='pull'; hook.x=tx*T+8; hook.y=ty*T+8; hook.gx=lx*T+2; hook.gy=ly*T+2;
@@ -964,6 +1003,7 @@ function updateTop(dt,edge){
     if(want.length===1||(want.length&&!want.includes(p.face))) p.face=want[0];
     let vx=ix*WALK_TOP, vy=iy*WALK_TOP; if(ix&&iy){ vx*=0.7071; vy*=0.7071; }
     const blkX=vx?moveTop(vx*dt,0):null, blkY=vy?moveTop(0,vy*dt):null;
+    for(const bk of [blkX,blkY]) if(bk&&tdLook.fuse.has(tk(bk[0],bk[1]))) fitFuse(tdLook.fuse.get(tk(bk[0],bk[1])));
     const blk=(ix&&!iy)?blkX:(iy&&!ix)?blkY:null, c=blk&&crateAt(blk[0],blk[1]);
     if(c&&!c.mv){ p.pushT+=dt; if(p.pushT>0.14){ p.pushT=0; tryMoveCrate(c,ix,iy); } } else p.pushT=0;
     // slide round corners when a corridor is almost lined up
@@ -987,13 +1027,15 @@ function updateTop(dt,edge){
   for(const r of relays){ if(r.got) continue;
     if(Math.abs(p.x+6-r.x)<11&&Math.abs(p.y+6-r.y)<11){ r.got=true; got++; burst(r.x,r.y,'#5fe39a',14,100); sparks(r.x,r.y,'#5fe39a',10,120); ring(r.x,r.y,'#5fe39a',24,0.4); popup(r.x,r.y-12,`RELAY ${got}/${relays.length}`,'#5fe39a'); sfx.relay(); buzz(15); } }
   checks.forEach((c,i)=>{ if(i>cp&&Math.abs(p.x+6-c.x)<26&&Math.abs(p.y+6-(c.ty*T+8))<26){ cp=i; c.on=true; burst(c.x,c.y-16,'#ffc23d',10,70); popup(c.x,c.y-34,'CHECKPOINT','#ffc23d'); sfx.check(); takeSnap(); } });
+  for(const q of pickups){ if(q.got) continue;
+    if(Math.abs(p.x+6-q.x)<11&&Math.abs(p.y+6-q.y)<11){ q.got=true; partsHeld++; burst(q.x,q.y,'#ffc23d',14,100); sparks(q.x,q.y,'#ffe08a',10,120); ring(q.x,q.y,'#ffc23d',24,0.4); popup(q.x,q.y-12,`PART ${pickups.filter(z=>z.got).length}/${pickups.length}`,'#ffc23d'); sfx.part(); buzz(15); } }
   (LDEF.hints||[]).forEach((h,i)=>{ if(Math.abs((p.x+6)/T-h[0])<4&&Math.abs((p.y+6)/T-h[1])<4) topHint=i; });
   if(p.fall<=0&&Math.floor((p.x+6)/T)===goal.tx&&Math.floor((p.y+6)/T)===goal.ty){
     if(terms.every(t=>t.state==='done')) win();
     else if(tnow-lockMsgT>2.5){ lockMsgT=tnow; popup(goal.x,goal.y-30,'HATCH LOCKED','#ff4150'); sfx.deny(); }
   }
   shake=Math.max(0,shake-dt*18); if(flash>0) flash-=dt;
-  const k=1-Math.exp(-dt*6); cam.x+=(p.x+6-VW/2-cam.x)*k; cam.y+=(p.y+6-VH/2-cam.y)*k; clampCam();
+  const k=1-Math.exp(-dt*6), ly=isTouch?VH*0.42:VH/2; cam.x+=(p.x+6-VW/2-cam.x)*k; cam.y+=(p.y+6-ly-cam.y)*k; clampCam();
 }
 
 // top-down art: floors, walls and pits pre-rendered once per level
@@ -1009,6 +1051,9 @@ function buildTopLayer(){
       if(!edge){ r(ax,ay,S,S,'#07081a'); if(h%4===0) r(ax+(h>>3)%28,ay+(h>>7)%28,2,2,'#0d0f26'); continue; }
       r(ax,ay,S,S,TH.wallTop);
       for(let i=0;i<5;i++){ const q=hash(tx*5+i,ty*3); r(ax+q%28,ay+(q>>5)%20,2+((q>>9)%3),1,TH.wallHi); }
+      if(tdLook&&tdLook.secret.has(tk(tx,ty))){ // clearly cracked: a passage hides behind it
+        pline(L,ax+4,ay+4,ax+14,ay+12,'#07081a',2); pline(L,ax+14,ay+12,ax+10,ay+22,'#07081a',2); pline(L,ax+14,ay+12,ax+26,ay+16,'#07081a',2); pline(L,ax+26,ay+16,ax+28,ay+26,'#07081a',2);
+        pline(L,ax+5,ay+4,ax+15,ay+12,TH.wallHi,1); r(ax+12,ay+10,4,4,'#07081a'); lights.push({x:ax+16,y:ay+14,col:'#b6ff5a',size:18}); }
       if(ty===0||map[ty-1][tx]!==1) r(ax,ay,S,2,TH.wallHi);
       if(tx>0&&map[ty][tx-1]!==1) r(ax,ay,1,S,TH.wallHi);
       if(tx<W-1&&map[ty][tx+1]!==1) r(ax+S-1,ay,1,S,TH.wallFace);
@@ -1035,6 +1080,11 @@ function buildTopLayer(){
   // posts (bollards you can grapple to pull yourself across)
   for(const [x,y] of LD.posts){ const ax=x*S, ay=y*S;
     r(ax+6,ay+18,20,10,'#15182f'); r(ax+8,ay+6,16,20,'#3e426b'); r(ax+8,ay+6,16,3,'#6a72a8'); r(ax+8,ay+12,16,4,'#ff6a2c'); r(ax+8,ay+12,16,1,'#ffa06f'); r(ax+22,ay+6,2,20,'#2a2e52'); }
+}
+function drawBlock(x,y){
+  R(x-14,y-13,28,26,'#4a5070'); R(x-14,y-13,28,6,'#6a72a8'); R(x-14,y-13,28,1,'#8e98d0'); R(x-14,y+10,28,3,'#262a44');
+  for(const [bx,by] of [[-10,-6],[8,-6],[-10,6],[8,6]]){ R(x+bx,y+by,3,3,'#8e98d0'); R(x+bx+1,y+by+1,2,2,'#262a44'); }
+  R(x-6,y-2,12,4,'#ffc23d'); for(let i=0;i<12;i+=4) R(x-6+i,y-2,2,4,'#1d1f33');
 }
 function drawCrate(x,y){
   R(x-14,y-13,28,26,'#6a5238'); R(x-14,y-13,28,6,'#8a6c48'); R(x-14,y-13,28,1,'#a88660'); R(x-14,y+10,28,3,'#3d2f20');
@@ -1064,6 +1114,12 @@ function drawTop(){
     for(let i=-16;i<32;i+=16){ const a=i+(dx||dy?o*(dx+dy):0); if(a<0||a>26) continue;
       if(dx){ const cx0=x+(dx>0?a:31-a); for(let j=0;j<6;j++){ R(cx0-dx*j,y+10+j,2,1,'#ffc23d'); R(cx0-dx*j,y+21-j,2,1,'#ffc23d'); } }
       else { const cy0=y+(dy>0?a:31-a); for(let j=0;j<6;j++){ R(x+10+j,cy0-dy*j,1,2,'#ffc23d'); R(x+21-j,cy0-dy*j,1,2,'#ffc23d'); } } } }
+  for(const f of fuses){ const x=SX(f.tx*T+8), y=SY(f.ty*T+8); if(!vis(x,y)) continue; const ok=f.fitted>=f.need;
+    R(x-12,y-14,24,26,'#2e3360'); R(x-12,y-14,24,2,'#5b66a0'); R(x-9,y-10,18,14,'#15182f');
+    for(let i=0;i<f.need;i++){ const sx0=x-7+i*Math.floor(16/f.need); R(sx0,y-8,5,10,i<f.fitted?'#ffc23d':'#3a1a24'); if(i<f.fitted) R(sx0+1,y-7,3,2,'#ffe08a'); }
+    R(x-3,y+6,6,3,ok?'#5fe39a':((tnow*3|0)%2?'#ff4150':'#5a2030')); R(x-12,y+10,24,2,gcol[f.g]); }
+  for(const q of pickups){ if(q.got) continue; const x=SX(q.x), y=SY(q.y+Math.sin(tnow*3+q.ph)*1.5); if(!vis(x,y)) continue;
+    R(x-7,y-5,14,10,'#8a6a2c'); R(x-6,y-6,12,10,'#ffc23d'); R(x-6,y-6,12,2,'#ffe08a'); R(x-4,y-3,8,4,'#6e4a1c'); R(x-3,y-2,2,2,'#5fe39a'); R(x+1,y-2,2,2,'#ff4150'); }
   for(const t of LD.teles){ const x=SX(t.tx*T+8), y=SY(t.ty*T+8); if(!vis(x,y)) continue;
     R(x-13,y-13,26,26,'#0e2a30'); R(x-11,y-11,22,22,'#15404a');
     for(let i=0;i<8;i++){ const a=i/8*Math.PI*2+tnow*2; R(Math.round(x+Math.cos(a)*9)-1,Math.round(y+Math.sin(a)*9)-1,2,2,i%2?'#5ae0e8':'#9af4f8'); }
@@ -1081,7 +1137,7 @@ function drawTop(){
     for(let i=0;i<24;i+=6) R(x-12+i,y-12,3,24,open?'#2a6a4a':'#5a2030');
     R(x-3,y-8+((tnow*8|0)%4),6,3,open?'#5fe39a':'#ff4150'); R(x-2,y-4+((tnow*8|0)%4),4,2,open?'#5fe39a':'#ff4150'); }
   drawTerms(); drawChecks(); drawRelays();
-  for(const c of crates) if(!c.dead) drawCrate(SX(c.x),SY(c.y));
+  for(const c of crates) if(!c.dead){ if(c.heavy) drawBlock(SX(c.x),SY(c.y)); else drawCrate(SX(c.x),SY(c.y)); }
   drawEnemies();
   const lampPos=drawPlayerTop();
   drawParts(false);
@@ -1106,6 +1162,9 @@ function drawDarkness(){
   for(const c of checks) if(c.on) hole(SX(c.x),SY(c.y)-40,70,0.8);
   for(const [x,y] of LD.posts) hole(SX(x*T+8),SY(y*T+8),34,0.6);
   for(const c of crates) if(!c.dead) hole(SX(c.x),SY(c.y),36,0.45);
+  for(const q of pickups) if(!q.got) hole(SX(q.x),SY(q.y),44,0.75);
+  for(const f of fuses) hole(SX(f.tx*T+8),SY(f.ty*T+8),40,0.7);
+  for(const [x,y] of LD.secrets) hole(SX(x*T+8),SY(y*T+8),40,0.8);
   for(const b of beamsT) if(b.active) for(const [tx,ty] of b.tiles) hole(SX(tx*T+8),SY(ty*T+8),40,0.6);
   for(const t of LD.teles) hole(SX(t.tx*T+8),SY(t.ty*T+8),50,0.8);
   for(const s of shots) hole(SX(s.x),SY(s.y),30,0.8);
@@ -1562,6 +1621,7 @@ function drawTerms(){
     else if(tm.state==='active'){ for(let i=0;i<4;i++){ const q=hash(Math.floor(tnow*(tm.working?12:2))+i,tm.tx); R(x-7,y-31+i*2.5|0,2+q%13,1,tm.drain&&i%2?'#5ae0e8':'#5fe39a'); } }
     else if((tnow%1)<0.6){ R(x-1,y-31,2,5,'#ff4150'); R(x-1,y-25,2,2,'#ff4150'); }
     R(x-10,y-19,20,4,'#1d2045'); for(let i=0;i<6;i++) R(x-8+i*3,y-18,2,1,'#8f93b8');
+    if(tm.need){ for(let i=0;i<tm.need;i++){ const sx0=x-tm.need*4+i*8+1; R(sx0,y-45,6,6,'#15182f'); R(sx0+1,y-44,4,4,i<tm.have?'#ffc23d':'#3a1a24'); } }
     for(let i=0;i<3;i++) R(x-6,y-12+i*3,12,1,'#1d2045');
     R(x+6,y-48,1,12,'#8f93b8'); R(x+5,y-50,3,2,col);
     if(!done&&(tm.state==='active'||Math.abs(p.x+6-tm.x)<120)){
@@ -1759,7 +1819,8 @@ function drawGlows(lampPos){
     else if(e.type==='gen') gl(SX(e.x),SY(e.y)-16,'#5ae0e8',50,0.6);
   }
   for(const s of shots) gl(SX(s.x),SY(s.y),'#7dff6a',24,0.8);
-  if(MODE==='top'){ for(const b of beamsT) if(b.active) for(let i=0;i<b.tiles.length;i+=2){ const [tx,ty]=b.tiles[i]; gl(SX(tx*T+8),SY(ty*T+8),'#ff4150',40,0.35); } for(const t of LD.teles) gl(SX(t.tx*T+8),SY(t.ty*T+8),'#5ae0e8',40,0.5); }
+  if(MODE==='top'){ for(const q of pickups) if(!q.got) gl(SX(q.x),SY(q.y),'#ffc23d',46,0.4+0.15*Math.sin(tnow*4+q.ph)); for(const f of fuses) gl(SX(f.tx*T+8),SY(f.ty*T+8)+7,f.fitted>=f.need?'#5fe39a':'#ff4150',18,0.6);
+    for(const b of beamsT) if(b.active) for(let i=0;i<b.tiles.length;i+=2){ const [tx,ty]=b.tiles[i]; gl(SX(tx*T+8),SY(ty*T+8),'#ff4150',40,0.35); } for(const t of LD.teles) gl(SX(t.tx*T+8),SY(t.ty*T+8),'#5ae0e8',40,0.5); }
   if(anchor&&!anchor.dead){ const ax=SX(anchor.x); for(let y=-40;y<BH+40;y+=60) gl(ax,y+((tnow*40)%60),'#7dff6a',80,0.25); if(anchor.band&&anchor.band.tel<=0) for(let x=0;x<BW;x+=90) gl(x,SY(anchor.band.y),'#7dff6a',140,0.4); }
   for(const q of plats){ gl(SX(q.x)+3,SY(q.y)+10,'#5fe39a',14,0.5); gl(SX(q.x+q.w)-4,SY(q.y)+10,'#5fe39a',14,0.5); }
   for(const tm of terms){ const col=tm.state==='done'?'#5fe39a':tm.state==='active'?(tm.drain?'#5ae0e8':'#ffc23d'):'#ff4150';
@@ -1817,6 +1878,7 @@ function draw(){
 }
 
 // ---------- HUD ----------
+const partStat=$('partStat'), partEl=$('parts');
 const hudEl=$('hud'), hpEl=$('hp'), relEl=$('rel'), cabEl=$('cab'), timEl=$('tim'), hintEl=$('hint'), netEl=$('net'), netStat=$('netStat'), lvlEl=$('lvl');
 let lastHud='', lastHint=null, hintAt=0;
 const DYN={
@@ -1824,13 +1886,14 @@ const DYN={
   term1:"Keep working. When enemies arrive, step away and punch them, then get back to the terminal.",
   leech:"A <b>leech</b> is draining the terminal! Punch it off with <b>GRAB</b>.",
   goal:"Network rerouted. Get to the exit.",
+  parts:"This terminal needs parts before it will start. Stand at it to fit the ones you carry. Missing some? Go back: check side rooms and cracked walls.",
   locked:"The exit is locked. Reroute every terminal on this level first."
 };
 function hintText(s){ return isTouch?s:s.replace(/GRAB/g,'SPACE').replace(/▲/g,'↑').replace(/▼/g,'↓'); }
 function pickHint(){
   if(state==='winning') return null;
   const tm=terms.find(t=>t.state!=='done'&&Math.abs(p.x+6-t.x)<11*T&&Math.abs(p.y-t.y)<7*T);
-  if(tm){ if(tm.drain) return 'leech'; return tm.state==='idle'?'term0':'term1'; }
+  if(tm){ if(tm.drain) return 'leech'; if(tm.have<tm.need) return 'parts'; return tm.state==='idle'?'term0':'term1'; }
   if(tnow-lockMsgT<3) return 'locked';
   if(tnow-allDoneT<8) return 'goal';
   if(MODE==='top') return topHint;
@@ -1841,10 +1904,12 @@ function hud(){
   const cab=hook.state==='att'?(rope/16).toFixed(1)+' m':'— m'; cabEl.parentElement.hidden=MODE==='top';
   const nt=terms.filter(t=>t.state==='done').length, act=terms.find(t=>t.state==='active');
   const net=terms.length?(act?Math.floor(act.prog*100)+'%':nt+'/'+terms.length):'';
-  const key=p.hp+'|'+got+'|'+cab+'|'+fmt(clock)+'|'+net;
+  const pk=MODE==='top'&&pickups.length?pickups.filter(q=>q.got).length+'/'+pickups.length+(partsHeld?' ('+partsHeld+' held)':''):'';
+  const key=p.hp+'|'+got+'|'+cab+'|'+fmt(clock)+'|'+net+'|'+pk;
   if(key!==lastHud){ lastHud=key;
     hpEl.innerHTML=[0,1,2].map(i=>`<i class="${i<p.hp?'':'off'}"></i>`).join('');
     hudEl.classList.toggle('low',p.hp===1);
+    partStat.hidden=!pk; partEl.textContent=pk;
     relEl.textContent=got+'/'+relays.length; cabEl.textContent=cab; timEl.textContent=fmt(clock);
     netStat.hidden=!terms.length; netEl.textContent=net; netStat.classList.toggle('net-on',terms.length>0&&nt===terms.length); }
   const hi=pickHint();
@@ -1864,6 +1929,7 @@ function setUI(){
   $('rotate').hidden=!((state==='title'||state==='brief')&&isTouch&&isPortrait());
   document.body.classList.toggle('touch',isTouch);
   document.body.classList.toggle('playing',playing);
+  document.body.classList.toggle('topdown',MODE==='top');
   $('resetPuzzleBtn').hidden=MODE!=='top';
   if(!playing) clearTouch();
 }
@@ -1895,9 +1961,9 @@ function openBrief(i){
   $('briefName').textContent=LDEF.name.toUpperCase();
   $('briefPlace').textContent=LDEF.place;
   $('briefText').textContent=LDEF.brief;
-  const nT=LD.terms.length;
+  const nT=LD.terms.length, nP=(LD.parts||[]).length;
   const hasBoss=LD.boss||LD.enemies.some(e=>e.type==='brood');
-  $('briefMeta').textContent=`${LD.relays.length} relays · `+(LD.boss?'Boss fight':(nT?`${nT} terminal${nT===1?'':'s'} to reroute`:'')+(hasBoss?' · Boss':''));
+  $('briefMeta').textContent=(nP?`${nP} parts to find · `:'')+`${LD.relays.length} relays · `+(LD.boss?'Boss fight':(nT?`${nT} terminal${nT===1?'':'s'} to reroute`:'')+(hasBoss?' · Boss':''));
   Snd.ambience(false); setUI();
 }
 function startLevel(){
@@ -2072,7 +2138,7 @@ if(/[?&]debug\b/.test(location.search)) window.__rr={
   start(i){ openBrief(i); startLevel(); return this.info(); },
   teleport(x,y){ p.x=x; p.y=y; p.vx=p.vy=0; hook.state='idle'; },
   tile, enemies:()=>enemies, terms:()=>terms, p:()=>p,
-  mode:()=>MODE, plats:()=>plats, crumbles:()=>crumbles, water:()=>water, anchor:()=>anchor, wind:()=>wind, zips:()=>zips, boss:()=>boss, beams:()=>beamsT, hook:()=>hook, crates:()=>crates, gstate:()=>gstate, levers:()=>levers, pitT, wallT, solidT, LD:()=>LD
+  mode:()=>MODE, plats:()=>plats, pickups:()=>pickups, partsHeld:()=>partsHeld, fuses:()=>fuses, crumbles:()=>crumbles, water:()=>water, anchor:()=>anchor, wind:()=>wind, zips:()=>zips, boss:()=>boss, beams:()=>beamsT, hook:()=>hook, crates:()=>crates, gstate:()=>gstate, levers:()=>levers, pitT, wallT, solidT, LD:()=>LD
 };
 
 if('serviceWorker' in navigator && /^https?:$/.test(location.protocol)) addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));

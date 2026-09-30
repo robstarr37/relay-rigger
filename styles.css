@@ -166,4 +166,12 @@ body.touch .only-keys,body:not(.touch) .only-touch{display:none}
 @media (orientation:portrait){.hint{top:calc(var(--sat) + 58px)}}
 body.touch .hint{top:auto;bottom:calc(var(--sab) + 14px);max-width:min(44vw,420px);font-size:11px}
 @media (orientation:portrait){body.touch .hint{bottom:calc(var(--sab) + 206px);max-width:92vw}}
+/* top-down on touch: hints up top, smaller see-through controls so the maze stays visible */
+body.touch.topdown .hint{top:calc(var(--sat) + 34px);bottom:auto;max-width:min(70vw,520px)}
+body.topdown .dpad{opacity:.5;transform:scale(.82);transform-origin:left bottom}
+body.topdown .grab{width:92px;height:92px;font-size:20px;background:rgba(255,106,44,.45);border-color:rgba(255,160,111,.7);box-shadow:none;color:rgba(27,12,5,.85)}
+body.topdown .grab.on{background:rgba(255,194,61,.8)}
+body.topdown .dpad i.on{background:rgba(255,194,61,.55)}
+body.topdown #stickZone{height:58%}
+body.topdown #grabZone{height:50%}
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}

@@ -65,6 +65,34 @@ const TB = window.TB = {
       if(i.ground&&i.tx>=landTx&&i.hook!=='att'&&i.hook!=='fly') return 'landed at '+i.tx+' after '+swings+' swings';
     } return 'timeout'; },
   hold(keys,frames){ for(let f=0;f<frames;f++) r.run(1,keys); },
+  // fire up, reel in, land on the girder above
+  climb(){ const row0=r.info().ty; r.run(1,{}); r.run(1,{up:true,grab:true}); const f=this.until({up:true,grab:true},()=>r.hook().state==='idle'&&r.p().onGround&&r.info().ty<row0-0.5,240); return f<0?'CLIMB FAILED':'up to row '+r.info().ty; },
+  walkSide(tx){ for(let f=0;f<900;f++){ const d=tx*16-(r.p().x+6); if(Math.abs(d)<6&&r.p().onGround) return 'ok'; r.run(1,{[d>0?'right':'left']:true}); } return 'walk timeout'; },
+  // walk right to tx on ground row g (dropping off girders on the way); keepGoing = never stop walking (crumbling bridges)
+  walkTill(tx,g,keepGoing){ const f0=r.info().falls; for(let f=0;f<900;f++){ r.run(1,{right:true}); const i=r.info(); if(i.tx>=tx&&i.ground&&Math.abs(i.ty-g)<0.5) return 'reached '+i.tx; if(i.falls>f0) return 'FELL'; } return 'timeout at '+r.info().tx; },
+  // walk right (or left) to tx, punching ordinary enemies that come close; used across every side section
+  walkFight(tx){ let f=0, fell=r.info().falls; while(f<2400){ const p=r.p(), px=p.x+6, py=p.y+7; if(Math.abs(px-tx*16)<4&&p.onGround) return 'at '+tx; if(r.info().falls>fell) return 'FELL';
+      let tgt=null,bd=1e9; for(const e of r.enemies()){ if(!e.alive||['brood','core','gen','clamp'].includes(e.type)||(e.type==='leech'&&!e.latched)) continue; const d=Math.hypot(e.x-px,e.y-py); if(d<bd){bd=d;tgt=e;} }
+      if(tgt&&bd<120&&p.onGround&&r.hook().state==='idle'){ const dx=tgt.x-px, dy=tgt.y-py; let aim=null; if(Math.abs(dy)<10) aim='h'; else if(Math.abs(dx)<10&&dy<0) aim='u'; else if(dy<0&&Math.abs(Math.abs(dx)/(-dy)-0.7)<0.35) aim='d';
+        if(aim){ if(aim!=='u') r.run(1,{[dx>0?'right':'left']:true}); const k={grab:true}; if(aim==='h') k.down=true; if(aim==='u') k.up=true; r.run(1,k); r.run(10); f+=12; continue; } }
+      r.run(3,{[tx*16>px?'right':'left']:true}); f+=3; }
+    return 'timeout at '+r.info().tx; },
+  // swing across a gap starting from ground edge tile edgeTx (the chain() logic, without restarting the level)
+  swingAcross(edgeTx,g,landTx,opts={}){ this.walkFight(edgeTx-2); let fired=false, swings=0, lastRel=-99; const fireAt=opts.fireAt??0.5, want=opts.rope??110, vxRel=opts.vxRel??60;
+    for(let f=0;f<3000;f++){ const p=r.p(), h=r.hook(), info=r.info(), k={};
+      if(!fired){ k.right=true; if(p.x+6>=(edgeTx+fireAt)*16){ k.grab=true; fired=true; } }
+      else if(h.state==='att'){ k.grab=true; if(p.onGround) k.right=true; else { k[p.vx>=0?'right':'left']=true; if(info.rope<want) k.down=true;
+        if(p.x+6>(landTx-1.6)*16&&p.y+p.h<=g*16-1){ k.grab=false; k.down=false; k.right=true; lastRel=f; swings++; } // above the far ledge: let go and step on
+        else if(p.x+6>h.x+8&&p.vy<0&&p.vx>0&&p.vx<vxRel&&p.x+6<(landTx-2)*16&&f-lastRel>20){ k.grab=false; k.down=false; lastRel=f; swings++; } } }
+      else if(h.state==='fly'){ k.grab=true; k.right=true; }
+      else { k.right=true; if(!p.onGround&&f-lastRel<90) k.grab=(f-lastRel)%2===1; }
+      const i=r.run(1,k); if(i.falls>0) return 'FELL after '+swings+' swings';
+      if(i.ground&&i.tx>=landTx){ r.run(2,{right:true}); return 'landed '+i.tx+' ('+swings+' swings)'; } }
+    return 'timeout at '+r.info().tx; },
+  // board a moving platform that runs between x0 and x1 on row g, ride it, step off past offTx
+  ridePlatform(waitTx,x0,x1,g,offTx){ this.walkFight(waitTx); const q=r.plats().find(q=>Math.abs(q.x0-x0*16)<8&&Math.abs(q.y0-g*16)<8); if(!q) return 'no platform';
+    const on=()=>r.p().plat===q&&r.p().onGround; this.until({},()=>q.x<=x0*16+6,900); const b=this.until({right:true},()=>on()&&Math.abs(r.p().x+6-(q.x+q.w/2))<10,300);
+    this.until({},()=>q.x>=x1*16-4||!on(),900); const off=this.until({right:true},()=>r.p().onGround&&!r.p().plat&&r.info().tx>=offTx,300); return 'board '+b+' off '+off+' falls '+r.info().falls; },
   // side view: work terminal ti, punching (▼/diagonal/▲ + GRAB) whatever gets close; stays on the terminal's platform
   defendSide(ti,maxSec=150){ const log={punches:0,hits:0}; let hp=r.p().hp;
     for(let f=0;f<maxSec*60;){ const p=r.p(), tm=r.terms()[ti]; if(tm.state==='done') break; if(p.y+p.h>tm.y+40){ log.knockedOff=true; break; }
@@ -78,7 +106,7 @@ const TB = window.TB = {
       const nhp=r.p().hp; if(nhp<hp) log.hits++; hp=nhp; log.secs=(f/60).toFixed(1); }
     log.terms=r.info().terms.join(','); log.falls=r.info().falls; return JSON.stringify(log); },
   // hold keys until cond() or timeout (frames); returns frames used or -1
-  until(keys,cond,max=1200){ for(let f=0;f<max;f++){ if(cond()) return f; r.run(1,keys); if(r.info().falls>0) return -2; } return -1; },
+  until(keys,cond,max=1200){ const f0=r.info().falls; for(let f=0;f<max;f++){ if(cond()) return f; r.run(1,keys); if(r.info().falls>f0) return -2; } return -1; },
   sees(e){ const [px,py]=this.ctr(), d=Math.hypot(e.x-px,e.y-py), n=Math.ceil(d/6); for(let i=1;i<n;i++){ const k=i/n; if(r.wallT(Math.floor((px+(e.x-px)*k)/16),Math.floor((py+(e.y-py)*k)/16))) return false; } return true; },
   // clear nearby visible enemies (top-down)
   killNear(rad=130){ for(let k=0;k<80;k++){ const [px,py]=this.ctr(); const e=r.enemies().find(e=>e.alive&&e.type!=='leech'&&e.type!=='brood'&&Math.hypot(e.x-px,e.y-py)<rad&&this.sees(e)); if(!e) return 'clear';

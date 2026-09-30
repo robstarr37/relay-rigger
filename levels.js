@@ -68,38 +68,11 @@ const LEVELS = [
 },
 // ------------------------------------------------------------------ 2
 {
-  act:1, name:'Harrow Quarry', place:'Relay HQ-2 · 21:15', theme:'quarry', W:170, H:26,
+  act:1, name:'Harrow Quarry', place:'Relay HQ-2 · 21:15', theme:'quarry',
+  sgen:{seed:2,len:380,tier:1,g:26},
   brief:"Relay HQ-2 in the old quarry went dark at the same minute as Kestrel. The night crew radioed about “something” moving on the quarry floor, then stopped answering.",
   outro:"Those weren't animals. Head office says keep it quiet. Head office is wrong.",
-  build(B){
-    const g=22;
-    B.rock(1,12,g,25); B.rock(18,45,g,25); B.rock(58,125,g,25); B.rock(131,168,g,25);
-    M.girderGap(B,13,g);          // pit 13..17
-    M.ceilingSwing(B,41,g);       // pit 46..57
-    M.climbOver(B,75,g);          // pillar 87..91
-    M.girderGap(B,126,g);         // pit 126..130
-    M.cableHazard(B,140,g);       // sparks 147..149
-    B.start(2,21); B.check(40,21); B.check(60,21); B.check(94,21); B.check(133,21);
-    [[9,21],[29,21],[52,23],[77,17],[112,21],[145,14],[160,21]].forEach(r=>B.relay(...r));
-    B.drone(24,32,21); B.enemy('skitter',37,21); B.enemy('seeker',70,16);
-    B.enemy('skitter',137,21); B.drone(154,162,21);
-    B.terminal(108,21,{time:14,waves:[[0.1,'hunter','hunter'],[0.4,'skitter','hunter'],[0.75,'skitter','skitter','seeker']]});
-    B.goal(164,21);
-    B.prop('cabin',{x:3,row:21}); B.prop('cone',{x:12.4,row:21}); B.prop('cone',{x:45.2,row:21});
-    B.prop('drum',{x:28,row:21}); B.prop('sign',{x:61,row:21}); B.prop('crates',{x:98,row:21});
-    B.prop('fence',{x0:58.3,x1:74,row:21}); B.prop('sign',{x:138.5,row:21}); B.prop('cone',{x:130.6,row:21});
-    B.prop('chains',{x:48,row:11,len:30}); B.prop('chains',{x:55,row:11,len:44}); B.prop('chains',{x:62,row:11,len:20});
-    B.prop('dish',{x:118,row:21}); B.prop('fence',{x0:150.2,x1:160,row:21});
-  },
-  hints:[
-    [0,  "Harrow Quarry. Same drill: hook the girder, swing the gap, let go at the top."],
-    [26, "Something is walking the quarry floor. Skitters take <b>two</b> punches: <b>▼ + GRAB</b>."],
-    [46, "Swing low under the slab and let go at the top of the arc."],
-    [60, "Purple drones hunt you. Punch them before they close in."],
-    [75, "Climb the girders to get over the pillar."],
-    [124,"Swing the gap, then climb over the live cable."],
-    [152,"The mast is just ahead."]
-  ]
+
 },
 // ------------------------------------------------------------------ 3
 {

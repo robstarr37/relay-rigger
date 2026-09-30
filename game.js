@@ -156,6 +156,7 @@ let W=0,H=0,LW=0,LH=0, map=[], rockMap=[], sparkTiles=[], LI=0, LD=null, LDEF=nu
 const tile=(tx,ty)=> (tx<0||tx>=W)?1 : (ty<0||ty>=H)?0 : map[ty][tx];
 function buildLevelData(def){
   if(def.mode==='top') return buildTopData(def);
+  if(def.sgen&&!def.build) window.RR_SECTIONS.composeAll(LEVELS);
   W=def.W; H=def.H; LW=W*T; LH=H*T;
   map=Array.from({length:H},()=>new Array(W).fill(0));
   rockMap=Array.from({length:H},()=>new Uint8Array(W));
@@ -186,7 +187,7 @@ function buildLevelData(def){
   sparkTiles=[]; for(let y=0;y<H;y++) for(let x=0;x<W;x++) if(map[y][x]===3) sparkTiles.push([x,y]);
   if(d.anchor&&!d.goal) d.goal={tx:d.anchor.tx,ty:Math.min(...d.anchor.rows)};
   if(d.core&&!d.goal) d.goal={tx:d.core.tx,ty:d.core.ty};
-  d.boss=!!(d.anchor||d.core);
+  d.boss=!!(d.anchor||d.core); d.sections=def.sections||null;
   if(!d.goal) d.goal={tx:W-6,ty:d.start[1]};
   return d;
 }
@@ -733,7 +734,7 @@ function doPulse(){
 function clampCam(){
   if(MODE==='top'){ const mx=isTouch?VW*0.2:0, mt=isTouch?T*2:0, mb=isTouch?VH*0.34:0;
     cam.x=LW<=VW?(LW-VW)/2:clamp(cam.x,-mx,LW-VW+mx); cam.y=LH<=VH?(LH-VH)/2:clamp(cam.y,-mt,LH-VH+mb); return; }
-  cam.x=clamp(cam.x,0,Math.max(0,LW-VW)); cam.y=clamp(cam.y,-SKY,Math.max(-SKY,LH-VH)); }
+  cam.x=clamp(cam.x,0,Math.max(0,LW-VW)); cam.y=clamp(cam.y,-SKY,Math.max(-SKY,LH-VH-(LDEF.dirt??3)*T)); }
 function updateParts(dt){
   for(const q of parts){ q.x+=(q.vx||0)*dt; q.y+=(q.vy||0)*dt; q.vy=(q.vy||0)+(q.g||0)*dt; q.life-=dt;
     if(q.t==='debris'){ const v=tile(Math.floor(q.x/T),Math.floor(q.y/T)); if(v===1||v===2){ q.vy*=-0.35; q.vx*=0.6; q.y-=2; } } }
@@ -1077,7 +1078,7 @@ function findHidden(){
   for(let y=0;y<H;y++) for(let x=0;x<W;x++) if(map[y][x]!==1&&!seen.has(tk(x,y))) hiddenKeys.add(tk(x,y));
 }
 function buildTopLayer(){
-  findHidden();
+  strips=null; findHidden();
   const secretKeys=new Set(LD.secrets.filter(([x,y])=>!broken.has(tk(x,y))).map(([x,y])=>tk(x,y)));
   LC.width=1; LC.height=1;
   [LC,L]=mk(LW*ART,LH*ART); lights=[];
@@ -1316,9 +1317,19 @@ const lamp=(()=>{ // headlamp cone, pointing right from (0,23)
 // level layer: tiles, props and structures drawn once per level at 2 art px per world unit
 let lights=[]; // static glowing things {x,y,col,size,flick,blink} in art px
 let LC=document.createElement('canvas'), L=null;
+// side levels are painted in 1024 px strips, rendered when the camera nears them and dropped when it moves away
+const SW=1024; let strips=null;
 function buildLayer(){
   LC.width=1; LC.height=1; // release the previous level's memory first
-  [LC,L]=mk(LW*ART,LH*ART); lights=[];
+  strips={n:Math.ceil(LW*ART/SW),cache:new Map()}; lights=[];
+  const [dc,dx]=mk(1,1); paintLayer(dx,0,0,true);
+}
+function getStrip(i){
+  const have=strips.cache.get(i); if(have) return have;
+  const w=Math.min(SW,LW*ART-i*SW), [c,x]=mk(w,LH*ART); x.translate(-i*SW,0); paintLayer(x,i*SW,i*SW+w,false); strips.cache.set(i,c); return c;
+}
+function trimStrips(i0,i1){ for(const k of [...strips.cache.keys()]) if(k!==0&&k!==strips.n-1&&(k<i0-2||k>i1+2)){ const c=strips.cache.get(k); c.width=1; c.height=1; strips.cache.delete(k); } }
+function paintLayer(L,x0,x1,collect){
   const r=(x,y,w,h,c)=>{L.fillStyle=c;L.fillRect(x,y,w,h);};
   const A=v=>Math.round(v*ART);
   const S=T*ART;
@@ -1346,8 +1357,9 @@ function buildLayer(){
     }
   }
 
-  // tiles
-  for(let ty=0;ty<H;ty++) for(let tx=0;tx<W;tx++){
+  // tiles (only the columns this strip covers)
+  const tx0=Math.max(0,Math.floor(x0/S)-1), tx1=Math.min(W,Math.ceil(x1/S)+1);
+  for(let ty=0;ty<H;ty++) for(let tx=tx0;tx<tx1;tx++){
     const v=map[ty][tx]; if(!v) continue;
     const ax=tx*S, ay=ty*S, h=hash(tx,ty);
     if(v===1 && rockMap[ty][tx]){ // earth / rock / concrete
@@ -1391,7 +1403,7 @@ function buildLayer(){
     }
   }
   // pits: find the lowest open run in each column that reaches the bottom
-  for(let tx=1;tx<W-1;tx++){ if(map[H-1][tx]!==0) continue;
+  for(let tx=Math.max(1,tx0);tx<Math.min(W-1,tx1);tx++){ if(map[H-1][tx]!==0) continue;
     let top=H-1; while(top>0&&map[top-1][tx]===0&&top>H-6) top--;
     const y0=top*S, g=L.createLinearGradient(0,y0,0,H*S); g.addColorStop(0,'rgba(4,4,14,0)'); g.addColorStop(0.35,'rgba(4,4,14,0.75)'); g.addColorStop(1,'#020208');
     L.fillStyle=g; L.fillRect(tx*S,y0,S,H*S-y0);
@@ -1410,7 +1422,7 @@ function buildLayer(){
         r(x+36,g-56,44,8,'#ff6a2c'); for(let i=0;i<44;i+=6) r(x+36+i,g-56,3,8,'#1b0c05');
         r(x+6,g-4,26,4,'#3e426b'); r(x+6,g-4,26,1,'#5b608f');
         pline(L,x+84,g-64,x+84,g-100,'#5a5f8c',2); pline(L,x+78,g-92,x+90,g-92,'#5a5f8c',2); pline(L,x+80,g-84,x+88,g-84,'#5a5f8c',2);
-        lights.push({x:x+60,y:g-34,col:'#ffc23d',size:70,flick:true},{x:x+84,y:g-101,col:'#ff4150',size:22,blink:1.4});
+        if(collect) lights.push({x:x+60,y:g-34,col:'#ffc23d',size:70,flick:true},{x:x+84,y:g-101,col:'#ff4150',size:22,blink:1.4});
         break;
       case 'fence': {
         const x0=A(o.x0*T), x1=A(o.x1*T);
@@ -1438,7 +1450,7 @@ function buildLayer(){
         r(x-2,g-30,4,30,'#5a5f8c'); r(x-8,g-3,16,3,'#3e426b');
         for(let y=-12;y<=12;y++) for(let xx=-5;xx<=5;xx++) if((xx*xx)/25+(y*y)/144<=1) r(x-6+xx+Math.round(y*0.35),g-44+y,1,1,xx<-2?'#8b88a3':(xx>2?'#e6e2d8':'#c9c6d8'));
         pline(L,x-6,g-44,x+8,g-50,'#8b88a3',1); r(x+8,g-52,3,3,'#5a5f8c');
-        lights.push({x:x+9,y:g-51,col:'#ff4150',size:16,blink:1.1}); break;
+        if(collect) lights.push({x:x+9,y:g-51,col:'#ff4150',size:16,blink:1.1}); break;
       case 'vent':
         r(x-20,g-24,40,24,'#3a3f70'); r(x-20,g-24,40,2,'#5a60a0'); r(x+18,g-24,2,24,'#262a52');
         for(let i=0;i<5;i++) r(x-16,g-20+i*4,20,2,'#262a52');
@@ -1446,7 +1458,7 @@ function buildLayer(){
         break;
       case 'antenna':
         r(x-1,g-70,3,70,'#5a5f8c'); r(x-8,g-56,17,2,'#5a5f8c'); r(x-6,g-42,13,2,'#5a5f8c'); r(x-4,g-28,9,2,'#5a5f8c'); r(x-5,g-3,11,3,'#3e426b');
-        lights.push({x:x,y:g-72,col:'#ff4150',size:20,blink:1.6}); break;
+        if(collect) lights.push({x:x,y:g-72,col:'#ff4150',size:20,blink:1.6}); break;
       case 'tank':
         for(const lx of [-20,-4,12]) r(x+lx,g-40,3,40,'#2c3058');
         pline(L,x-20,g-38,x+14,g-4,'#262a52',1); pline(L,x+14,g-38,x-20,g-4,'#262a52',1);
@@ -1613,11 +1625,16 @@ function drawBg(){
   strip(bg.hc,0.30,hB); R(0,Math.round(hB),BW,BH,TH.hill);
 }
 function blitLevel(){
-  const sx=clamp(camX,0,LC.width), sy=clamp(camY,0,LC.height), w=Math.min(BW-(sx-camX),LC.width-sx), h=Math.min(BH-(sy-camY),LC.height-sy);
-  if(w>0&&h>0) cx.drawImage(LC,sx,sy,w,h,sx-camX,sy-camY,w,h);
+  if(MODE==='top'||!strips){
+    const sx=clamp(camX,0,LC.width), sy=clamp(camY,0,LC.height), w=Math.min(BW-(sx-camX),LC.width-sx), h=Math.min(BH-(sy-camY),LC.height-sy);
+    if(w>0&&h>0) cx.drawImage(LC,sx,sy,w,h,sx-camX,sy-camY,w,h); return; }
+  const i0=Math.max(0,Math.floor(camX/SW)), i1=Math.min(strips.n-1,Math.floor((camX+BW-1)/SW));
+  for(let i=i0;i<=i1;i++){ const c=getStrip(i), sx=Math.max(0,camX-i*SW), w=Math.min(c.width-sx,BW-(i*SW+sx-camX)), sy=clamp(camY,0,c.height), h=Math.min(BH-(sy-camY),c.height-sy);
+    if(w>0&&h>0) cx.drawImage(c,sx,sy,w,h,i*SW+sx-camX,sy-camY,w,h); }
   // when the camera rises above the level, continue the boundary walls up into the sky
-  if(camY<0&&MODE==='side') for(const wx of [0,LC.width-32]){ if(wx-camX<-32||wx-camX>BW) continue;
-    for(let y=-camY-32;y>-32;y-=32) cx.drawImage(LC,wx,64,32,32,wx-camX,y,32,32); }
+  if(camY<0){ const lw=LW*ART; for(const wx of [0,lw-32]){ if(wx-camX<-32||wx-camX>BW) continue; const i=Math.floor(wx/SW), c=getStrip(i);
+    for(let y=-camY-32;y>-32;y-=32) cx.drawImage(c,wx-i*SW,64,32,32,wx-camX,y,32,32); } }
+  trimStrips(i0,i1);
 }
 
 function drawSparks(){

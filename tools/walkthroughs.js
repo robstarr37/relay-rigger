@@ -155,6 +155,13 @@ const WALK = window.WALK = {
       log.push('-> '+to.cx+','+to.cy+' ('+to.type+') '+w); from=RR.OPP[side]; cur=to; }
     r.run(30); log.push('RESULT '+r.info().state+' hp '+r.p().hp+' falls '+r.info().falls+' parts '+r.pickups().filter(q=>q.got).length+'/'+r.pickups().length);
     return log.join('\n'); },
+  // ---- composed side levels: run every section's own check in order ----
+  composedSide(lv,calm){ const log=[]; r.start(lv); if(calm) r.enemies().forEach(e=>{e.alive=false;}); r.run(10);
+    const S=window.RR_SECTIONS.SECTIONS, def=r.def(), g=def.sgen.g||26, ctx={termIndex:0};
+    for(const s of def.sections){ if(s.name!=='goal'&&r.info().tx>=s.x+s.w-2){ log.push(s.x+' '+s.name+' already passed'); continue; }
+      const res=S[s.name].check(T,s.x,g,ctx); log.push(s.x+' '+res); if(/FELL|FAILED|timeout|no platform/.test(res)) log.push('  ^ problem in '+s.name+' at '+s.x); }
+    r.run(30); log.push('RESULT '+r.info().state+' hp '+r.p().hp+' falls '+r.info().falls+' relays '+r.info().got+' clock '+document.getElementById('tim').textContent);
+    return log.join('\n'); },
   // can the worker get over the tether on the high walkway?
   anchorCrossing(){ r.start(14); r.anchor().pt=999; r.anchor().st=999; r.enemies().forEach(e=>{ if(e.type!=='clamp') e.alive=false; });
     r.teleport(28*16,15*16-20); r.run(5); const hp0=r.p().hp; const c=this.climbSide();

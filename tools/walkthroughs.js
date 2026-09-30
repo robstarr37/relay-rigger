@@ -6,14 +6,11 @@ const T = window.TB, r = window.__rr;
 const until=(act,check,tries=5)=>{ for(let i=0;i<tries;i++){ if(check()) return 'ok'; T.killNear(160); act(); r.run(5); } return check()?'ok':'FAILED'; };
 const WALK = window.WALK = {
   substation9(calm){ const log=[]; r.start(6); if(calm) r.enemies().forEach(e=>{e.alive=false;}); r.run(30);
-    log.push('R1 part 1: '+T.collect(9,2)+' | crate->plate '+T.walkTo(6,4)+' '+T.push('down',1)+' '+T.walkTo(5,6)+' '+T.push('right',3)+' door A '+r.gstate()['1']);
-    log.push('R1 secret: '+T.grappleSecret(12,7,'down',12,8)+' | part 2: '+T.collect(10,9));
-    log.push('R2 post east: '+T.walkTo(17,4)); T.face('right'); T.grab(); log.push(' at '+T.tileOf()+' | block E->plate '+T.walkTo(23,1)+' '+T.push('down',5));
-    log.push(' post west: '+T.walkTo(21,4)); T.face('left'); T.grab(); log.push(' at '+T.tileOf()+' | block W->plate '+T.walkTo(14,6)+' '+T.push('right',2)+' '+T.walkTo(17,5)+' '+T.push('down',1)+' door B '+r.gstate()['2']);
-    log.push('R2->R3: '+T.walkTo(17,4)); T.face('right'); T.grab(); log.push(' at '+T.tileOf()+' '+T.walkTo(27,5));
-    log.push('R3 lever: '+T.walkTo(28,4)); T.face('down'); T.grab(); log.push(' door L '+r.gstate()['4']+' | part 3: '+T.collect(37,1)+' | fuse: '+T.fitFuse(30,7,'down')+' door F '+r.gstate()['3']);
-    log.push('R6 crate pull: '+T.walkTo(33,17)); T.face('right'); T.grab(); T.grab(); log.push(' crates '+T.crates()+' | part 4: '+T.collect(37,17));
-    log.push('terminal: '+T.walkTo(32,13)+' fitted '+r.terms()[0].have+'/'+r.terms()[0].need+' held '+r.partsHeld()+' | '+T.fightTop(0)); r.run(10);
+    log.push('R1 secret: '+T.grappleSecret(6,8,'down',6,9)+' | part 1: '+T.collect(3,11)+' | crate->plate '+T.walkTo(6,2)+' '+T.push('down',2)+' '+T.walkTo(5,5)+' '+T.push('right',3)+' door A '+r.gstate()['1']);
+    log.push('R2 lever: '+T.walkTo(13,3)); T.face('up'); T.grab(); log.push(' nook '+r.gstate()['6']+' | block W '+T.walkTo(15,7)+' '+T.push('up',4));
+    log.push(' post east: '+T.walkTo(17,4)); T.face('right'); T.grab(); log.push(' at '+T.tileOf()+' | block E '+T.walkTo(22,7)+' '+T.push('up',4)+' door B '+r.gstate()['2']+' | part 2: '+T.collect(25,8));
+    log.push('R3: '+T.walkTo(27,4)+' secret '+T.grappleSecret(28,8,'down',28,9)+' | part 3: '+T.collect(27,11)+' | crate->plate '+T.walkTo(28,2)+' '+T.push('right',4)+' cage '+r.gstate()['4']+' | fuse: '+T.fitFuse(38,7,'down')+' door E '+r.gstate()['3']);
+    log.push('terminal: '+T.walkTo(36,14)+' fitted '+r.terms()[0].have+'/'+r.terms()[0].need+' held '+r.partsHeld()+' | '+T.fightTop(0)); r.run(10);
     log.push('exit: '+T.killNear(200)+' '+T.walkTo(3,15)); r.run(30);
     log.push('RESULT '+r.info().state+' hp '+r.p().hp+' falls '+r.info().falls+' parts '+r.pickups().filter(q=>q.got).length+'/'+r.pickups().length);
     return log.join('\n'); },

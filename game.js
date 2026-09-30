@@ -1215,14 +1215,14 @@ function drawDarkness(){
 }
 // minimap: rooms you have visited, where you are, and any visited room with a part still in it
 function drawMinimap(){
-  const R=LD.rooms, cw=8, ch=6, gap=1, x0=6, y0=36;
+  const R=LD.rooms, cw=14, ch=10, gap=2, x0=6, y0=38;
   cx.globalAlpha=0.85; cx.fillStyle='#0b0c1e'; cx.fillRect(x0-3,y0-3,R.cols*(cw+gap)+5,R.rows*(ch+gap)+5);
   for(const c of R.cells){ const id=c.cy*R.cols+c.cx, x=x0+c.cx*(cw+gap), y=y0+c.cy*(ch+gap);
     if(!visited.has(id)) continue;
     R_(x,y,cw,ch,id===curCell?'#ffc23d':c.type==='terminalRoom'?'#2a5a40':c.type==='exitRoom'?'#3a2a5a':'#3e426b');
     for(const s of Object.keys(c.links)){ if(c.links[s].kind==='secret'&&!broken.has(0)&&!visited.has(c.links[s].to)) continue; const dx=s==='E'?cw:s==='W'?-gap:Math.floor(cw/2), dy=s==='S'?ch:s==='N'?-gap:Math.floor(ch/2); R_(x+dx,y+dy,s==='E'||s==='W'?gap:1,s==='N'||s==='S'?gap:1,'#5b66a0'); }
-    if(leftBehind.has(id)&&(tnow*3|0)%2) R_(x+3,y+2,2,2,'#ff4150');
-    if(c.type==='terminalRoom'&&id!==curCell) R_(x+3,y+2,2,2,'#5fe39a'); }
+    if(leftBehind.has(id)&&(tnow*3|0)%2) R_(x+5,y+3,4,4,'#ff4150');
+    if(c.type==='terminalRoom'&&id!==curCell) R_(x+5,y+3,4,4,'#5fe39a'); }
   cx.globalAlpha=1;
   function R_(x,y,w,h,col){ cx.fillStyle=col; cx.fillRect(x,y,w,h); }
 }

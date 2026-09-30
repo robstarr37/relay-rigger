@@ -59,6 +59,7 @@ const LEVELS = [
   hints:[
     [0,  "Hold <b>GRAB</b> to fire your cable at the girder above. Walk off the edge and swing. You can't jump."],
     [22, "Press <b>▼ + GRAB</b> to punch straight ahead. Knock that drone out of the air."],
+    [36, "That pillar is cracked at the base. A punch opens it: hard hats hide behind cracks like that, and they fix your hard-hat meter."],
     [32, "Press <b>▲ + GRAB</b> to fire straight up, then hold <b>▲</b> to reel in and climb onto the girder."],
     [45, "Hook the ceiling, swing low through the pit, and let go at the top of the arc."],
     [65, "Live cable on the ground ahead. Climb the girder and walk over it."],

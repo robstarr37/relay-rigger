@@ -19,18 +19,18 @@ const SECTIONS={
     build(B,x,g){ B.goal(x+7,g-1); B.prop('fence',{x0:x+1,x1:x+5,row:g-1}); B.prop('crates',{x:x+10,row:g-1}); },
     check(T,x){ T.walkFight(x+2); for(let f=0;f<600&&T.r.info().state==='play';f++) T.r.run(1,{right:true}); return 'goal '+T.r.info().state; } },
   flat:{w:16,tier:0,ground:[[0,15]],
-    build(B,x,g,c){ propAt(B,pick(['cone','drum','crates','vent','tank']),x+4+Math.floor(rnd()*6),g); if(c.forceHat||(c.tier>=1&&rnd()<0.45)){ hatOverhang(B,x+11,g); c.forceHat=false; } if(c.tier>=1&&rnd()<0.5) B.drone(x+4,x+12,g-1); else if(c.tier>=1&&rnd()<0.4) B.enemy('skitter',x+9,g-1); if(rnd()<0.6) B.relay(x+8,g-1); },
+    build(B,x,g,c){ propAt(B,pick(['cone','drum','crates','vent','tank']),x+4+Math.floor(rnd()*6),g); if(c.forceHat||(c.tier>=1&&rnd()<0.45)){ hatOverhang(B,x+11,g); c.forceHat=false; } if(c.tier>=1&&rnd()<0.5) B.drone(x+4,x+12,g-1); else if(c.tier>=1&&rnd()<0.4&&c.prev!=='crumbleBridge') B.enemy('skitter',x+9,g-1); /* a skitter here would wander back onto the planks */ if(rnd()<0.6) B.relay(x+8,g-1); },
     check(T,x){ return 'flat '+T.walkFight(x+15); } },
   gap:{w:16,tier:1,ground:[[0,5],[10,15]],hint:"A gap. Fire up (▲ + GRAB) at the girder, reel in, and walk across it.",
     build(B,x,g){ B.girder(x,x+15,g-7); B.prop('cone',{x:x+4.4,row:g-1}); B.relay(x+8,g-8); },
     check(T,x,g){ return 'gap '+T.walkFight(x+3)+' '+T.climb()+' '+T.walkTill(x+12,g); } },
   ceilingSwing:{w:30,tier:1,ground:[[0,4],[17,29]],hint:"Hook the ceiling, swing low through the pit, and let go at the top of the arc.",
     build(B,x,g){ B.steel(x,x+24,g-13,g-12); B.prop('chains',{x:x+8,row:g-11,len:30}); B.prop('chains',{x:x+14,row:g-11,len:44}); B.relay(x+11,g+1); B.prop('cone',{x:x+17.4,row:g-1});
-      if(rnd()<0.5){ B.girder(x+22,x+25,g-14); B.hat(x+12,g-14); } },
+      if(rnd()<0.5){ B.girder(x+25,x+28,g-14); B.hat(x+12,g-14); } },
     check(T,x,g){ return 'swing '+T.swingAcross(x+4,g,x+17); } },
-  ceilingRun:{w:38,tier:2,ground:[[0,4],[31,37]],hint:"One long ceiling over the gap. Swing, let go at the top, fire again straight away. Chain it across.",
+  ceilingRun:{w:40,tier:2,ground:[[0,4],[31,39]],hint:"One long ceiling over the gap. Swing, let go at the top, fire again straight away. Chain it across.",
     build(B,x,g){ B.steel(x,x+36,g-13,g-12); B.prop('chains',{x:x+9,row:g-11,len:24}); B.prop('chains',{x:x+18,row:g-11,len:40}); B.prop('chains',{x:x+26,row:g-11,len:20}); B.relay(x+17,g+1);
-      if(rnd()<0.6){ B.girder(x+34,x+37,g-14); B.hat(x+18,g-14); } },
+      if(rnd()<0.6){ B.girder(x+37,x+39,g-14); B.hat(x+18,g-14); } },
     check(T,x,g){ return 'run '+T.swingAcross(x+4,g,x+31); } },
   anchorRun:{w:48,tier:2,ground:[[0,4],[42,47]],hint:"Separate girders over the pit. Swing from one to the next: let go at the top of each arc and fire again.",
     build(B,x,g){ for(let i=0;i<4;i++){ const c=x+11+8*i; B.girder(c-2,c+1,g-12); } B.relay(x+19,g-13); B.prop('sign',{x:x+2,row:g-1}); },
@@ -85,6 +85,7 @@ function composeSide(def){
     if(decks<nTerms&&x>len*deckAt[decks]&&g>=22&&!def.fallDamage){ name='towerDeck'; decks++; }
     else if((run>=2||last==='climbOver')&&breathers.length){ name=pick(breathers.filter(k=>k!==last)); }
     else { const opts=hazards.filter(k=>k!==last&&fits(k)&&!(k==='crumbleBridge'&&(last==='nest'||last==='drones'))); name=opts.length?pick(opts):pick(breathers.length?breathers:pool); }
+    if(last==='crumbleBridge'&&name==='nest') name='flat';
     run=['flat','drones','nest'].includes(name)?0:run+1;
     list.push({name,x,g}); x+=SECTIONS[name].w; g+=SECTIONS[name].dg||0; last=name;
   }
@@ -100,10 +101,10 @@ function composeSide(def){
   const sections=list.map(s=>({name:s.name,x:s.x,w:SECTIONS[s.name].w,g:s.g}));
   ctx.H=H;
   const rock=G.steel?'steel':'rock';
-  const build=B=>{ seed=(G.seed||1)*7+3;
+  const build=B=>{ seed=(G.seed||1)*7+3; let prev=null;
     for(const s of list){ const sec=SECTIONS[s.name]; const grounds=sec.grounds?sec.grounds(s.g):sec.ground.map(([a,b])=>[a,b,s.g]); for(const [a,b,row] of grounds) B[rock](s.x+a,s.x+b,row,H-1);
       if(sec.tier>0&&s.name!=='towerDeck'&&s.name!=='goal') B.check(s.x+1,s.g-1);
-      sec.build(B,s.x,s.g,ctx); } };
+      ctx.prev=prev; sec.build(B,s.x,s.g,ctx); prev=s.name; } };
   return {W,H,build,hints,sections};
 }
 function composeAll(levels){ taught.clear(); for(const k of ['gap','ceilingSwing','climbOver','cableHazard','towerDeck']) taught.add(k); /* level 1 teaches these by hand */ for(const lv of levels) if(lv.mode!=='top'&&lv.sgen){ const c=composeSide(lv); Object.assign(lv,{W:c.W,H:c.H,build:c.build,hints:c.hints,sections:c.sections}); } }

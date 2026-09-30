@@ -316,7 +316,8 @@ function breakCrack(tx,ty){
 // three deaths at one checkpoint send you back to the start: parts, relays and solved puzzles stay; enemies and hidden hats come back
 function restartRun(){
   cpDeaths=0; cp=0; p.hp=maxHp();
-  enemies=LD.enemies.map(e=>makeEnemy(e.type,e.x,e.y,e)); shots=[];
+  // bosses keep the damage they have taken; only ordinary enemies come back
+  const BOSS={clamp:1,gen:1,core:1,brood:1}; enemies=enemies.filter(e=>e.alive&&BOSS[e.type]).concat(LD.enemies.filter(e=>!BOSS[e.type]).map(e=>makeEnemy(e.type,e.x,e.y,e))); shots=[];
   for(const h of hats) h.got=false;
   for(const c of crumbles){ c.gone=false; c.t=-1; map[c.y][c.x]=2; }
   if(water){ water.y=LDEF.flood.row*T; water.active=false; }

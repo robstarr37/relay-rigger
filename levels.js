@@ -269,7 +269,7 @@ const LEVELS = [
     [14,3, "That lever opens the nook across the pit, and the cable flips it. Face a post and press <b>GRAB</b> to pull yourself over the pit."],
     [15,7, "Heavy blocks: the cable can't move them, so push. One on each plate, both sides of the pit, opens the door."],
     [30,3, "The fuse box is caged. Push the crate onto the plate to open the cage, then walk into the fuse box to fit a part."],
-    [28,7, "Another cracked wall below."],
+    [28,7, "Dust is drifting off the wall below."],
     [36,14,"The terminal needs two parts fitted before it starts. Short? Go back: cracked walls, nooks, cages."],
     [3,15, "The service hatch. Stuck on a puzzle? Pause and choose Reset puzzle."]
   ]
@@ -570,7 +570,7 @@ const LEVELS = [
 {
   act:4, name:'Storm Front', place:'Kestrel coast line · 21:00', theme:'storm', W:300, H:30,
   wind:{period:7,warn:1.3,dur:2.6,force:230},
-  brief:"The ship ran, but it's coming back for one last push, riding a storm front in over the coast. The gusts out there can knock a rigger clean off a girder. Keep the coast line alive until the array can fire.",
+  brief:"The ship ran, but it's coming back for one last push, riding a storm front in over the coast. The gusts out there can knock a rigger clean off a girder. One thing in your favour: the shock cell you salvaged from the tether. Press PULSE and everything around you gets thrown back.",
   outro:"The line held through the storm. Down the coast, the relay array is powering up.",
   build(B){
     const g=26;
@@ -591,7 +591,7 @@ const LEVELS = [
     B.prop('drum',{x:150,row:25}); B.prop('crates',{x:198,row:25}); B.prop('chains',{x:226,row:15,len:30}); B.prop('chains',{x:240,row:15,len:44}); B.prop('antenna',{x:255,row:25});
   },
   hints:[
-    [0,  "Storm Front. Watch for the GUST warning: the wind shoves you sideways. Walk against it on the ground; in the air it carries you."],
+    [0,  "Storm Front. You now carry a shock cell: <b>PULSE</b> knocks back everything near you and burns up plasma, then recharges. Watch for the GUST warning: the wind shoves you sideways."],
     [44, "Girder hops in a gale. Time your swings between gusts."],
     [118,"This bridge crumbles behind you. Don't stop, and don't get blown back."],
     [166,"Stand still on the ferry: you can brace against gusts on moving platforms."],
@@ -719,7 +719,7 @@ const LEVELS = [
   actEnd:{title:'SIGNAL CLEAR',text:"The core burst and the mothership fell out of the sky into the sea off Kestrel Ridge. Every tower you climbed is still standing, and every channel on the coast is carrying the same message: it's over. Thanks for playing Relay Rigger."},
   build(B){
     B.steel(1,70,40,43); B.steel(6,66,2,3);
-    B.girder(6,14,34); B.girder(57,65,34); B.girder(14,22,21); B.girder(49,57,21); B.girder(31,41,28);
+    B.girder(6,14,34); B.girder(57,65,34); B.girder(2,7,26); B.girder(64,69,26); B.girder(18,24,30); B.girder(47,53,30); B.girder(14,22,21); B.girder(49,57,21); B.girder(31,41,28);
     B.girder(8,26,12); B.girder(46,64,12);
     B.platform(27,40,27,12,4,{speed:40}); B.platform(42,40,42,12,4,{speed:40,phase:1});
     B.core(36,19,[[10,33],[61,33],[18,20],[53,20]]);
@@ -727,7 +727,7 @@ const LEVELS = [
     [[7,33],[64,33],[20,20],[51,20],[36,27],[15,11]].forEach(r=>B.relay(...r));
   },
   hints:[
-    [0,  "The core. Its shield holds while any generator stands: punch the four generators on the girders."],
+    [0,  "The core. Its shield holds while any generator stands: punch the four generators on the girders. When the hunters crowd you, <b>PULSE</b>."],
     [30, "Climb from the low girders to the high ones, or ride the lifts. Red bands can come down the chamber too."]
   ]
 }

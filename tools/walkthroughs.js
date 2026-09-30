@@ -126,6 +126,7 @@ const WALK = window.WALK = {
     const row=()=>Math.round((r.p().y+r.p().h)/16);
     // punch a flyer that has come close (across, up or diagonally)
     const fend=()=>{ const p=r.p(); if(!p.onGround||r.hook().state!=='idle') return false; const px=p.x+6, py=p.y+7;
+      if(r.pulseCd()<=0&&r.enemies().some(e=>e.alive&&(e.type==='seeker'||e.type==='hunter')&&Math.hypot(e.x-px,e.y-py)<80)){ tick({pulse:true}); tick({}); return true; }
       const e=r.enemies().find(e=>e.alive&&(e.type==='seeker'||e.type==='hunter')&&Math.hypot(e.x-px,e.y-py)<110); if(!e) return false;
       const dx=e.x-px, dy=e.y-py; let aim=null; if(Math.abs(dy)<10) aim='h'; else if(Math.abs(dx)<10&&dy<0) aim='u'; else if(dy<0&&Math.abs(Math.abs(dx)/(-dy)-0.7)<0.35) aim='d';
       if(!aim) return false; if(aim!=='u') tick({[dx>0?'right':'left']:true}); const k={grab:true}; if(aim==='h') k.down=true; if(aim==='u') k.up=true; tick(k); for(let q=0;q<8;q++) tick(); return true; };

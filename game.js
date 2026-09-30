@@ -103,6 +103,7 @@ const Snd=(()=>{
     gust(d){noise(d,0.16,500,0.9,'bandpass',0,900);},
     warp(){tone(300,1400,0.25,'sine',0.08); tone(1400,300,0.25,'triangle',0.05,0.1);},
     laser(){tone(1200,600,0.12,'sawtooth',0.05);},
+    pulse(){noise(0.35,0.35,1800,0.6,'bandpass',0,300); tone(900,140,0.4,'sawtooth',0.14); tone(1800,400,0.25,'sine',0.08);},
     part(){[880,1320,1760].forEach((f,i)=>tone(f,f,0.09,'triangle',0.08,i*0.05));},
     fit(){tone(300,300,0.06,'square',0.08); tone(600,900,0.15,'triangle',0.07,0.06);},
     secret(){noise(0.5,0.25,700,0.8,'lowpass',0,120); [523,659,784,1047].forEach((f,i)=>tone(f,f,0.12,'triangle',0.07,0.15+i*0.07));},
@@ -202,7 +203,9 @@ function loadLevel(i){
 let crumbles=[], water=null, anchor=null, wind=null, zips=[], boss=null, beamsT=[];
 let p, hook, rope, enemies, shots, relays, checks, terms, goal, parts, plats=[], cam={x:0,y:0}, state='title', clock=0, falls=0, got=0, cp=0, tnow=0;
 let bolt=0, nextBolt=6, shake=0, hitstop=0, flash=0, winT=0, fwT=0, reelAcc=0, stepPh=0, crackleT=0, lockMsgT=-9, allDoneT=-99;
-const DIRS=['left','right','up','down','grab'];
+const DIRS=['left','right','up','down','grab','pulse'];
+const PULSE_R=88, PULSE_CD=4; let pulseCd=0, pulseFx=0, prevPulse=false;
+const pulseOn=()=>LI>=15; // the shock cell is salvaged at the end of Act 3
 const K={}, TT={}, GP={}, I={}; DIRS.forEach(k=>{K[k]=TT[k]=GP[k]=I[k]=false;});
 let prevGrab=false, grabBuf=0;
 
@@ -581,6 +584,7 @@ function update(dt){
   if(TH.lightning&&MODE==='side'){ if(bolt>0) bolt-=dt; else if(tnow>nextBolt){ bolt=0.3; nextBolt=tnow+4+Math.random()*7; if(state==='play') sfx.thunder(0.2+Math.random()*0.5); } }
   readInput();
   const edge=I.grab&&!prevGrab; prevGrab=I.grab;
+  const pedge=I.pulse&&!prevPulse; prevPulse=I.pulse;
   updateParts(dt);
   for(const c of checks) c.raise=Math.min(1,c.raise+(c.on?dt*2.5:0));
   if(state==='title'||state==='brief'||state==='levels'){
@@ -610,6 +614,8 @@ function update(dt){
   const fireNow=grabBuf>0; grabBuf=Math.max(0,grabBuf-dt);
   clock+=dt;
   if(p.inv>0) p.inv-=dt;
+  pulseCd=Math.max(0,pulseCd-dt); if(pulseFx>0) pulseFx-=dt;
+  if(pedge&&pulseOn()){ if(pulseCd<=0&&(MODE!=='top'||p.fall<=0)) doPulse(); else if(pulseCd>0) sfx.deny(); }
   if(MODE==='top'){ if(fireNow&&p.fall<=0&&hook.state!=='pull'&&hook.state!=='drag') grabBuf=0; updateTop(dt,fireNow); return; }
   if(fireNow && (hook.state==='idle'||hook.state==='back')){ grabBuf=0; fire(); }
   if((hook.state==='att'||hook.state==='zip') && !I.grab){ hook.state='back'; if(!p.onGround&&Math.hypot(p.vx,p.vy)>150) sfx.fling(); }
@@ -712,6 +718,17 @@ function updateCore(dt){
   B.st-=dt;
   if(B.st<=0){ B.st=B.phase===2?6:7; const type=B.phase===2?'hunter':'seeker';
     if(enemies.filter(e=>e.alive&&(e.type==='seeker'||e.type==='hunter')).length<2) enemies.push(makeEnemy(type,core.x+(Math.random()<0.5?-1:1)*(VW/2+20),pcy-40,{wave:true})); }
+}
+// shock pulse: hits, stuns and throws back every ordinary enemy nearby and burns up plasma; bosses shrug it off
+function doPulse(){
+  pulseCd=PULSE_CD; pulseFx=0.45; const cx0=p.x+p.w/2, cy0=p.y+p.h/2;
+  ring(cx0,cy0,'#8fd0ff',PULSE_R,0.45); ring(cx0,cy0,'#ffffff',PULSE_R*0.6,0.3); sparks(cx0,cy0,'#c8e8ff',24,240); shake=Math.max(shake,3); hitstop=0.04; sfx.pulse(); buzz([15,20,15]);
+  for(const e of enemies){ if(!e.alive||e.type==='brood'||e.type==='core'||e.type==='gen'||e.type==='clamp') continue;
+    const d=Math.hypot(e.x-cx0,e.y-cy0); if(d>PULSE_R+EN[e.type].bx) continue;
+    const a=Math.atan2(e.y-cy0,e.x-cx0); e.hp--; e.flash=0.25; e.stun=1.4; e.dash=0; e.charge=0; if(e.latched) e.latched=false;
+    e.vx=Math.cos(a)*230; e.vy=MODE==='top'?Math.sin(a)*230:Math.min(-160,Math.sin(a)*230); e.ground=false;
+    if(e.hp<=0) killEnemy(e); else sparks(e.x,e.y,'#c8e8ff',8,150); }
+  shots=shots.filter(s=>{ if(Math.hypot(s.x-cx0,s.y-cy0)>PULSE_R+12) return true; burst(s.x,s.y,'#b6ff5a',6,80); return false; });
 }
 function clampCam(){
   if(MODE==='top'){ const mx=isTouch?VW*0.2:0, mt=isTouch?T*2:0, mb=isTouch?VH*0.34:0;
@@ -1023,6 +1040,8 @@ function updateTop(dt,edge){
   updateHookTop(dt);
 
   updateBeams();
+  // dust drifts off a cracked wall when you are close: the only tell besides the hairline
+  for(const [x,y] of LD.secrets){ if(broken.has(tk(x,y))) continue; if(Math.hypot(x*T+8-(p.x+6),y*T+8-(p.y+6))<7*T&&Math.random()<dt*0.9) dust(x*T+8+(Math.random()-0.5)*10,y*T+8,1); }
   updateEnemies(dt,p.fall<=0);
   updateTerms(dt);
   for(const r of relays){ if(r.got) continue;
@@ -1053,9 +1072,8 @@ function buildTopLayer(){
       if(!edge){ r(ax,ay,S,S,'#07081a'); if(h%4===0) r(ax+(h>>3)%28,ay+(h>>7)%28,2,2,'#0d0f26'); continue; }
       r(ax,ay,S,S,TH.wallTop);
       for(let i=0;i<5;i++){ const q=hash(tx*5+i,ty*3); r(ax+q%28,ay+(q>>5)%20,2+((q>>9)%3),1,TH.wallHi); }
-      if(secretKeys.has(tk(tx,ty))){ // clearly cracked: a passage hides behind it
-        pline(L,ax+4,ay+4,ax+14,ay+12,'#07081a',2); pline(L,ax+14,ay+12,ax+10,ay+22,'#07081a',2); pline(L,ax+14,ay+12,ax+26,ay+16,'#07081a',2); pline(L,ax+26,ay+16,ax+28,ay+26,'#07081a',2);
-        pline(L,ax+5,ay+4,ax+15,ay+12,TH.wallHi,1); r(ax+12,ay+10,4,4,'#07081a'); lights.push({x:ax+16,y:ay+14,col:'#b6ff5a',size:18}); }
+      if(secretKeys.has(tk(tx,ty))){ // a hairline crack in the wall's own shade: a passage hides behind it
+        pline(L,ax+9,ay+3,ax+15,ay+13,TH.wallFace,1); pline(L,ax+15,ay+13,ax+13,ay+25,TH.wallFace,1); pline(L,ax+15,ay+13,ax+23,ay+18,TH.wallFace,1); r(ax+14,ay+12,2,2,TH.wallFace); }
       if(ty===0||map[ty-1][tx]!==1) r(ax,ay,S,2,TH.wallHi);
       if(tx>0&&map[ty][tx-1]!==1) r(ax,ay,1,S,TH.wallHi);
       if(tx<W-1&&map[ty][tx+1]!==1) r(ax+S-1,ay,1,S,TH.wallFace);
@@ -1147,6 +1165,7 @@ function drawTop(){
   drawGlows(lampPos);
   cx.drawImage(vignette,0,0);
   if(flash>0){ cx.fillStyle=`rgba(255,65,80,${flash*1.2})`; cx.fillRect(0,0,BW,BH); }
+  if(pulseFx>0){ cx.fillStyle=`rgba(143,208,255,${pulseFx*0.35})`; cx.fillRect(0,0,BW,BH); }
   if(state==='play'&&p.hp===1){ cx.globalAlpha=0.18+0.1*Math.sin(tnow*6); cx.drawImage(vignette,0,0); cx.fillStyle='rgba(255,40,60,0.12)'; cx.fillRect(0,0,BW,BH); cx.globalAlpha=1; }
 }
 let darkC=null, darkX=null;
@@ -1166,7 +1185,6 @@ function drawDarkness(){
   for(const c of crates) if(!c.dead) hole(SX(c.x),SY(c.y),36,0.45);
   for(const q of pickups) if(!q.got) hole(SX(q.x),SY(q.y),44,0.75);
   for(const f of fuses) hole(SX(f.tx*T+8),SY(f.ty*T+8),40,0.7);
-  for(const [x,y] of LD.secrets) if(!broken.has(tk(x,y))) hole(SX(x*T+8),SY(y*T+8),40,0.8);
   for(const b of beamsT) if(b.active) for(const [tx,ty] of b.tiles) hole(SX(tx*T+8),SY(ty*T+8),40,0.6);
   for(const t of LD.teles) hole(SX(t.tx*T+8),SY(t.ty*T+8),50,0.8);
   for(const s of shots) hole(SX(s.x),SY(s.y),30,0.8);
@@ -1876,11 +1894,12 @@ function draw(){
   drawRain();
   cx.drawImage(vignette,0,0);
   if(flash>0){ cx.fillStyle=`rgba(255,65,80,${flash*1.2})`; cx.fillRect(0,0,BW,BH); }
+  if(pulseFx>0){ cx.fillStyle=`rgba(143,208,255,${pulseFx*0.35})`; cx.fillRect(0,0,BW,BH); }
   if(state==='play'&&p.hp===1){ cx.globalAlpha=0.18+0.1*Math.sin(tnow*6); cx.drawImage(vignette,0,0); cx.fillStyle='rgba(255,40,60,0.12)'; cx.fillRect(0,0,BW,BH); cx.globalAlpha=1; }
 }
 
 // ---------- HUD ----------
-const partStat=$('partStat'), partEl=$('parts');
+const partStat=$('partStat'), partEl=$('parts'), pulseStat=$('pulseStat'), pulseEl=$('pulse'), pulseBtn=$('pulseBtn');
 const hudEl=$('hud'), hpEl=$('hp'), relEl=$('rel'), cabEl=$('cab'), timEl=$('tim'), hintEl=$('hint'), netEl=$('net'), netStat=$('netStat'), lvlEl=$('lvl');
 let lastHud='', lastHint=null, hintAt=0;
 const DYN={
@@ -1907,11 +1926,13 @@ function hud(){
   const nt=terms.filter(t=>t.state==='done').length, act=terms.find(t=>t.state==='active');
   const net=terms.length?(act?Math.floor(act.prog*100)+'%':nt+'/'+terms.length):'';
   const pk=MODE==='top'&&pickups.length?pickups.filter(q=>q.got).length+'/'+pickups.length+(partsHeld?' ('+partsHeld+' held)':''):'';
-  const key=p.hp+'|'+got+'|'+cab+'|'+fmt(clock)+'|'+net+'|'+pk;
+  const pu=pulseOn()?(pulseCd<=0?'READY':Math.ceil(pulseCd)+'s'):'';
+  const key=p.hp+'|'+got+'|'+cab+'|'+fmt(clock)+'|'+net+'|'+pk+'|'+pu;
   if(key!==lastHud){ lastHud=key;
     hpEl.innerHTML=[0,1,2].map(i=>`<i class="${i<p.hp?'':'off'}"></i>`).join('');
     hudEl.classList.toggle('low',p.hp===1);
     partStat.hidden=!pk; partEl.textContent=pk;
+    pulseStat.hidden=!pu; pulseEl.textContent=pu; pulseStat.classList.toggle('net-on',pu==='READY'); pulseBtn.classList.toggle('cd',pulseCd>0);
     relEl.textContent=got+'/'+relays.length; cabEl.textContent=cab; timEl.textContent=fmt(clock);
     netStat.hidden=!terms.length; netEl.textContent=net; netStat.classList.toggle('net-on',terms.length>0&&nt===terms.length); }
   const hi=pickHint();
@@ -1927,6 +1948,7 @@ function setUI(){
   hudEl.hidden=!inRun;
   $('pauseBtn').hidden=!playing;
   $('touch').hidden=!(playing&&isTouch);
+  $('pulseZone').hidden=!(playing&&isTouch&&pulseOn());
   for(const k in OVS) $(OVS[k]).hidden=state!==k;
   $('rotate').hidden=!((state==='title'||state==='brief')&&isTouch&&isPortrait());
   document.body.classList.toggle('touch',isTouch);
@@ -2054,7 +2076,7 @@ addEventListener('beforeinstallprompt',e=>{
 });
 
 // ---------- input ----------
-const KEYMAP={ArrowLeft:'left',KeyA:'left',ArrowRight:'right',KeyD:'right',ArrowUp:'up',KeyW:'up',ArrowDown:'down',KeyS:'down',Space:'grab',KeyJ:'grab',KeyZ:'grab'};
+const KEYMAP={ArrowLeft:'left',KeyA:'left',ArrowRight:'right',KeyD:'right',ArrowUp:'up',KeyW:'up',ArrowDown:'down',KeyS:'down',Space:'grab',KeyJ:'grab',KeyZ:'grab',KeyX:'pulse',KeyK:'pulse',ShiftLeft:'pulse',ShiftRight:'pulse'};
 function setTouchMode(t){ if(t===isTouch) return; isTouch=t; lastHint=null; setUI(); }
 addEventListener('keydown',e=>{
   Snd.init();
@@ -2096,8 +2118,12 @@ const grabZone=$('grabZone'), grabBtn=$('grabBtn');
 grabZone.addEventListener('pointerdown',e=>{ e.preventDefault(); if(grabId!==null) return; grabId=e.pointerId; try{grabZone.setPointerCapture(e.pointerId);}catch(_){} TT.grab=true; grabBtn.classList.add('on'); });
 const grabEnd=e=>{ if(e.pointerId!==grabId) return; grabId=null; TT.grab=false; grabBtn.classList.remove('on'); };
 ['pointerup','pointercancel','lostpointercapture'].forEach(t=>grabZone.addEventListener(t,grabEnd));
-for(const z of [stickZone,grabZone,cv]) z.addEventListener('touchstart',e=>e.preventDefault(),{passive:false});
-function clearTouch(){ stickId=grabId=null; DIRS.forEach(k=>{TT[k]=false;}); for(const k in arms) arms[k].classList.remove('on'); grabBtn.classList.remove('on'); }
+const pulseZone=$('pulseZone'); let pulseId=null;
+pulseZone.addEventListener('pointerdown',e=>{ e.preventDefault(); if(pulseId!==null) return; pulseId=e.pointerId; try{pulseZone.setPointerCapture(e.pointerId);}catch(_){} TT.pulse=true; pulseBtn.classList.add('on'); });
+const pulseEnd=e=>{ if(e.pointerId!==pulseId) return; pulseId=null; TT.pulse=false; pulseBtn.classList.remove('on'); };
+['pointerup','pointercancel','lostpointercapture'].forEach(t=>pulseZone.addEventListener(t,pulseEnd));
+for(const z of [stickZone,grabZone,pulseZone,cv]) z.addEventListener('touchstart',e=>e.preventDefault(),{passive:false});
+function clearTouch(){ stickId=grabId=pulseId=null; pulseBtn.classList.remove('on'); DIRS.forEach(k=>{TT[k]=false;}); for(const k in arms) arms[k].classList.remove('on'); grabBtn.classList.remove('on'); }
 
 // gamepad
 let padStart=false;
@@ -2108,7 +2134,7 @@ function pollPad(){
     const b=i=>!!(g.buttons[i]&&g.buttons[i].pressed), ax=g.axes[0]||0, ay=g.axes[1]||0;
     GP.left=GP.left||b(14)||ax<-0.45; GP.right=GP.right||b(15)||ax>0.45;
     GP.up=GP.up||b(12)||ay<-0.45; GP.down=GP.down||b(13)||ay>0.45;
-    GP.grab=GP.grab||b(0)||b(1)||b(2)||b(5)||b(7);
+    GP.grab=GP.grab||b(0)||b(2)||b(5)||b(7); GP.pulse=GP.pulse||b(1)||b(3);
     const st=b(9);
     if(st&&!padStart){ if(state==='play') pause(); else if(state==='pause') resume(); else if(state==='title') continueGame(); else if(state==='brief') startLevel(); else if(state==='win') openBrief(LI+1); }
     padStart=st;
@@ -2140,7 +2166,7 @@ if(/[?&]debug\b/.test(location.search)) window.__rr={
   start(i){ openBrief(i); startLevel(); return this.info(); },
   teleport(x,y){ p.x=x; p.y=y; p.vx=p.vy=0; hook.state='idle'; },
   tile, enemies:()=>enemies, terms:()=>terms, p:()=>p,
-  mode:()=>MODE, plats:()=>plats, pickups:()=>pickups, partsHeld:()=>partsHeld, fuses:()=>fuses, crumbles:()=>crumbles, water:()=>water, anchor:()=>anchor, wind:()=>wind, zips:()=>zips, boss:()=>boss, beams:()=>beamsT, hook:()=>hook, crates:()=>crates, gstate:()=>gstate, levers:()=>levers, pitT, wallT, solidT, LD:()=>LD
+  mode:()=>MODE, plats:()=>plats, pickups:()=>pickups, partsHeld:()=>partsHeld, fuses:()=>fuses, crumbles:()=>crumbles, water:()=>water, pulseCd:()=>pulseCd, anchor:()=>anchor, wind:()=>wind, zips:()=>zips, boss:()=>boss, beams:()=>beamsT, hook:()=>hook, crates:()=>crates, gstate:()=>gstate, levers:()=>levers, pitT, wallT, solidT, LD:()=>LD
 };
 
 if('serviceWorker' in navigator && /^https?:$/.test(location.protocol)) addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));

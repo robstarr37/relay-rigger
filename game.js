@@ -714,8 +714,8 @@ function updateCore(dt){
     if(enemies.filter(e=>e.alive&&(e.type==='seeker'||e.type==='hunter')).length<2) enemies.push(makeEnemy(type,core.x+(Math.random()<0.5?-1:1)*(VW/2+20),pcy-40,{wave:true})); }
 }
 function clampCam(){
-  if(MODE==='top'){ const mx=isTouch?VW*0.2:T, mt=isTouch?T*2:T, mb=isTouch?VH*0.34:T;
-    cam.x=clamp(cam.x,-mx,Math.max(-mx,LW-VW+mx)); cam.y=clamp(cam.y,-mt,Math.max(-mt,LH-VH+mb)); return; }
+  if(MODE==='top'){ const mx=isTouch?VW*0.2:0, mt=isTouch?T*2:0, mb=isTouch?VH*0.34:0;
+    cam.x=LW<=VW?(LW-VW)/2:clamp(cam.x,-mx,LW-VW+mx); cam.y=LH<=VH?(LH-VH)/2:clamp(cam.y,-mt,LH-VH+mb); return; }
   cam.x=clamp(cam.x,0,Math.max(0,LW-VW)); cam.y=clamp(cam.y,-SKY,Math.max(-SKY,LH-VH)); }
 function updateParts(dt){
   for(const q of parts){ q.x+=(q.vx||0)*dt; q.y+=(q.vy||0)*dt; q.vy=(q.vy||0)+(q.g||0)*dt; q.life-=dt;
@@ -729,7 +729,7 @@ function updateParts(dt){
 const RANGE_TOP=120, WALK_TOP=74;
 const DV={left:[-1,0],right:[1,0],up:[0,-1],down:[0,1]};
 const GCOLS=['#ffc23d','#5ae0e8','#ff6a2c','#b6ff5a','#e878ff','#ff4150','#8fd0ff','#ffffff'];
-let pickups=[], partsHeld=0, fuses=[], crates=[], levers=[], filled=new Set(), gstate={}, gcol={}, gLast={}, gHold={}, tdLook=null, snap=null, topHint=null;
+let pickups=[], partsHeld=0, fuses=[], broken=new Set(), crates=[], levers=[], filled=new Set(), gstate={}, gcol={}, gLast={}, gHold={}, tdLook=null, snap=null, topHint=null;
 const CONV=46;
 const tk=(x,y)=>y*W+x;
 function buildTopData(def){
@@ -795,8 +795,9 @@ function resetTop(){
   tdLook={door:new Map(),bridge:new Map(),plate:new Map(),lever:new Map(),post:new Set(),term:new Set(),conv:new Map()};
   LD.conv.forEach(([x,y,dx,dy])=>tdLook.conv.set(tk(x,y),[dx,dy])); gLast={}; gHold={};
   tdLook.tele=new Map(LD.teles.map(t=>[tk(t.tx,t.ty),t]));
-  tdLook.secret=new Set(LD.secrets.map(([x,y])=>tk(x,y))); tdLook.fuse=new Map(fuses.map(f=>[tk(f.tx,f.ty),f]));
+  broken=new Set(); tdLook.secret=new Set(LD.secrets.map(([x,y])=>tk(x,y))); tdLook.fuse=new Map(fuses.map(f=>[tk(f.tx,f.ty),f]));
   for(const [x,y] of LD.secrets) map[y][x]=1;
+  if(LD.secrets.length) buildTopLayer();
   LD.doors.forEach(o=>tdLook.door.set(tk(o.tx,o.ty),o)); LD.bridges.forEach(o=>tdLook.bridge.set(tk(o.tx,o.ty),o));
   LD.plates.forEach(o=>tdLook.plate.set(tk(o.tx,o.ty),o)); levers.forEach(o=>tdLook.lever.set(tk(o.tx,o.ty),o));
   LD.posts.forEach(([x,y])=>tdLook.post.add(tk(x,y))); LD.terms.forEach(t=>tdLook.term.add(tk(t.tx,t.ty)));
@@ -902,7 +903,7 @@ function fitFuse(f){
 }
 // a cracked wall gives way to the cable and opens a passage
 function breakSecret(x,y){
-  tdLook.secret.delete(tk(x,y)); map[y][x]=0; LD.secrets=LD.secrets.filter(([a,b])=>a!==x||b!==y);
+  tdLook.secret.delete(tk(x,y)); map[y][x]=0; broken.add(tk(x,y));
   buildTopLayer(); debris(x*T+8,y*T+8,[TH.wallTop,TH.wallHi,'#15182f'],14); dust(x*T+8,y*T+8,10); shake=Math.max(shake,3); sfx.secret(); buzz([20,30,20]);
   popup(x*T+8,y*T-6,'HIDDEN PASSAGE','#b6ff5a');
 }
@@ -1040,6 +1041,7 @@ function updateTop(dt,edge){
 
 // top-down art: floors, walls and pits pre-rendered once per level
 function buildTopLayer(){
+  const secretKeys=new Set(LD.secrets.filter(([x,y])=>!broken.has(tk(x,y))).map(([x,y])=>tk(x,y)));
   LC.width=1; LC.height=1;
   [LC,L]=mk(LW*ART,LH*ART); lights=[];
   const r=(x,y,w,h,c)=>{L.fillStyle=c;L.fillRect(x,y,w,h);};
@@ -1051,7 +1053,7 @@ function buildTopLayer(){
       if(!edge){ r(ax,ay,S,S,'#07081a'); if(h%4===0) r(ax+(h>>3)%28,ay+(h>>7)%28,2,2,'#0d0f26'); continue; }
       r(ax,ay,S,S,TH.wallTop);
       for(let i=0;i<5;i++){ const q=hash(tx*5+i,ty*3); r(ax+q%28,ay+(q>>5)%20,2+((q>>9)%3),1,TH.wallHi); }
-      if(tdLook&&tdLook.secret.has(tk(tx,ty))){ // clearly cracked: a passage hides behind it
+      if(secretKeys.has(tk(tx,ty))){ // clearly cracked: a passage hides behind it
         pline(L,ax+4,ay+4,ax+14,ay+12,'#07081a',2); pline(L,ax+14,ay+12,ax+10,ay+22,'#07081a',2); pline(L,ax+14,ay+12,ax+26,ay+16,'#07081a',2); pline(L,ax+26,ay+16,ax+28,ay+26,'#07081a',2);
         pline(L,ax+5,ay+4,ax+15,ay+12,TH.wallHi,1); r(ax+12,ay+10,4,4,'#07081a'); lights.push({x:ax+16,y:ay+14,col:'#b6ff5a',size:18}); }
       if(ty===0||map[ty-1][tx]!==1) r(ax,ay,S,2,TH.wallHi);
@@ -1164,7 +1166,7 @@ function drawDarkness(){
   for(const c of crates) if(!c.dead) hole(SX(c.x),SY(c.y),36,0.45);
   for(const q of pickups) if(!q.got) hole(SX(q.x),SY(q.y),44,0.75);
   for(const f of fuses) hole(SX(f.tx*T+8),SY(f.ty*T+8),40,0.7);
-  for(const [x,y] of LD.secrets) hole(SX(x*T+8),SY(y*T+8),40,0.8);
+  for(const [x,y] of LD.secrets) if(!broken.has(tk(x,y))) hole(SX(x*T+8),SY(y*T+8),40,0.8);
   for(const b of beamsT) if(b.active) for(const [tx,ty] of b.tiles) hole(SX(tx*T+8),SY(ty*T+8),40,0.6);
   for(const t of LD.teles) hole(SX(t.tx*T+8),SY(t.ty*T+8),50,0.8);
   for(const s of shots) hole(SX(s.x),SY(s.y),30,0.8);

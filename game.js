@@ -286,6 +286,13 @@ function popup(x,y,text,col){parts.push({t:'text',x,y,vx:0,vy:-26,life:1.1,full:
 function beam(x,y){parts.push({t:'beam',x,y,life:0.6,full:0.6,add:true});}
 
 // ---------- gameplay ----------
+// relays and parts are collected by walking into them or by passing the cable's hook over them
+function collectRelay(r){ r.got=true; got++; burst(r.x,r.y,'#5fe39a',14,100); sparks(r.x,r.y,'#5fe39a',10,120); ring(r.x,r.y,'#5fe39a',24,0.4); popup(r.x,r.y-12,`RELAY ${got}/${relays.length}`,'#5fe39a'); sfx.relay(); buzz(15); }
+function collectPart(q){ q.got=true; partsHeld++; burst(q.x,q.y,'#ffc23d',14,100); sparks(q.x,q.y,'#ffe08a',10,120); ring(q.x,q.y,'#ffc23d',24,0.4); popup(q.x,q.y-12,`PART ${pickups.filter(z=>z.got).length}/${pickups.length}`,'#ffc23d'); sfx.part(); buzz(15); }
+function hookPickups(){
+  for(const r of relays) if(!r.got&&Math.abs(hook.x-r.x)<11&&Math.abs(hook.y-r.y)<11) collectRelay(r);
+  if(MODE==='top') for(const q of pickups) if(!q.got&&!hid(q.tx,q.ty)&&Math.abs(hook.x-q.x)<11&&Math.abs(hook.y-q.y)<11) collectPart(q);
+}
 function fire(){
   const hd=hand(); let dx,dy;
   if(I.up){dx=0;dy=-1;} else if(I.down){dx=p.face;dy=0;} else {dx=p.face*0.574;dy=-0.819;}
@@ -383,6 +390,7 @@ function step(dt){
     let dist=HOOKV*dt;
     while(dist>0){
       const s=Math.min(3,dist); dist-=s; hook.x+=hook.dx*s; hook.y+=hook.dy*s; hook.len+=s;
+      hookPickups();
       const e=enemies.find(e=>e.alive&&Math.abs(hook.x-e.x)<EN[e.type].bx+3&&Math.abs(hook.y-e.y)<EN[e.type].by+3);
       if(e){ hitEnemy(e); hook.state='back'; break; }
       const sh=shots.find(s=>s.life>0&&Math.abs(hook.x-s.x)<7&&Math.abs(hook.y-s.y)<7);
@@ -653,7 +661,7 @@ function update(dt){
   if(crackleT<=0&&sparkTiles.length){ crackleT=0.05+Math.random()*0.25; let d=1e9; for(const [x,y] of sparkTiles) d=Math.min(d,Math.hypot(p.x-x*T,p.y-y*T)); if(d<220) sfx.crackle(0.12*(1-d/220)); }
   // relays
   for(const r of relays){ if(r.got) continue;
-    if(Math.abs(p.x+6-r.x)<11&&Math.abs(p.y+10-r.y)<14){r.got=true;got++;burst(r.x,r.y,'#5fe39a',14,100);sparks(r.x,r.y,'#5fe39a',10,120);ring(r.x,r.y,'#5fe39a',24,0.4);popup(r.x,r.y-12,`RELAY ${got}/${relays.length}`,'#5fe39a');sfx.relay();buzz(15);} }
+    if(Math.abs(p.x+6-r.x)<11&&Math.abs(p.y+10-r.y)<14) collectRelay(r); }
   // checkpoints
   checks.forEach((c,i)=>{ if(i>cp&&Math.abs(p.x+6-c.x)<10&&Math.abs(p.y+p.h-c.y)<24){cp=i;c.on=true;burst(c.x,c.y-16,'#ffc23d',10,70);popup(c.x,c.y-34,'CHECKPOINT','#ffc23d');sfx.check();} });
   // void
@@ -954,6 +962,7 @@ function updateHookTop(dt){
     let dist=420*dt;
     while(dist>0){
       const s=Math.min(3,dist); dist-=s; hook.x+=hook.dx*s; hook.y+=hook.dy*s; hook.len+=s;
+      hookPickups();
       const e=enemies.find(e=>e.alive&&Math.abs(hook.x-e.x)<EN[e.type].bx+4&&Math.abs(hook.y-e.y)<EN[e.type].by+4);
       if(e){ hitEnemy(e); hook.state='back'; break; }
       const sh=shots.find(q=>q.life>0&&Math.abs(hook.x-q.x)<7&&Math.abs(hook.y-q.y)<7);
@@ -1049,14 +1058,14 @@ function updateTop(dt,edge){
   updateEnemies(dt,p.fall<=0);
   updateTerms(dt);
   for(const r of relays){ if(r.got) continue;
-    if(Math.abs(p.x+6-r.x)<11&&Math.abs(p.y+6-r.y)<11){ r.got=true; got++; burst(r.x,r.y,'#5fe39a',14,100); sparks(r.x,r.y,'#5fe39a',10,120); ring(r.x,r.y,'#5fe39a',24,0.4); popup(r.x,r.y-12,`RELAY ${got}/${relays.length}`,'#5fe39a'); sfx.relay(); buzz(15); } }
+    if(Math.abs(p.x+6-r.x)<11&&Math.abs(p.y+6-r.y)<11) collectRelay(r); }
   checks.forEach((c,i)=>{ if(i>cp&&Math.abs(p.x+6-c.x)<26&&Math.abs(p.y+6-(c.ty*T+8))<26){ cp=i; c.on=true; burst(c.x,c.y-16,'#ffc23d',10,70); popup(c.x,c.y-34,'CHECKPOINT','#ffc23d'); sfx.check(); takeSnap(); } });
   if(LD.rooms){ const R=LD.rooms, cx0=Math.floor((Math.floor((p.x+6)/T)-1)/R.px), cy0=Math.floor((Math.floor((p.y+6)/T)-1)/R.py), id=cy0*R.cols+cx0;
     if(id!==curCell){ const prev=curCell; curCell=id; visited.add(id);
       if(prev>=0){ const c=R.cells[prev]; const left=c&&pickups.some(q=>!q.got&&!hid(q.tx,q.ty)&&q.tx>=c.ox&&q.tx<c.ox+13&&q.ty>=c.oy&&q.ty<c.oy+9);
         if(left){ leftBehind.add(prev); popup(p.x+6,p.y-14,'PART LEFT BEHIND','#ffc23d'); sfx.deny(); } else leftBehind.delete(prev); } } }
   for(const q of pickups){ if(q.got) continue;
-    if(Math.abs(p.x+6-q.x)<11&&Math.abs(p.y+6-q.y)<11){ q.got=true; partsHeld++; burst(q.x,q.y,'#ffc23d',14,100); sparks(q.x,q.y,'#ffe08a',10,120); ring(q.x,q.y,'#ffc23d',24,0.4); popup(q.x,q.y-12,`PART ${pickups.filter(z=>z.got).length}/${pickups.length}`,'#ffc23d'); sfx.part(); buzz(15); } }
+    if(Math.abs(p.x+6-q.x)<11&&Math.abs(p.y+6-q.y)<11) collectPart(q); }
   (LDEF.hints||[]).forEach((h,i)=>{ if(Math.abs((p.x+6)/T-h[0])<4&&Math.abs((p.y+6)/T-h[1])<4) topHint=i; });
   if(p.fall<=0&&Math.floor((p.x+6)/T)===goal.tx&&Math.floor((p.y+6)/T)===goal.ty){
     if(terms.every(t=>t.state==='done')) win();

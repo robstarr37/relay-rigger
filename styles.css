@@ -167,7 +167,7 @@ body.touch .only-keys,body:not(.touch) .only-touch{display:none}
 body.touch .hint{top:auto;bottom:calc(var(--sab) + 14px);max-width:min(44vw,420px);font-size:11px}
 @media (orientation:portrait){body.touch .hint{bottom:calc(var(--sab) + 206px);max-width:92vw}}
 /* top-down on touch: hints up top, smaller see-through controls so the maze stays visible */
-body.touch.topdown .hint{top:calc(var(--sat) + 42px);bottom:auto;max-width:min(70vw,520px)}
+body.touch.topdown .hint{top:calc(var(--sat) + 42px);bottom:auto;max-width:min(56vw,440px);font-size:11px;padding:4px 10px}
 body.topdown .dpad{opacity:.5;transform:scale(.82);transform-origin:left bottom}
 #pulseZone{position:absolute;right:0;bottom:calc(var(--sab) + 172px);width:32%;height:20%;pointer-events:auto;touch-action:none}
 .pulse{position:absolute;right:calc(var(--sar) + 46px);bottom:0;width:76px;height:76px;border-radius:50%;display:grid;place-items:center;

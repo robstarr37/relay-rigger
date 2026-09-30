@@ -36,7 +36,7 @@ const save=store.get('save',null)||{unlocked:1,best:{}};
 const persist=()=>store.set('save',save);
 
 // ---------- audio (procedural, no files) ----------
-let muted=store.get('muted',false);
+let muted=store.get('muted',false), hintsOn=store.get('hints',true);
 const Snd=(()=>{
   let ac=null, master=null, nb=null, amb=null;
   function init(){
@@ -1913,7 +1913,7 @@ function draw(){
 // ---------- HUD ----------
 const partStat=$('partStat'), partEl=$('parts'), pulseStat=$('pulseStat'), pulseEl=$('pulse'), pulseBtn=$('pulseBtn');
 const hudEl=$('hud'), hpEl=$('hp'), relEl=$('rel'), cabEl=$('cab'), timEl=$('tim'), hintEl=$('hint'), netEl=$('net'), netStat=$('netStat'), lvlEl=$('lvl');
-let lastHud='', lastHint=null, hintAt=0;
+let lastHud='', lastHint=null, hintAt=0, hintFor=8;
 const DYN={
   term0:"Stand still at the terminal to reroute the network. Walking away pauses the work.",
   term1:"Keep working. When enemies arrive, step away and punch them, then get back to the terminal.",
@@ -1947,10 +1947,13 @@ function hud(){
     pulseStat.hidden=!pu; pulseEl.textContent=pu; pulseStat.classList.toggle('net-on',pu==='READY'); pulseBtn.classList.toggle('cd',pulseCd>0);
     relEl.textContent=got+'/'+relays.length; cabEl.textContent=cab; timEl.textContent=fmt(clock);
     netStat.hidden=!terms.length; netEl.textContent=net; netStat.classList.toggle('net-on',terms.length>0&&nt===terms.length); }
-  const hi=pickHint();
-  if(hi!==lastHint){ lastHint=hi; const txt=hi==null?'':typeof hi==='string'?DYN[hi]:LDEF.hints[hi][LDEF.hints[hi].length-1]; hintEl.innerHTML=hintText(txt); hintEl.classList.remove('fade'); hintAt=tnow; }
-  else if(hi!=null&&typeof hi!=='string'&&tnow-hintAt>(MODE==='top'?14:9)) hintEl.classList.add('fade');
+  const hi=hintsOn?pickHint():null;
+  if(hi!==lastHint){ lastHint=hi; const txt=hi==null?'':typeof hi==='string'?DYN[hi]:LDEF.hints[hi][LDEF.hints[hi].length-1];
+    hintEl.innerHTML=hintText(txt); hintEl.classList.remove('fade'); hintAt=tnow;
+    hintFor=clamp(2.5+txt.replace(/<[^>]+>/g,'').split(/\s+/).length*0.35,4,12); }
+  else if(hi!=null&&tnow-hintAt>hintFor) hintEl.classList.add('fade');
 }
+function setHints(on){ hintsOn=on; store.set('hints',on); $('hintsBtn').textContent='Hints: '+(on?'on':'off'); if(!on){ lastHint=null; hintEl.textContent=''; } else { lastHint=null; } }
 
 // ---------- flow & UI ----------
 let drawnPaused=false;
@@ -2059,6 +2062,8 @@ on('nextBtn',()=>openBrief(LI+1));
 on('winLevelsBtn',()=>{ sfx.click(); openLevels(); });
 on('endBtn',()=>{ sfx.click(); if(LI<LEVELS.length-1) openBrief(LI+1); else toTitle(); });
 on('resetPuzzleBtn',()=>{ resume(); resetPuzzle(); });
+on('hintsBtn',()=>{ sfx.click(); setHints(!hintsOn); });
+setHints(hintsOn);
 on('resumeBtn',resume);
 on('restartBtn',startLevel);
 on('quitBtn',toTitle);
@@ -2097,6 +2102,7 @@ addEventListener('keydown',e=>{
   const k=KEYMAP[e.code]; if(k){K[k]=true;e.preventDefault();}
   if(e.code==='Escape'||e.code==='KeyP'){ if(state==='play') pause(); else if(state==='pause') resume(); e.preventDefault(); }
   if(e.code==='KeyM'){ Snd.setMuted(!muted); syncSound(); }
+  if(e.code==='KeyH'){ setHints(!hintsOn); popup(p.x+p.w/2,p.y-12,'HINTS '+(hintsOn?'ON':'OFF'),'#ffc23d'); }
   if(e.code==='Enter'){ if(state==='title') continueGame(); else if(state==='brief') startLevel(); else if(state==='win') openBrief(LI+1); e.preventDefault(); }
 });
 addEventListener('keyup',e=>{const k=KEYMAP[e.code]; if(k){K[k]=false;e.preventDefault();}});

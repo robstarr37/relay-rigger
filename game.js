@@ -746,10 +746,11 @@ function updateParts(dt){
 const RANGE_TOP=120, WALK_TOP=74;
 const DV={left:[-1,0],right:[1,0],up:[0,-1],down:[0,1]};
 const GCOLS=['#ffc23d','#5ae0e8','#ff6a2c','#b6ff5a','#e878ff','#ff4150','#8fd0ff','#ffffff'];
-let pickups=[], partsHeld=0, fuses=[], broken=new Set(), hiddenKeys=new Set(), crates=[], levers=[], filled=new Set(), gstate={}, gcol={}, gLast={}, gHold={}, tdLook=null, snap=null, topHint=null;
+let pickups=[], partsHeld=0, fuses=[], broken=new Set(), hiddenKeys=new Set(), visited=new Set(), curCell=-1, leftBehind=new Set(), crates=[], levers=[], filled=new Set(), gstate={}, gcol={}, gLast={}, gHold={}, tdLook=null, snap=null, topHint=null;
 const CONV=46;
 const tk=(x,y)=>y*W+x;
 function buildTopData(def){
+  if(def.gen&&!def.map) window.RR_ROOMS.composeAll(LEVELS);
   const rows=def.map; H=rows.length; W=Math.max(...rows.map(r=>r.length)); LW=W*T; LH=H*T;
   map=Array.from({length:H},()=>new Array(W).fill(1)); rockMap=[]; sparkTiles=[];
   const d={top:true,start:[1,1],checks:[],relays:[],enemies:[],terms:[],goal:null,props:[],plats:[],crates:[],posts:[],plates:[],doors:[],levers:[],bridges:[],conv:[],crumbles:[],anchor:null,zips:[],core:null,beams:[],teles:[],secrets:[],parts:[],fuses:[]};
@@ -790,6 +791,7 @@ function buildTopData(def){
     map[y][x]=v;
   }
   for(const t of d.teles) t.partner=d.teles.find(q=>q!==t&&q.id===t.id);
+  d.rooms=def.rooms||null; d.route=def.route||null;
   if(!d.goal) d.goal={tx:W-2,ty:H-2};
   gcol={}; let n=0; for(const o of [...d.plates,...d.levers,...d.doors,...d.bridges,...d.fuses,...d.beams.filter(b=>b.g)]) if(!(o.g in gcol)&&!o.g.startsWith('term')) gcol[o.g]=GCOLS[(n++)%GCOLS.length];
   for(const o of d.doors) if(o.g.startsWith('term')) gcol[o.g]='#5fe39a';
@@ -812,6 +814,7 @@ function resetTop(){
   tdLook={door:new Map(),bridge:new Map(),plate:new Map(),lever:new Map(),post:new Set(),term:new Set(),conv:new Map()};
   LD.conv.forEach(([x,y,dx,dy])=>tdLook.conv.set(tk(x,y),[dx,dy])); gLast={}; gHold={};
   tdLook.tele=new Map(LD.teles.map(t=>[tk(t.tx,t.ty),t]));
+  visited=new Set(); curCell=-1; leftBehind=new Set();
   broken=new Set(); tdLook.secret=new Set(LD.secrets.map(([x,y])=>tk(x,y))); tdLook.fuse=new Map(fuses.map(f=>[tk(f.tx,f.ty),f]));
   for(const [x,y] of LD.secrets) map[y][x]=1;
   if(LD.secrets.length) buildTopLayer();
@@ -1047,6 +1050,10 @@ function updateTop(dt,edge){
   for(const r of relays){ if(r.got) continue;
     if(Math.abs(p.x+6-r.x)<11&&Math.abs(p.y+6-r.y)<11){ r.got=true; got++; burst(r.x,r.y,'#5fe39a',14,100); sparks(r.x,r.y,'#5fe39a',10,120); ring(r.x,r.y,'#5fe39a',24,0.4); popup(r.x,r.y-12,`RELAY ${got}/${relays.length}`,'#5fe39a'); sfx.relay(); buzz(15); } }
   checks.forEach((c,i)=>{ if(i>cp&&Math.abs(p.x+6-c.x)<26&&Math.abs(p.y+6-(c.ty*T+8))<26){ cp=i; c.on=true; burst(c.x,c.y-16,'#ffc23d',10,70); popup(c.x,c.y-34,'CHECKPOINT','#ffc23d'); sfx.check(); takeSnap(); } });
+  if(LD.rooms){ const R=LD.rooms, cx0=Math.floor((Math.floor((p.x+6)/T)-1)/R.px), cy0=Math.floor((Math.floor((p.y+6)/T)-1)/R.py), id=cy0*R.cols+cx0;
+    if(id!==curCell){ const prev=curCell; curCell=id; visited.add(id);
+      if(prev>=0){ const c=R.cells[prev]; const left=c&&pickups.some(q=>!q.got&&!hid(q.tx,q.ty)&&q.tx>=c.ox&&q.tx<c.ox+13&&q.ty>=c.oy&&q.ty<c.oy+9);
+        if(left){ leftBehind.add(prev); popup(p.x+6,p.y-14,'PART LEFT BEHIND','#ffc23d'); sfx.deny(); } else leftBehind.delete(prev); } } }
   for(const q of pickups){ if(q.got) continue;
     if(Math.abs(p.x+6-q.x)<11&&Math.abs(p.y+6-q.y)<11){ q.got=true; partsHeld++; burst(q.x,q.y,'#ffc23d',14,100); sparks(q.x,q.y,'#ffe08a',10,120); ring(q.x,q.y,'#ffc23d',24,0.4); popup(q.x,q.y-12,`PART ${pickups.filter(z=>z.got).length}/${pickups.length}`,'#ffc23d'); sfx.part(); buzz(15); } }
   (LDEF.hints||[]).forEach((h,i)=>{ if(Math.abs((p.x+6)/T-h[0])<4&&Math.abs((p.y+6)/T-h[1])<4) topHint=i; });
@@ -1175,6 +1182,7 @@ function drawTop(){
   drawParts(false);
   if(TH.dark) drawDarkness();
   drawGlows(lampPos);
+  if(LD.rooms) drawMinimap();
   cx.drawImage(vignette,0,0);
   if(flash>0){ cx.fillStyle=`rgba(255,65,80,${flash*1.2})`; cx.fillRect(0,0,BW,BH); }
   if(pulseFx>0){ cx.fillStyle=`rgba(143,208,255,${pulseFx*0.35})`; cx.fillRect(0,0,BW,BH); }
@@ -1204,6 +1212,19 @@ function drawDarkness(){
   hole(SX(goal.x),SY(goal.y),70,0.7);
   d.globalCompositeOperation='source-over'; d.globalAlpha=1;
   cx.drawImage(darkC,0,0);
+}
+// minimap: rooms you have visited, where you are, and any visited room with a part still in it
+function drawMinimap(){
+  const R=LD.rooms, cw=8, ch=6, gap=1, x0=6, y0=36;
+  cx.globalAlpha=0.85; cx.fillStyle='#0b0c1e'; cx.fillRect(x0-3,y0-3,R.cols*(cw+gap)+5,R.rows*(ch+gap)+5);
+  for(const c of R.cells){ const id=c.cy*R.cols+c.cx, x=x0+c.cx*(cw+gap), y=y0+c.cy*(ch+gap);
+    if(!visited.has(id)) continue;
+    R_(x,y,cw,ch,id===curCell?'#ffc23d':c.type==='terminalRoom'?'#2a5a40':c.type==='exitRoom'?'#3a2a5a':'#3e426b');
+    for(const s of Object.keys(c.links)){ if(c.links[s].kind==='secret'&&!broken.has(0)&&!visited.has(c.links[s].to)) continue; const dx=s==='E'?cw:s==='W'?-gap:Math.floor(cw/2), dy=s==='S'?ch:s==='N'?-gap:Math.floor(ch/2); R_(x+dx,y+dy,s==='E'||s==='W'?gap:1,s==='N'||s==='S'?gap:1,'#5b66a0'); }
+    if(leftBehind.has(id)&&(tnow*3|0)%2) R_(x+3,y+2,2,2,'#ff4150');
+    if(c.type==='terminalRoom'&&id!==curCell) R_(x+3,y+2,2,2,'#5fe39a'); }
+  cx.globalAlpha=1;
+  function R_(x,y,w,h,col){ cx.fillStyle=col; cx.fillRect(x,y,w,h); }
 }
 function drawPlayerTop(){
   if(p.fall>0){ cx.globalAlpha=Math.max(0,p.fall/0.5); }
@@ -2184,7 +2205,7 @@ if(/[?&]debug\b/.test(location.search)) window.__rr={
   start(i){ openBrief(i); startLevel(); return this.info(); },
   teleport(x,y){ p.x=x; p.y=y; p.vx=p.vy=0; hook.state='idle'; },
   tile, enemies:()=>enemies, terms:()=>terms, p:()=>p,
-  mode:()=>MODE, plats:()=>plats, pickups:()=>pickups, partsHeld:()=>partsHeld, fuses:()=>fuses, crumbles:()=>crumbles, water:()=>water, pulseCd:()=>pulseCd, anchor:()=>anchor, wind:()=>wind, zips:()=>zips, boss:()=>boss, beams:()=>beamsT, hook:()=>hook, crates:()=>crates, gstate:()=>gstate, levers:()=>levers, pitT, wallT, solidT, LD:()=>LD
+  mode:()=>MODE, plats:()=>plats, pickups:()=>pickups, partsHeld:()=>partsHeld, fuses:()=>fuses, crumbles:()=>crumbles, water:()=>water, pulseCd:()=>pulseCd, def:()=>LDEF, visited:()=>visited, anchor:()=>anchor, wind:()=>wind, zips:()=>zips, boss:()=>boss, beams:()=>beamsT, hook:()=>hook, crates:()=>crates, gstate:()=>gstate, levers:()=>levers, pitT, wallT, solidT, LD:()=>LD
 };
 
 if('serviceWorker' in navigator && /^https?:$/.test(location.protocol)) addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));

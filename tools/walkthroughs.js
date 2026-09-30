@@ -147,6 +147,22 @@ const WALK = window.WALK = {
       if(aim){ if(aim!=='u') tick({[dx>0?'right':'left']:true}); const k={grab:true}; if(aim==='h') k.down=true; if(aim==='u') k.up=true; tick(k); for(let q=0;q<10;q++) tick(); }
       else { const want=Math.max(49*16+6,Math.min(57*16,c.x)); if(Math.abs(want-(p.x+6))>8) tick({[want>p.x+6?'right':'left']:true}); else tick(); } }
     r.run(60); return 'gens left '+gens().length+', core '+(core()?'alive hp '+core().hp:'destroyed')+', '+(f/60).toFixed(0)+'s, hits '+hits+', deaths '+r.info().falls+', bands dodged '+dodges+', state '+r.info().state; },
+  // ---- composed top-down levels: follow the level's own route, using each room type's solve script ----
+  composed(lv,calm){ const log=[]; r.start(lv); if(calm) r.enemies().forEach(e=>{e.alive=false;}); r.run(20);
+    const RR=window.RR_ROOMS, def=r.def(), cells=def.rooms.cells, byId=id=>cells[id];
+    const Rof=c=>({g:(lx,ly)=>[c.ox+(c.flipX?RR.RW-1-lx:lx),c.oy+(c.flipY?RR.RH-1-ly:ly)],dir:d=>c.flipX?({left:'right',right:'left'}[d]||d):c.flipY?({up:'down',down:'up'}[d]||d):d,pitNS:c.pitNS,termIndex:c.termIndex});
+    let cur=cells.find(c=>c.type==='startRoom'), from=null;
+    for(const step of def.route){
+      if(step.solve!=null){ const c=byId(step.solve); const t=RR.TYPES[c.type]; log.push(c.cx+','+c.cy+' '+c.type+': '+(t.solve?t.solve(T,Rof(c)):'-')); continue; }
+      const to=byId(step.go); const side=Object.keys(cur.links).find(s=>cur.links[s].to===to.cy*def.rooms.cols+to.cx); if(!side){ log.push('NO LINK '+cur.cx+','+cur.cy+' -> '+to.cx+','+to.cy); continue; }
+      if(cur.type==='postPit'&&from&&from!==side) log.push('  cross '+RR.TYPES.postPit.cross(T,Rof(cur),from,side));
+      const [dx,dy]=RR.DOOR_LOCAL[side], door=[cur.ox+dx,cur.oy+dy];
+      if(cur.links[side].kind==='secret'&&r.wallT(door[0],door[1])){ const stand=[cur.ox+dx-(side==='E'?1:side==='W'?-1:0),cur.oy+dy-(side==='S'?1:side==='N'?-1:0)]; const face={N:'up',S:'down',E:'right',W:'left'}[side]; log.push('  secret '+T.grappleSecret(stand[0],stand[1],face,door[0],door[1])); }
+      const inside=[to.ox+(side==='E'?0:side==='W'?RR.RW-1:6),to.oy+(side==='S'?0:side==='N'?RR.RH-1:4)];
+      T.killNear(180); const w=RR.until(T,()=>{ T.walkTo(inside[0],inside[1]); },()=>{ const [tx,ty]=T.tileOf(); return tx>=to.ox&&tx<to.ox+RR.RW&&ty>=to.oy&&ty<to.oy+RR.RH; },4);
+      log.push('-> '+to.cx+','+to.cy+' ('+to.type+') '+w); from=RR.OPP[side]; cur=to; }
+    r.run(30); log.push('RESULT '+r.info().state+' hp '+r.p().hp+' falls '+r.info().falls+' parts '+r.pickups().filter(q=>q.got).length+'/'+r.pickups().length);
+    return log.join('\n'); },
   // can the worker get over the tether on the high walkway?
   anchorCrossing(){ r.start(14); r.anchor().pt=999; r.anchor().st=999; r.enemies().forEach(e=>{ if(e.type!=='clamp') e.alive=false; });
     r.teleport(28*16,15*16-20); r.run(5); const hp0=r.p().hp; const c=this.climbSide();

@@ -21,8 +21,8 @@ const shuffle=a=>{ for(let i=a.length-1;i>0;i--){ const j=Math.floor(rnd()*(i+1)
 const TYPES={
   plateCrate:{ gate:true, hint:"Crates open doors: push the crate onto the plate.",
     fits:()=>true,
-    build(c){ c.put(4,4,'C'); c.plate(8,4,c.exitGroup); },
-    solve(T,R){ return 'crate '+T.walkTo(...R.g(3,4))+' '+T.push(R.dir('right'),4); } },
+    build(c){ c.put(4,2,'C'); c.plate(8,2,c.exitGroup); },
+    solve(T,R){ return 'crate '+T.walkTo(...R.g(3,2))+' '+T.push(R.dir('right'),4); } },
   leverGate:{ gate:true, hint:"Levers flip when the cable hits them. That one is across the pit.",
     fits:d=>!(d.has('N')&&d.has('S')),
     build(c){ if(c.doors.has('S')) c.flipY=true; for(let x=2;x<=10;x++){ c.put(x,6,' '); c.put(x,7,' '); } c.lever(6,8,c.exitGroup); },
@@ -43,14 +43,14 @@ const TYPES={
   cagedFuse:{ gate:true, fuse:true, hint:"The fuse box is caged: crate onto the plate opens the cage, then walk into the fuse box with a part.",
     fits:d=>!(d.has('E')&&d.has('W')),
     build(c){ if(c.doors.has('E')) c.flipX=true; for(let x=8;x<=12;x++) for(let y=2;y<=6;y++) c.put(x,y,'#'); for(let x=9;x<=11;x++) for(let y=3;y<=5;y++) c.put(x,y,'.');
-      c.put(3,4,'C'); const cage=c.group(); c.plate(5,4,cage); c.door(8,4,cage,true); c.fuse(11,4,c.exitGroup,1); },
-    solve(T,R){ return 'cage '+T.walkTo(...R.g(2,4))+' '+T.push(R.dir('right'),2)+' fuse '+T.fitFuse(...R.g(10,4),R.dir('right')); } },
+      c.put(3,6,'C'); const cage=c.group(); c.plate(5,6,cage); c.door(8,4,cage,true); c.fuse(11,4,c.exitGroup,1); },
+    solve(T,R){ return 'cage '+T.walkTo(...R.g(2,6))+' '+T.push(R.dir('right'),2)+' fuse '+T.fitFuse(...R.g(10,4),R.dir('right')); } },
   den:{ gate:false, hint:"",
     fits:()=>true,
     build(c){ c.put(2,1,'S'); c.put(10,7,'S'); c.put(6,4,'R'); c.put(3,6,'C'); c.put(9,2,'C'); },
     solve(T,R){ return 'den '+T.killNear(220); } },
   // rewards
-  partRoom:{ reward:true, build(c){ c.put(6,4,'*'); c.put(2,1,'R'); if(rnd()<0.5) c.put(10,7,'S'); }, solve(T,R){ T.killNear(200); return T.collect(...R.g(6,4)); } },
+  partRoom:{ reward:true, build(c){ c.put(6,4,'*'); c.put(2,1,'R'); if(!c.secret&&rnd()<0.5) c.put(10,7,'S'); }, solve(T,R){ T.killNear(200); return T.collect(...R.g(6,4)); } },
   startRoom:{ build(c){ c.put(6,4,'P'); }, solve(){ return 'start'; } },
   exitRoom:{ build(c){ c.put(6,4,'X'); c.put(10,1,'R'); }, solve(T,R){ return 'exit '+T.walkTo(...R.g(6,4)); } },
   terminalRoom:{ build(c){ c.put(6,1,'T'); c.put(2,7,'C'); c.put(10,7,'C'); }, solve(T,R){ return 'terminal '+T.walkTo(...R.g(6,2))+' '+T.fightTop(R.termIndex); } },
@@ -104,7 +104,7 @@ function compose(def){
     for(let y=0;y<RH;y++) for(let x=0;x<RW;x++) g[oy+y][ox+x]='.';
     const t=TYPES[c.type], doors=new Set(Object.keys(c.links));
     const nextSide=c.mainIdx!=null&&main[c.mainIdx+1]?Object.keys(c.links).find(s=>c.links[s].to===main[c.mainIdx+1]):null;
-    const ctx={doors,exitGroup:null,flipX:false,flipY:false,group:()=>String(++group),
+    const ctx={doors,exitGroup:null,flipX:false,flipY:false,group:()=>String(++group),secret:Object.values(c.links).some(l=>l.kind==='secret'),
       put(lx,ly,ch){ const [gx,gy]=map(lx,ly); g[gy][gx]=ch; },
       plate(lx,ly,gr){ const ch=nextTrig(); keyDef[ch]={t:'plate',g:gr}; this.put(lx,ly,ch); },
       lever(lx,ly,gr){ const ch=nextTrig(); keyDef[ch]={t:'lever',g:gr}; this.put(lx,ly,ch); },
@@ -117,6 +117,7 @@ function compose(def){
     // the door out towards the next main room is locked by this room's puzzle; a checkpoint sits inside the entry door
     if(c.mainIdx!=null&&c.mainIdx>0){ const [dx,dy]=DOOR_LOCAL[c.pside]; const inside=[6+(c.pside==='W'?1:c.pside==='E'?-1:0)+0,4+(c.pside==='N'?1:c.pside==='S'?-1:0)]; const [ix,iy]=[ox+(c.pside==='W'?0:c.pside==='E'?RW-1:6),oy+(c.pside==='N'?0:c.pside==='S'?RH-1:4)]; if(g[iy][ix]==='.') g[iy][ix]='K'; }
     if(t.hint&&!taught.has(c.type)){ taught.add(c.type); hints.push([ox+6,oy+4,t.hint]); }
+    if(c.type==='startRoom'&&!taught.has('intro')){ taught.add('intro'); hints.push([ox+6,oy+4,"Top-down view. The terminal needs spare parts, and every one is hidden somewhere in these rooms. The map at the top left shows where you have been. Stuck? Pause has Reset puzzle."]); }
   }
   // doors between rooms
   for(const c of cells) for(const s of Object.keys(c.links)){ const l=c.links[s]; if(l.done) continue; l.done=true; c.links[s].to.links[OPP[s]].done=true;
@@ -125,6 +126,7 @@ function compose(def){
     else if(c.mainIdx!=null&&main[c.mainIdx+1]===l.to&&c.exitGroup){ const ch=nextDoor(); keyDef[ch]={t:'door',g:c.exitGroup,latch:c.exitGroup!=='term0'}; g[gy][gx]=ch; }
     else if(l.to.mainIdx!=null&&main[l.to.mainIdx+1]===c&&l.to.exitGroup){ const ch=nextDoor(); keyDef[ch]={t:'door',g:l.to.exitGroup,latch:l.to.exitGroup!=='term0'}; g[gy][gx]=ch; }
     else g[gy][gx]='.'; }
+  if(!taught.has('secret')){ const sc=cells.find(c=>c.type!=='partRoom'&&Object.values(c.links).some(l=>l.kind==='secret')); if(sc){ taught.add('secret'); hints.push([sc.ox+6,sc.oy+4,"Some walls are cracked, and dust drifts off them. Fire your cable at a crack to break through."]); } }
   // route for the test bot: walk the main path, detouring into every branch that holds a part
   const route=[]; const visitBranch=(c,from)=>{ for(const [s,n] of c.tree){ if(n.mainIdx!=null) continue; const has=n.type==='partRoom'||n.tree.some(([,m])=>subHasPart(m)); if(!has) continue; route.push({go:n,via:c}); route.push({solve:n}); visitBranch(n,c); route.push({go:c,via:n}); } };
   const subHasPart=n=>n.type==='partRoom'||n.tree.some(([,m])=>subHasPart(m));

@@ -1087,16 +1087,17 @@ function buildTopLayer(){
     const v=map[ty][tx], ax=tx*S, ay=ty*S, h=hash(tx,ty);
     if(hiddenKeys.has(tk(tx,ty))){ r(ax,ay,S,S,'#07081a'); if(h%4===0) r(ax+(h>>3)%28,ay+(h>>7)%28,2,2,'#0d0f26'); continue; }
     if(v===1){
-      let edge=false; for(let oy=-1;oy<=1&&!edge;oy++) for(let ox=-1;ox<=1;ox++){ const nx=tx+ox, ny=ty+oy; if(nx>=0&&ny>=0&&nx<W&&ny<H&&map[ny][nx]!==1){ edge=true; break; } }
+      const solidAt=(x,y)=>x<0||y<0||x>=W||y>=H||map[y][x]===1||hiddenKeys.has(tk(x,y));
+      let edge=false; for(let oy=-1;oy<=1&&!edge;oy++) for(let ox=-1;ox<=1;ox++){ if(!solidAt(tx+ox,ty+oy)){ edge=true; break; } }
       if(!edge){ r(ax,ay,S,S,'#07081a'); if(h%4===0) r(ax+(h>>3)%28,ay+(h>>7)%28,2,2,'#0d0f26'); continue; }
       r(ax,ay,S,S,TH.wallTop);
       for(let i=0;i<5;i++){ const q=hash(tx*5+i,ty*3); r(ax+q%28,ay+(q>>5)%20,2+((q>>9)%3),1,TH.wallHi); }
       if(secretKeys.has(tk(tx,ty))){ // a hairline crack in the wall's own shade: a passage hides behind it
         pline(L,ax+9,ay+3,ax+15,ay+13,TH.wallFace,1); pline(L,ax+15,ay+13,ax+13,ay+25,TH.wallFace,1); pline(L,ax+15,ay+13,ax+23,ay+18,TH.wallFace,1); r(ax+14,ay+12,2,2,TH.wallFace); }
-      if(ty===0||map[ty-1][tx]!==1) r(ax,ay,S,2,TH.wallHi);
-      if(tx>0&&map[ty][tx-1]!==1) r(ax,ay,1,S,TH.wallHi);
-      if(tx<W-1&&map[ty][tx+1]!==1) r(ax+S-1,ay,1,S,TH.wallFace);
-      if(ty<H-1&&map[ty+1][tx]!==1){ r(ax,ay+S-11,S,11,TH.wallFace); r(ax,ay+S-11,S,1,TH.wallHi); r(ax,ay+S-3,S,1,'#0b0c1e');
+      if(!solidAt(tx,ty-1)) r(ax,ay,S,2,TH.wallHi);
+      if(!solidAt(tx-1,ty)) r(ax,ay,1,S,TH.wallHi);
+      if(!solidAt(tx+1,ty)) r(ax+S-1,ay,1,S,TH.wallFace);
+      if(!solidAt(tx,ty+1)){ r(ax,ay+S-11,S,11,TH.wallFace); r(ax,ay+S-11,S,1,TH.wallHi); r(ax,ay+S-3,S,1,'#0b0c1e');
         if(TH.goo){ if(h%3===0) r(ax+(h>>4)%26,ay+S-11,3,6+((h>>8)%5),'#3d8f3a'); }
         else if(h%5===0){ r(ax+12,ay+S-9,8,4,'#2e3360'); lights.push({x:ax+16,y:ay+S-7,col:'#ffc23d',size:26}); r(ax+13,ay+S-8,6,2,'#ffe08a'); }
         if(TH.goo&&h%9===0){ r(ax+10,ay+S-9,6,5,'#5fbf4a'); lights.push({x:ax+13,y:ay+S-7,col:'#7dff6a',size:24}); } }
@@ -1220,7 +1221,7 @@ function drawMinimap(){
   for(const c of R.cells){ const id=c.cy*R.cols+c.cx, x=x0+c.cx*(cw+gap), y=y0+c.cy*(ch+gap);
     if(!visited.has(id)) continue;
     R_(x,y,cw,ch,id===curCell?'#ffc23d':c.type==='terminalRoom'?'#2a5a40':c.type==='exitRoom'?'#3a2a5a':'#3e426b');
-    for(const s of Object.keys(c.links)){ if(c.links[s].kind==='secret'&&!broken.has(0)&&!visited.has(c.links[s].to)) continue; const dx=s==='E'?cw:s==='W'?-gap:Math.floor(cw/2), dy=s==='S'?ch:s==='N'?-gap:Math.floor(ch/2); R_(x+dx,y+dy,s==='E'||s==='W'?gap:1,s==='N'||s==='S'?gap:1,'#5b66a0'); }
+    for(const s of Object.keys(c.links)){ if(c.links[s].kind==='secret'&&!visited.has(c.links[s].to)) continue; const dx=s==='E'?cw:s==='W'?-gap:Math.floor(cw/2), dy=s==='S'?ch:s==='N'?-gap:Math.floor(ch/2); R_(x+dx,y+dy,s==='E'||s==='W'?gap:1,s==='N'||s==='S'?gap:1,'#5b66a0'); }
     if(leftBehind.has(id)&&(tnow*3|0)%2) R_(x+5,y+3,4,4,'#ff4150');
     if(c.type==='terminalRoom'&&id!==curCell) R_(x+5,y+3,4,4,'#5fe39a'); }
   cx.globalAlpha=1;
@@ -1708,6 +1709,7 @@ function drawRelays(){
 function drawEnemies(){
   for(const e of enemies){ if(!e.alive) continue;
     const bob=(e.type==='drone'||e.type==='hunter')?Math.sin(e.ph*3)*2:0;
+    if(MODE==='top'&&hid(Math.floor(e.x/T),Math.floor(e.y/T))) continue;
     const x=SX(e.x), y=SY(e.y+bob); if(x<-50||x>BW+50||y<-50||y>BH+50) continue;
     const wh=e.flash>0, f=e.dir;
     const C=c=>wh?'#ffffff':c;
@@ -1859,8 +1861,8 @@ function drawGlows(lampPos){
   for(const l of lights){ const x=l.x-camX, y=l.y-camY;
     if(l.blink&&(tnow%l.blink)>l.blink/2) continue;
     gl(x,y,l.col,l.size,l.flick?0.45+0.08*Math.sin(tnow*13)*Math.sin(tnow*7):0.7); }
-  for(const r of relays) if(!r.got){ gl(SX(r.x),SY(r.y),'#5fe39a',44,0.28+0.12*Math.sin(tnow*4+r.ph)); }
-  for(const e of enemies) if(e.alive){
+  for(const r of relays) if(!r.got&&!(MODE==='top'&&hid(Math.floor(r.x/T),Math.floor(r.y/T)))){ gl(SX(r.x),SY(r.y),'#5fe39a',44,0.28+0.12*Math.sin(tnow*4+r.ph)); }
+  for(const e of enemies) if(e.alive&&!(MODE==='top'&&hid(Math.floor(e.x/T),Math.floor(e.y/T)))){
     if(e.type==='drone'||e.type==='hunter') gl(SX(e.x+e.dir*2),SY(e.y+Math.sin(e.ph*3)*2),'#ff4150',26,0.6);
     else if(e.type==='seeker') gl(SX(e.x+e.dir*2),SY(e.y),'#7dff6a',30,0.6);
     else if(e.type==='skitter') gl(SX(e.x+e.dir*6),SY(e.y-1),'#b6ff5a',16,0.45);

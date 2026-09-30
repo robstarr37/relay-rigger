@@ -746,7 +746,7 @@ function updateParts(dt){
 const RANGE_TOP=120, WALK_TOP=74;
 const DV={left:[-1,0],right:[1,0],up:[0,-1],down:[0,1]};
 const GCOLS=['#ffc23d','#5ae0e8','#ff6a2c','#b6ff5a','#e878ff','#ff4150','#8fd0ff','#ffffff'];
-let pickups=[], partsHeld=0, fuses=[], broken=new Set(), crates=[], levers=[], filled=new Set(), gstate={}, gcol={}, gLast={}, gHold={}, tdLook=null, snap=null, topHint=null;
+let pickups=[], partsHeld=0, fuses=[], broken=new Set(), hiddenKeys=new Set(), crates=[], levers=[], filled=new Set(), gstate={}, gcol={}, gLast={}, gHold={}, tdLook=null, snap=null, topHint=null;
 const CONV=46;
 const tk=(x,y)=>y*W+x;
 function buildTopData(def){
@@ -1059,7 +1059,18 @@ function updateTop(dt,edge){
 }
 
 // top-down art: floors, walls and pits pre-rendered once per level
+const hid=(x,y)=>hiddenKeys.has(tk(x,y));
+function findHidden(){
+  hiddenKeys=new Set(); if(!LD.secrets.length) return;
+  const pass=(x,y)=>x>=0&&y>=0&&x<W&&y<H&&(map[y][x]!==1||broken.has(tk(x,y)));
+  const seen=new Set([tk(LD.start[0],LD.start[1])]), q=[LD.start.slice()];
+  while(q.length){ const [x,y]=q.shift();
+    const next=[[x+1,y],[x-1,y],[x,y+1],[x,y-1]]; const pad=LD.teles.find(t=>t.tx===x&&t.ty===y); if(pad&&pad.partner) next.push([pad.partner.tx,pad.partner.ty]);
+    for(const [nx,ny] of next){ const k=tk(nx,ny); if(seen.has(k)||!pass(nx,ny)) continue; seen.add(k); q.push([nx,ny]); } }
+  for(let y=0;y<H;y++) for(let x=0;x<W;x++) if(map[y][x]!==1&&!seen.has(tk(x,y))) hiddenKeys.add(tk(x,y));
+}
 function buildTopLayer(){
+  findHidden();
   const secretKeys=new Set(LD.secrets.filter(([x,y])=>!broken.has(tk(x,y))).map(([x,y])=>tk(x,y)));
   LC.width=1; LC.height=1;
   [LC,L]=mk(LW*ART,LH*ART); lights=[];
@@ -1067,6 +1078,7 @@ function buildTopLayer(){
   const S=T*ART;
   for(let ty=0;ty<H;ty++) for(let tx=0;tx<W;tx++){
     const v=map[ty][tx], ax=tx*S, ay=ty*S, h=hash(tx,ty);
+    if(hiddenKeys.has(tk(tx,ty))){ r(ax,ay,S,S,'#07081a'); if(h%4===0) r(ax+(h>>3)%28,ay+(h>>7)%28,2,2,'#0d0f26'); continue; }
     if(v===1){
       let edge=false; for(let oy=-1;oy<=1&&!edge;oy++) for(let ox=-1;ox<=1;ox++){ const nx=tx+ox, ny=ty+oy; if(nx>=0&&ny>=0&&nx<W&&ny<H&&map[ny][nx]!==1){ edge=true; break; } }
       if(!edge){ r(ax,ay,S,S,'#07081a'); if(h%4===0) r(ax+(h>>3)%28,ay+(h>>7)%28,2,2,'#0d0f26'); continue; }
@@ -1138,7 +1150,7 @@ function drawTop(){
     R(x-12,y-14,24,26,'#2e3360'); R(x-12,y-14,24,2,'#5b66a0'); R(x-9,y-10,18,14,'#15182f');
     for(let i=0;i<f.need;i++){ const sx0=x-7+i*Math.floor(16/f.need); R(sx0,y-8,5,10,i<f.fitted?'#ffc23d':'#3a1a24'); if(i<f.fitted) R(sx0+1,y-7,3,2,'#ffe08a'); }
     R(x-3,y+6,6,3,ok?'#5fe39a':((tnow*3|0)%2?'#ff4150':'#5a2030')); R(x-12,y+10,24,2,gcol[f.g]); }
-  for(const q of pickups){ if(q.got) continue; const x=SX(q.x), y=SY(q.y+Math.sin(tnow*3+q.ph)*1.5); if(!vis(x,y)) continue;
+  for(const q of pickups){ if(q.got||hid(q.tx,q.ty)) continue; const x=SX(q.x), y=SY(q.y+Math.sin(tnow*3+q.ph)*1.5); if(!vis(x,y)) continue;
     R(x-7,y-5,14,10,'#8a6a2c'); R(x-6,y-6,12,10,'#ffc23d'); R(x-6,y-6,12,2,'#ffe08a'); R(x-4,y-3,8,4,'#6e4a1c'); R(x-3,y-2,2,2,'#5fe39a'); R(x+1,y-2,2,2,'#ff4150'); }
   for(const t of LD.teles){ const x=SX(t.tx*T+8), y=SY(t.ty*T+8); if(!vis(x,y)) continue;
     R(x-13,y-13,26,26,'#0e2a30'); R(x-11,y-11,22,22,'#15404a');
@@ -1157,7 +1169,7 @@ function drawTop(){
     for(let i=0;i<24;i+=6) R(x-12+i,y-12,3,24,open?'#2a6a4a':'#5a2030');
     R(x-3,y-8+((tnow*8|0)%4),6,3,open?'#5fe39a':'#ff4150'); R(x-2,y-4+((tnow*8|0)%4),4,2,open?'#5fe39a':'#ff4150'); }
   drawTerms(); drawChecks(); drawRelays();
-  for(const c of crates) if(!c.dead){ if(c.heavy) drawBlock(SX(c.x),SY(c.y)); else drawCrate(SX(c.x),SY(c.y)); }
+  for(const c of crates) if(!c.dead&&!hid(c.tx,c.ty)){ if(c.heavy) drawBlock(SX(c.x),SY(c.y)); else drawCrate(SX(c.x),SY(c.y)); }
   drawEnemies();
   const lampPos=drawPlayerTop();
   drawParts(false);
@@ -1183,7 +1195,7 @@ function drawDarkness(){
   for(const c of checks) if(c.on) hole(SX(c.x),SY(c.y)-40,70,0.8);
   for(const [x,y] of LD.posts) hole(SX(x*T+8),SY(y*T+8),34,0.6);
   for(const c of crates) if(!c.dead) hole(SX(c.x),SY(c.y),36,0.45);
-  for(const q of pickups) if(!q.got) hole(SX(q.x),SY(q.y),44,0.75);
+  for(const q of pickups) if(!q.got&&!hid(q.tx,q.ty)) hole(SX(q.x),SY(q.y),44,0.75);
   for(const f of fuses) hole(SX(f.tx*T+8),SY(f.ty*T+8),40,0.7);
   for(const b of beamsT) if(b.active) for(const [tx,ty] of b.tiles) hole(SX(tx*T+8),SY(ty*T+8),40,0.6);
   for(const t of LD.teles) hole(SX(t.tx*T+8),SY(t.ty*T+8),50,0.8);
@@ -1661,7 +1673,7 @@ function drawChecks(){
   }
 }
 function drawRelays(){
-  for(const r of relays){ if(r.got) continue;
+  for(const r of relays){ if(r.got||(MODE==='top'&&hid(Math.floor(r.x/T),Math.floor(r.y/T)))) continue;
     const x=SX(r.x), y=SY(r.y+Math.sin(tnow*3+r.ph)*1.5); if(x<-30||x>BW+30) continue;
     R(x-3,y-9,6,2,'#8f93b8'); R(x-1,y-11,2,2,'#8f93b8');
     R(x-9,y-7,18,14,'#e6e2d8'); R(x-9,y-7,18,1,'#ffffff'); R(x-9,y+6,18,1,'#9d9aa8');
@@ -1839,7 +1851,7 @@ function drawGlows(lampPos){
     else if(e.type==='gen') gl(SX(e.x),SY(e.y)-16,'#5ae0e8',50,0.6);
   }
   for(const s of shots) gl(SX(s.x),SY(s.y),'#7dff6a',24,0.8);
-  if(MODE==='top'){ for(const q of pickups) if(!q.got) gl(SX(q.x),SY(q.y),'#ffc23d',46,0.4+0.15*Math.sin(tnow*4+q.ph)); for(const f of fuses) gl(SX(f.tx*T+8),SY(f.ty*T+8)+7,f.fitted>=f.need?'#5fe39a':'#ff4150',18,0.6);
+  if(MODE==='top'){ for(const q of pickups) if(!q.got&&!hid(q.tx,q.ty)) gl(SX(q.x),SY(q.y),'#ffc23d',46,0.4+0.15*Math.sin(tnow*4+q.ph)); for(const f of fuses) gl(SX(f.tx*T+8),SY(f.ty*T+8)+7,f.fitted>=f.need?'#5fe39a':'#ff4150',18,0.6);
     for(const b of beamsT) if(b.active) for(let i=0;i<b.tiles.length;i+=2){ const [tx,ty]=b.tiles[i]; gl(SX(tx*T+8),SY(ty*T+8),'#ff4150',40,0.35); } for(const t of LD.teles) gl(SX(t.tx*T+8),SY(t.ty*T+8),'#5ae0e8',40,0.5); }
   if(anchor&&!anchor.dead){ const ax=SX(anchor.x); for(let y=-40;y<BH+40;y+=60) gl(ax,y+((tnow*40)%60),'#7dff6a',80,0.25); if(anchor.band&&anchor.band.tel<=0) for(let x=0;x<BW;x+=90) gl(x,SY(anchor.band.y),'#7dff6a',140,0.4); }
   for(const q of plats){ gl(SX(q.x)+3,SY(q.y)+10,'#5fe39a',14,0.5); gl(SX(q.x+q.w)-4,SY(q.y)+10,'#5fe39a',14,0.5); }

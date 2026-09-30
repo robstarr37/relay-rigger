@@ -150,7 +150,7 @@ const LEVELS = [
   act:2, mode:'top', name:'The Hive Relay', place:'Relay Vault 7 · 05:55', theme:'hive',
   brief:"Whatever they dropped burrowed straight into Relay Vault 7 and grew a hive around it. Every signal in the region routes through that vault. Go in, reroute both terminals, and get back out.",
   outro:"",
-  gen:{cols:5,rows:3,seed:10,terminals:2,need:[1,2],mainLen:9,secret:0.6,tier:1,hold:3.0,loops:2,
+  gen:{cols:5,rows:3,seed:10,terminals:2,need:[1,2],mainLen:9,secret:0.6,tier:2,hold:3.0,loops:2,
        types:['plateCrate','leverGate','heavyPair','postPit','cagedFuse','den','timedPlate','sokoban'],
        terms:[{time:14,waves:[[0.1,'skitter','skitter'],[0.45,'leech','seeker'],[0.75,'skitter','skitter','leech']]},
               {time:16,waves:[[0.08,'seeker','hunter'],[0.3,'leech','leech','skitter'],[0.55,'skitter','skitter','seeker'],[0.8,'leech','leech','skitter']]}]}

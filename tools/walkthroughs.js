@@ -30,7 +30,8 @@ const WALK = window.WALK = {
     const f=T.until({up:true,grab:true},()=>r.hook().state==='idle'&&r.p().onGround&&r.info().ty<row0-0.5,240); return f<0?'FAIL':r.info().ty; },
   walkSide(tx){ const dir=tx*16>r.p().x+6?'right':'left'; return T.until({[dir]:true},()=>Math.abs(r.p().x+6-tx*16)<4&&r.p().onGround,900); },
   // the flooding shaft at the end of Pumping Station: climb it and work the top terminal
-  pumpTail(calm){ r.start(12); if(calm) r.enemies().forEach(e=>{e.alive=false;}); const off=r.def().endX-1; r.teleport((off+3)*16,67*16-20); r.run(5); const out=['shaft starts at '+off];
+  // resume = carry on from the end of a composedSide(12) run instead of restarting at the shaft
+  pumpTail(calm,resume){ if(!resume){ r.start(12); if(calm) r.enemies().forEach(e=>{e.alive=false;}); } const off=r.def().endX-1; if(!resume){ r.teleport((off+3)*16,67*16-20); r.run(5); } const out=['shaft starts at '+off];
     const W=this.walkSide.bind(this), C=this.climbSide.bind(this);
     for(const [kind,arg] of [['w',16.5],['c'],['w',19.5],['c'],['c'],['c'],['w',54.5],['c'],['w',57.5],['c'],['c'],['c'],['w',94.4],['c'],['c'],['c'],['c'],['w',106.5]]){
       const v=kind==='w'?(/^at /.test(T.walkFight(arg+off))?1:-1):C(); if(v==='FAIL'||v<0) return 'FAILED at '+kind+' '+(arg||'')+' row '+r.info().ty; }

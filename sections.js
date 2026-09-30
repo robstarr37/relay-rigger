@@ -85,7 +85,7 @@ const SECTIONS={
       B.terminal(x+30,g-20,c.term); B.check(x+12,g-20); B.relay(x+6,g-16); B.relay(x+44,g-20);
       B.prop('tower',{x0:x+1.4,x1:x+15.6,top:g-19,row:g-1}); B.prop('pylon',{x:x+24,top:g-18,row:g-1}); B.prop('pylon',{x:x+40,top:g-18,row:g-1}); B.prop('dish',{x:x+36,row:g-20});
       if(c.tier>=2) B.enemy('skitter',x+22,g-20); B.drone(x+34,x+48,g-20); },
-    check(T,x,g,c){ let s='deck '+T.walkFight(x+5); for(let i=0;i<4;i++){ let cl=T.climb(); if(/FAILED/.test(cl)){ T.walkSide(x+9); T.killNear&&0; cl=T.climb(); } s+=' '+cl; T.walkSide(x+9); } s+=' '+T.walkFight(x+30)+' '+T.defendSide(c.termIndex); return s+' '+T.walkTill(x+56,g); } },
+    check(T,x,g,c){ let s='deck '+T.walkFight(x+5); for(let i=0;i<4;i++){ let cl=T.climb(); if(/FAILED/.test(cl)){ T.walkSide(x+9); cl=T.climb(); } s+=' '+cl; T.walkSide(x+9); } s+=' '+T.walkFight(x+30)+' '+T.defendSide(c.termIndex); return s+' '+T.walkTill(x+56,g); } },
 };
 const BREATH=['flat','drones','nest'], DECKS=['towerDeck','groundDeck'];
 

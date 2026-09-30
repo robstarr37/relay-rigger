@@ -74,16 +74,17 @@ function composeSide(def){
   const pool=(G.pool||Object.keys(SECTIONS).filter(k=>!['start','goal','towerDeck'].includes(k)&&SECTIONS[k].tier<=tier)).filter(k=>SECTIONS[k]);
   const hazards=pool.filter(k=>!['flat','drones','nest'].includes(k)), breathers=pool.filter(k=>['flat','drones','nest'].includes(k));
   const list=[{name:'start',x:0,g:g0}]; let x=SECTIONS.start.w, g=g0, last='start', run=0, decks=0;
-  const fits=k=>{ const dg=SECTIONS[k].dg||0; return g+dg>=22&&g+dg<=(G.maxG||g0+12); };
+  // levels with fall damage never drop the worker: no descents, no deck to fall off
+  const fits=k=>{ const dg=SECTIONS[k].dg||0; if(def.fallDamage&&dg>0) return false; return g+dg>=22&&g+dg<=(G.maxG||g0+12); };
   while(x<len-SECTIONS.goal.w-40){
     let name;
-    if(decks<nTerms&&x>len*deckAt[decks]&&g>=22){ name='towerDeck'; decks++; }
+    if(decks<nTerms&&x>len*deckAt[decks]&&g>=22&&!def.fallDamage){ name='towerDeck'; decks++; }
     else if((run>=2||last==='climbOver')&&breathers.length){ name=pick(breathers.filter(k=>k!==last)); }
     else { const opts=hazards.filter(k=>k!==last&&fits(k)&&!(k==='crumbleBridge'&&(last==='nest'||last==='drones'))); name=opts.length?pick(opts):pick(breathers.length?breathers:pool); }
     run=['flat','drones','nest'].includes(name)?0:run+1;
     list.push({name,x,g}); x+=SECTIONS[name].w; g+=SECTIONS[name].dg||0; last=name;
   }
-  while(decks<nTerms){ list.push({name:'towerDeck',x,g}); x+=SECTIONS.towerDeck.w; decks++; }
+  while(decks<nTerms&&!def.fallDamage){ list.push({name:'towerDeck',x,g}); x+=SECTIONS.towerDeck.w; decks++; }
   list.push({name:'goal',x,g}); const W=x+SECTIONS.goal.w+2, H=Math.max(...list.map(s=>s.g))+4;
   const hints=[], ctx={H:0,tier,term:G.term||{time:14,waves:[[0.1,'hunter','hunter'],[0.4,'skitter','hunter'],[0.75,'skitter','skitter','seeker']]},termIndex:0};
   const ENEMY_HINTS={skitter:"Skitters take <b>two</b> punches: ▼ + GRAB, twice.",seeker:"Purple seekers hunt you and lunge. Punch them before they close in.",spitter:"A spitter pod. Punch its plasma out of the air, or punch the pod twice."};

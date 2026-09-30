@@ -406,7 +406,8 @@ function zipStep(dt){
   hook.v+=G*hook.uy*dt; hook.v*=Math.pow(0.85,dt); if(Math.abs(hook.uy)<0.08) hook.v+=p.face*60*dt;
   if(wind&&wind.phase==='gust') hook.v+=LDEF.wind.force*wind.dir*hook.ux*dt*0.5;
   hook.v=clamp(hook.v,-320,320); hook.t+=hook.v*dt/hook.L;
-  const end=hook.t>=1||hook.t<=0; hook.t=clamp(hook.t,0,1);
+  if(hook.t<=0&&hook.v<0){ hook.t=0; hook.v=0; } // a gust can hold you at the top of the line, never fling you off it
+  const end=hook.t>=1; hook.t=clamp(hook.t,0,1);
   const z=hook.zip; hook.x=z.x0+hook.ux*hook.L*hook.t; hook.y=z.y0+hook.uy*hook.L*hook.t;
   p.vx=hook.ux*hook.v; p.vy=hook.uy*hook.v; p.onGround=false; if(Math.abs(p.vx)>1) p.face=p.vx>0?1:-1;
   const nx=hook.x-6, ny=hook.y-4;
@@ -805,7 +806,7 @@ function buildTopData(def){
   for(let y=0;y<H;y++) for(let x=0;x<W;x++){
     const ch=rows[y][x]||'#', k=def.key&&def.key[ch];
     let v=0;
-    if(k){ const o={tx:x,ty:y,g:String(k.g),hold:k.hold||0,latch:!!k.latch};
+    if(k){ const o={tx:x,ty:y,g:String(k.g),hold:k.hold||0,latch:k.latch||false};
       if(k.t==='bridge'){ v=4; d.bridges.push(o); }
       else if(k.t==='fuse'){ d.fuses.push(Object.assign(o,{need:k.need||1})); }
       else if(k.t==='block'){ d.crates.push([x,y,1]); }
@@ -905,7 +906,9 @@ function updateGroups(silent){
     if(on) gLast[g]=tnow;
     else if(hold&&gLast[g]!=null&&tnow-gLast[g]<hold){ on=true; const left=hold-(tnow-gLast[g]); if(Math.floor(left*2)!==Math.floor((gHold['_'+g]||99)*2)) sfx.tick(); gHold['_'+g]=left; gHold[g]=left/hold; }
     // a latched door stays open once it has opened (so a plate you can only reach from one side never traps you)
-    if(!on&&gstate[g]&&LD.doors.some(d=>d.g===g&&d.latch)) on=true;
+    // (a 'pass' latch waits until the worker has actually been through the door: timed plates stay a race until then)
+    for(const d of LD.doors) if(d.g===g&&d.latch==='pass'&&!d.passed&&gstate[g]&&p.x+p.w>d.tx*T&&p.x<(d.tx+1)*T&&p.y+p.h>d.ty*T&&p.y<(d.ty+1)*T) d.passed=true;
+    if(!on&&gstate[g]&&LD.doors.some(d=>d.g===g&&(d.latch===true||d.passed))) on=true;
     // doors never shut on the worker or a crate standing in them
     if(!on&&gstate[g]) for(const d of LD.doors) if(d.g===g&&(crateAt(d.tx,d.ty)||(p.x+p.w>d.tx*T&&p.x<(d.tx+1)*T&&p.y+p.h>d.ty*T&&p.y<(d.ty+1)*T))){ on=true; break; }
     if(!silent&&gstate[g]!==undefined&&gstate[g]!==on){
@@ -977,7 +980,7 @@ function breakSecret(x,y){
 }
 function broodHit(e,c){
   c.dead=true; debris(c.x,c.y,['#8a6c48','#5a4630','#3d2f20'],10); dust(c.x,c.y,6);
-  e.hp--; e.flash=0.3; e.stun=2.4; shake=Math.max(shake,5); hitstop=0.1; flash=0.1; sfx.punch(); sfx.squish(); buzz([30,30,30]);
+  e.hp--; e.flash=0.3; e.stun=3.5; /* long enough to reach the next crate: chain the rams and she never gets a volley off */ shake=Math.max(shake,5); hitstop=0.1; flash=0.1; sfx.punch(); sfx.squish(); buzz([30,30,30]);
   sparks(e.x,e.y,'#b6ff5a',16,200);
   if(e.hp<=0) killEnemy(e); else popup(e.x,e.y-34,e.hp===1?'ONE PLATE LEFT':'PLATE CRACKED','#ffc23d');
 }
@@ -1099,7 +1102,8 @@ function updateTop(dt,edge){
   for(const r of relays){ if(r.got) continue;
     if(Math.abs(p.x+6-r.x)<11&&Math.abs(p.y+6-r.y)<11) collectRelay(r); }
   for(const h of hats){ if(h.got||!hatOpen(h)) continue; if(Math.abs(p.x+6-h.x)<11&&Math.abs(p.y+6-h.y)<11) collectHat(h); }
-  checks.forEach((c,i)=>{ if(i>cp&&Math.abs(p.x+6-c.x)<26&&Math.abs(p.y+6-(c.ty*T+8))<26){ cp=i; cpDeaths=0; c.on=true; burst(c.x,c.y-16,'#ffc23d',10,70); popup(c.x,c.y-34,'CHECKPOINT','#ffc23d'); sfx.check(); takeSnap(); } });
+  // top-down checkpoints are numbered in map order, not the order you reach them: any new one you touch takes over
+  checks.forEach((c,i)=>{ if(i!==cp&&Math.abs(p.x+6-c.x)<26&&Math.abs(p.y+6-(c.ty*T+8))<26){ cp=i; cpDeaths=0; c.on=true; burst(c.x,c.y-16,'#ffc23d',10,70); popup(c.x,c.y-34,'CHECKPOINT','#ffc23d'); sfx.check(); takeSnap(); } });
   if(LD.rooms){ const R=LD.rooms, cx0=Math.floor((Math.floor((p.x+6)/T)-1)/R.px), cy0=Math.floor((Math.floor((p.y+6)/T)-1)/R.py), id=cy0*R.cols+cx0;
     if(id!==curCell){ const prev=curCell; curCell=id; visited.add(id);
       if(prev>=0){ const c=R.cells[prev]; const left=c&&pickups.some(q=>!q.got&&!hid(q.tx,q.ty)&&q.tx>=c.ox&&q.tx<c.ox+13&&q.ty>=c.oy&&q.ty<c.oy+9);
@@ -2283,7 +2287,7 @@ if(/[?&]debug\b/.test(location.search)) window.__rr={
   start(i){ openBrief(i); startLevel(); return this.info(); },
   teleport(x,y){ p.x=x; p.y=y; p.vx=p.vy=0; hook.state='idle'; },
   tile, enemies:()=>enemies, terms:()=>terms, p:()=>p,
-  mode:()=>MODE, plats:()=>plats, pickups:()=>pickups, partsHeld:()=>partsHeld, fuses:()=>fuses, crumbles:()=>crumbles, water:()=>water, pulseCd:()=>pulseCd, hats:()=>hats, cracks:()=>cracks, cpDeaths:()=>cpDeaths, maxHp, def:()=>LDEF, visited:()=>visited, anchor:()=>anchor, wind:()=>wind, zips:()=>zips, boss:()=>boss, beams:()=>beamsT, hook:()=>hook, crates:()=>crates, gstate:()=>gstate, levers:()=>levers, pitT, wallT, solidT, LD:()=>LD
+  mode:()=>MODE, plats:()=>plats, pickups:()=>pickups, partsHeld:()=>partsHeld, fuses:()=>fuses, crumbles:()=>crumbles, water:()=>water, pulseCd:()=>pulseCd, hats:()=>hats, cracks:()=>cracks, shots:()=>shots, cpDeaths:()=>cpDeaths, maxHp, def:()=>LDEF, visited:()=>visited, anchor:()=>anchor, wind:()=>wind, zips:()=>zips, boss:()=>boss, beams:()=>beamsT, hook:()=>hook, crates:()=>crates, gstate:()=>gstate, levers:()=>levers, pitT, wallT, solidT, LD:()=>LD
 };
 
 if('serviceWorker' in navigator && /^https?:$/.test(location.protocol)) addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));

@@ -1,46 +1,13 @@
-/* Scripted walkthroughs that prove each top-down level can be finished.
-   Load tools/testbot.js first, then this file; call e.g. WALK.substation9(). Each returns a step log. */
+/* Scripted walkthroughs that prove each level can be finished.
+   Load tools/testbot.js first, then this file; call e.g. WALK.composed(6). Each returns a step log.
+   Long levels run in pieces: composed(lv, calm, from, to) and composedSide(lv, calm, {resume:true}) pause after
+   ~38 s of real time (the console call limit) and continue from where they stopped on the next call. */
 (() => {
 const T = window.TB, r = window.__rr;
-// retry an action (clearing enemies between tries) until check() passes
-const until=(act,check,tries=5)=>{ for(let i=0;i<tries;i++){ if(check()) return 'ok'; T.killNear(160); act(); r.run(5); } return check()?'ok':'FAILED'; };
 const WALK = window.WALK = {
   substation9(calm){ return this.composed(6,calm); },
-  hiveRelay(calm){ const log=[]; r.start(9); if(calm) r.enemies().forEach(e=>{e.alive=false;}); r.run(60);
-    log.push('clear room '+T.killNear(200));
-    log.push('A plates '+T.walkTo(4,3)+' '+T.push('right',4)+' '+T.walkTo(4,6)+' '+T.push('right',4)+' door '+r.gstate()['1']);
-    log.push('B posts '+T.walkTo(14,4)); T.face('right'); T.grab(); T.face('down'); T.grab(); T.face('right'); T.grab(); log.push(' at '+T.tileOf());
-    log.push('C fill '+T.walkTo(25,2)+' '+T.push('right',2)+' '+T.walkTo(28,2)); T.face('right'); T.grab();
-    log.push(' spitter '+T.walkTo(33,5)+' '+T.killNear(250)+' lever '+T.walkTo(31,5)); T.face('right'); T.grab(); log.push(' door '+r.gstate()['2']);
-    log.push('D terminal '+T.walkTo(33,10)+' cp '+r.info().cp+' '+T.killNear()+' '+T.walkTo(30,11)+' '+T.fightTop(0)); r.run(10); log.push(' west door '+r.gstate()['term0']);
-    log.push('E bridge '+T.killNear()+' '+T.walkTo(21,11)+' '+T.killNear(220)+' '+T.push('down',4)+' '+r.gstate()['3']+' '+until(()=>T.walkTo(11,14),()=>T.tileOf()[0]===11));
-    log.push('F lever '+until(()=>{ T.walkTo(6,15); T.face('up'); T.grab(); },()=>r.gstate()['4'])+' '+until(()=>{ T.walkTo(6,21); T.face('down'); T.grab(); },()=>T.tileOf()[1]===25)+' cp '+r.info().cp);
-    log.push('G plates '+T.killNear(200)+' '+T.walkTo(14,21)+' '+T.push('right',7)+' '+T.walkTo(22,22)+' '+T.push('up',1)+' '+T.walkTo(14,24)+' '+T.push('right',7)+' '+T.walkTo(22,23)+' '+T.push('down',1)+' door '+r.gstate()['5']);
-    log.push('H terminal '+T.killNear()+' '+T.walkTo(26,22)+' cp '+r.info().cp+' '+T.killNear(250)+' '+T.walkTo(30,20)+' '+T.fightTop(1)+' '+T.killNear()+' '+T.walkTo(34,26)); r.run(30);
-    log.push('RESULT '+r.info().state+' hp '+r.p().hp+' falls '+r.info().falls+' relays '+r.info().got);
-    return log.join('\n'); },
-  cableTunnels(calm){ const log=[]; r.start(11); if(calm) r.enemies().forEach(e=>{e.alive=false;}); r.run(30);
-    log.push('timed door '+T.walkTo(9,6)+' door '+r.gstate()['1']+' '+T.walkTo(14,4));
-    log.push('belt crate '+T.walkTo(15,2)+' '+T.push('down',3)+' '+T.walkTo(14,6)+' '+T.push('right',1)); T.until({},()=>!r.pitT(24,6),420); log.push(' gap filled '+!r.pitT(24,6)+' '+T.walkTo(28,6));
-    log.push('plate by belt '+T.walkTo(41,2)+' '+T.push('left',1)); T.until({},()=>r.gstate()['2'],420); log.push(' door B '+r.gstate()['2']+' '+T.walkTo(36,10));
-    log.push('terminal '+T.walkTo(37,11)+' '+T.walkTo(33,11)+' '+T.fightTop(0)); r.run(10); log.push(' door '+r.gstate()['term0']+' '+T.killNear()+' '+T.walkTo(27,14));
-    log.push('belt run '+T.killNear(200)+' '+T.walkTo(26,12)+' '+T.walkTo(12,12));
-    log.push('exit '+T.walkTo(3,15)); r.run(30);
-    log.push('RESULT '+r.info().state+' hp '+r.p().hp+' falls '+r.info().falls);
-    return log.join('\n'); },
-  burrow(calm){ const log=[]; r.start(13); if(calm) r.enemies().forEach(e=>{ if(e.type!=='brood') e.alive=false; }); r.run(30);
-    log.push('posts '+T.killNear(160)+' '+T.walkTo(15,4)); T.face('right'); T.grab(); T.face('down'); T.grab(); T.face('right'); T.grab(); log.push(' at '+T.tileOf());
-    log.push('terminal '+T.walkTo(25,10)+' '+T.walkTo(20,11)+' '+T.fightTop(0)); r.run(10); log.push(' door '+r.gstate()['term0']);
-    log.push('to arena '+T.killNear()+' '+T.walkTo(12,14)+' '+T.walkTo(6,20)+' cp '+r.info().cp);
-    const hits=()=>{ const b=r.enemies().find(e=>e.type==='brood'); return b?(b.alive?b.hp:0):0; };
-    log.push(' crate W '+until(()=>{ T.walkTo(7,22); T.push('right',4); },()=>hits()<=2)+' hp '+hits());
-    log.push(' crate E '+until(()=>{ T.walkTo(18,23); T.push('left',4); },()=>hits()<=1)+' hp '+hits());
-    log.push(' crate S '+until(()=>{ T.walkTo(12,27); T.push('up',3); },()=>hits()<=0)+' hp '+hits());
-    r.run(10); log.push(' door '+r.gstate()['boss']+' '+T.killNear(200)+' '+T.walkTo(35,23)); r.run(30);
-    log.push('RESULT '+r.info().state+' hp '+r.p().hp+' falls '+r.info().falls);
-    return log.join('\n'); },
 
-  // ---- side-view Act 3 checks ----
+  // ---- side-view set pieces ----
   // hook the beam at a shaft edge, step off, pay out cable, land without fall damage
   rappel(lv,edgeTx,g){ r.teleport((edgeTx-1)*16,g*16-20); r.run(5); const hp0=r.p().hp;
     T.until({right:true},()=>r.p().x+6>=(edgeTx+0.3)*16,120); r.run(1,{right:true,grab:true});
@@ -48,6 +15,7 @@ const WALK = window.WALK = {
     T.until({grab:true,right:true},()=>!r.p().onGround,120); T.until({grab:true,down:true},()=>r.info().rope>=205,400); T.hold({grab:true},40);
     T.until({},()=>r.p().onGround,300);
     return 'attach '+att+', landed row '+r.info().ty+', hp '+hp0+'->'+r.p().hp; },
+  // the hand-built descent of Quarry Descent (enemies removed), down to the pit terminal
   quarryDescent(){ const log=[]; r.start(10); r.enemies().forEach(e=>{e.alive=false;});
     log.push('shaft 1 '+this.rappel(10,30,7));
     r.teleport(71.5*16,22*16-20); r.run(3); const q=r.plats()[0];
@@ -55,16 +23,20 @@ const WALK = window.WALK = {
     log.push('shaft 2 '+this.rappel(10,110,40));
     r.teleport(130*16+2,56*16-20); r.run(10); log.push('terminal '+T.defendSide(0));
     return log.join('\n'); },
+  // the composed pit floor of Quarry Descent, from the pit terminal onwards
+  quarryTail(calm){ r.start(10); if(calm) r.enemies().forEach(e=>{e.alive=false;}); r.teleport(130*16+2,56*16-20); r.run(10);
+    const t='terminal '+T.defendSide(0); return t+'\n'+this.composedSide(10,calm,{resume:true}); },
   climbSide(){ const row0=r.info().ty; r.run(1,{}); r.run(1,{up:true,grab:true});
     const f=T.until({up:true,grab:true},()=>r.hook().state==='idle'&&r.p().onGround&&r.info().ty<row0-0.5,240); return f<0?'FAIL':r.info().ty; },
   walkSide(tx){ const dir=tx*16>r.p().x+6?'right':'left'; return T.until({[dir]:true},()=>Math.abs(r.p().x+6-tx*16)<4&&r.p().onGround,900); },
-  // climb the whole flooding shaft with enemies removed; reports the water level when you reach the terminal
-  pumpingStation(){ r.start(12); r.enemies().forEach(e=>{e.alive=false;}); r.run(5); const out=[];
+  // the flooding shaft at the end of Pumping Station: climb it and work the top terminal
+  pumpTail(calm){ r.start(12); if(calm) r.enemies().forEach(e=>{e.alive=false;}); const off=r.def().endX-1; r.teleport((off+3)*16,67*16-20); r.run(5); const out=['shaft starts at '+off];
     const W=this.walkSide.bind(this), C=this.climbSide.bind(this);
     for(const [kind,arg] of [['w',16.5],['c'],['w',19.5],['c'],['c'],['c'],['w',54.5],['c'],['w',57.5],['c'],['c'],['c'],['w',94.4],['c'],['c'],['c'],['c'],['w',106.5]]){
-      const v=kind==='w'?W(arg):C(); if(v==='FAIL'||v<0) return 'FAILED at '+kind+' '+(arg||'')+' row '+r.info().ty; }
+      const v=kind==='w'?(/^at /.test(T.walkFight(arg+off))?1:-1):C(); if(v==='FAIL'||v<0) return 'FAILED at '+kind+' '+(arg||'')+' row '+r.info().ty; }
     out.push('reached the terminal: row '+r.info().ty+', water row '+(r.water().y/16).toFixed(1)+', falls '+r.info().falls);
-    out.push('terminal '+T.defendSide(0)+' water row '+(r.water().y/16).toFixed(1));
+    out.push('terminal '+T.defendSide(1)+' water row '+(r.water().y/16).toFixed(1));
+    for(let f=0;f<600&&r.info().state==='play';f++) r.run(1,{right:true}); out.push('RESULT '+r.info().state);
     return out.join('\n'); },
   // fight the Ship Anchor: cut clamps bottom-up, dodge bands by climbing or dropping
   shipAnchor(){ r.start(14); const A=()=>r.anchor(); let f=0, hits=0, hp=r.p().hp, dodges=0; const clamps=()=>r.enemies().filter(e=>e.type==='clamp'&&e.alive);
@@ -81,31 +53,11 @@ const WALK = window.WALK = {
       if(Math.abs(r.p().x+6-30.5*16)>6){ walkX(30.5); continue; }
       r.run(1,{right:true}); r.run(1,{down:true,grab:true}); r.run(12); f+=14; }
     return 'state '+r.info().state+', clamps left '+clamps().length+', '+(f/60).toFixed(0)+'s, hits '+hits+', deaths '+r.info().falls+', dodges '+dodges; },
-  // ---- Act 4 top-down ----
-  beamAt(x,y){ return r.beams().find(b=>b.tx===x&&b.ty===y); },
-  // wait for a pulsing beam to switch off (and not be about to switch on)
-  waitOff(x,y){ const b=this.beamAt(x,y); return T.until({},()=>!b.active&&!b.warn,400); },
-  relayArray(calm){ const log=[]; r.start(16); if(calm) r.enemies().forEach(e=>{e.alive=false;}); r.run(20);
-    log.push('pulse beam '+T.walkTo(7,6)+' '+this.waitOff(8,0)+' '+T.walkTo(12,6)+' hp '+r.p().hp);
-    log.push('block beam '+T.walkTo(16,1)+' '+T.push('down',2)+' '+T.walkTo(21,4)+' '+T.walkTo(29,6)+' hp '+r.p().hp);
-    log.push('lever '+T.walkTo(32,2)); T.face('right'); T.grab(); log.push(' beams off '+r.gstate()['1']);
-    log.push('terminal 1 '+T.walkTo(35,2)+' '+T.fightTop(0)); r.run(10);
-    log.push('belt beams '+T.walkTo(35,10)+' '+T.walkTo(34,11)+' '+this.waitOff(33,18)+' '+T.walkTo(32,11)+' '+this.waitOff(31,18)+' '+T.walkTo(29,11)+' '+T.walkTo(27,14)+' hp '+r.p().hp);
-    log.push('terminal 2 '+T.walkTo(26,13)+' '+this.waitOff(28,12)+' '+T.walkTo(24,11)+' cp '+r.info().cp+' '+T.walkTo(20,11)+' '+T.fightTop(1)); r.run(10);
-    log.push('out '+T.killNear(200)+' '+T.walkTo(20,11)+' '+this.waitOff(28,12)+' '+T.walkTo(16,13)+' '+this.waitOff(28,15)+' '+T.walkTo(14,16)+' '+T.walkTo(12,16)+' '+T.walkTo(3,12)); r.run(30);
-    log.push('RESULT '+r.info().state+' hp '+r.p().hp+' falls '+r.info().falls);
-    return log.join('\n'); },
-  hullBreach(calm){ const log=[]; r.start(18); if(calm) r.enemies().forEach(e=>{e.alive=false;}); r.run(20);
-    log.push('crate through pad '+T.walkTo(5,6)+' '+T.push('right',4)+' crates '+T.crates());
-    T.walkTo(9,6); T.until({right:true},()=>T.tileOf()[0]>=13,120); log.push(' teleported to '+T.tileOf());
-    log.push('plate '+T.walkTo(15,2)+' '+T.push('right',10)+' '+T.walkTo(26,1)+' '+T.push('down',5)+' door '+r.gstate()['1']+' '+T.walkTo(29,4));
-    log.push('terminal 1 '+T.walkTo(35,2)+' '+T.fightTop(0)); r.run(10);
-    log.push('beam + pad '+T.walkTo(41,4)+' '+this.waitOff(43,5)+' '+T.walkTo(41,7)); T.until({down:true},()=>T.tileOf()[1]>=11,120); log.push(' at '+T.tileOf());
-    log.push('belt crate '+T.walkTo(41,13)+' '+T.push('left',1)); T.until({},()=>!r.pitT(31,13),420); log.push(' filled '+!r.pitT(31,13)+' '+T.walkTo(30,13)); T.until({down:true},()=>T.tileOf()[0]>=20&&T.tileOf()[1]<=12,160); log.push(' at '+T.tileOf());
-    log.push('terminal 2 '+T.walkTo(20,11)+' '+T.fightTop(1)); r.run(10);
-    log.push('out '+T.killNear(200)+' '+T.walkTo(18,13)+' '+this.waitOff(28,14)+' '+T.walkTo(14,15)+' '+T.walkTo(12,15)+' '+T.walkTo(4,13)); r.run(30);
-    log.push('RESULT '+r.info().state+' hp '+r.p().hp+' falls '+r.info().falls);
-    return log.join('\n'); },
+  // can the worker get over the tether on the high walkway?
+  anchorCrossing(){ r.start(14); r.anchor().pt=999; r.anchor().st=999; r.enemies().forEach(e=>{ if(e.type!=='clamp') e.alive=false; });
+    r.teleport(28*16,15*16-20); r.run(5); const hp0=r.p().hp; const c=this.climbSide();
+    const cross=T.until({right:true},()=>r.p().x+6>45*16,600); T.until({right:true},()=>r.p().onGround&&r.info().ty>=15,300);
+    return 'climb to '+c+', crossed '+(cross>=0)+', now at '+r.info().tx+',row '+r.info().ty+', hp '+hp0+'->'+r.p().hp; },
   // the final boss with every attack live: generators by climbing, then the core. Dodges each band once
   // (sidestep a vertical band, climb out of a horizontal one) and punches up, across or diagonally.
   heartOfTheShip(limitMs=40000){ const t0=performance.now(); r.start(19); let f=0, hits=0, hp=r.p().hp, handled=null, dodges=0; const B=()=>r.boss();
@@ -116,13 +68,11 @@ const WALK = window.WALK = {
       const hit=b.axis==='v'?Math.abs(p.x+6-b.pos)<30:Math.abs(p.y+p.h/2-b.pos)<30; if(!hit) return false; dodges++;
       if(b.axis==='v'){ const dir=(p.x+6)<b.pos?'left':'right'; for(let i=0;i<45&&b.tel>0;i++) tick({[dir]:true}); } else if(p.onGround) climb(); return true; };
     const row=()=>Math.round((r.p().y+r.p().h)/16);
-    // punch a flyer that has come close (across, up or diagonally)
     const fend=()=>{ const p=r.p(); if(!p.onGround||r.hook().state!=='idle') return false; const px=p.x+6, py=p.y+7;
       if(r.pulseCd()<=0&&r.enemies().some(e=>e.alive&&(e.type==='seeker'||e.type==='hunter')&&Math.hypot(e.x-px,e.y-py)<80)){ tick({pulse:true}); tick({}); return true; }
       const e=r.enemies().find(e=>e.alive&&(e.type==='seeker'||e.type==='hunter')&&Math.hypot(e.x-px,e.y-py)<110); if(!e) return false;
       const dx=e.x-px, dy=e.y-py; let aim=null; if(Math.abs(dy)<10) aim='h'; else if(Math.abs(dx)<10&&dy<0) aim='u'; else if(dy<0&&Math.abs(Math.abs(dx)/(-dy)-0.7)<0.35) aim='d';
       if(!aim) return false; if(aim!=='u') tick({[dx>0?'right':'left']:true}); const k={grab:true}; if(aim==='h') k.down=true; if(aim==='u') k.up=true; tick(k); for(let q=0;q<8;q++) tick(); return true; };
-    // stand on (x, row); routes: floor(40) -> low girder(34) -> high girder(21), via the overlap columns 14 (west) and 57 (east)
     const goTo=(tx,trow)=>{ for(let i=0;i<400;i++){ if(dodge()||fend()) continue; const p=r.p(); if(!p.onGround){ tick(); continue; }
         const rw=row(), west=tx<36; const col=west?(trow===34?8:14.4):(trow===34?62:57.4);
         if(rw===trow){ const d=tx*16-(p.x+6); if(Math.abs(d)<3) return true; tick({[d>0?'right':'left']:true}); continue; }
@@ -139,33 +89,42 @@ const WALK = window.WALK = {
       if(aim){ if(aim!=='u') tick({[dx>0?'right':'left']:true}); const k={grab:true}; if(aim==='h') k.down=true; if(aim==='u') k.up=true; tick(k); for(let q=0;q<10;q++) tick(); }
       else { const want=Math.max(49*16+6,Math.min(57*16,c.x)); if(Math.abs(want-(p.x+6))>8) tick({[want>p.x+6?'right':'left']:true}); else tick(); } }
     r.run(60); return 'gens left '+gens().length+', core '+(core()?'alive hp '+core().hp:'destroyed')+', '+(f/60).toFixed(0)+'s, hits '+hits+', deaths '+r.info().falls+', bands dodged '+dodges+', state '+r.info().state; },
+
   // ---- composed top-down levels: follow the level's own route, using each room type's solve script ----
-  composed(lv,calm){ const log=[]; r.start(lv); if(calm) r.enemies().forEach(e=>{e.alive=false;}); r.run(20);
+  composed(lv,calm,from=0,to=1e9,maxMs=38000){ const log=[], t0=performance.now();
+    if(!from){ r.start(lv); if(calm) r.enemies().forEach(e=>{ if(e.type!=='brood') e.alive=false; }); r.run(20); }
     const RR=window.RR_ROOMS, def=r.def(), cells=def.rooms.cells, byId=id=>cells[id];
-    const Rof=c=>({g:(lx,ly)=>[c.ox+(c.flipX?RR.RW-1-lx:lx),c.oy+(c.flipY?RR.RH-1-ly:ly)],dir:d=>c.flipX?({left:'right',right:'left'}[d]||d):c.flipY?({up:'down',down:'up'}[d]||d):d,pitNS:c.pitNS,termIndex:c.termIndex});
-    let cur=cells.find(c=>c.type==='startRoom'), from=null;
-    for(const step of def.route){
+    const Rof=c=>({g:(lx,ly)=>[c.ox+(c.flipX?RR.RW-1-lx:lx),c.oy+(c.flipY?RR.RH-1-ly:ly)],dir:d=>c.flipX?({left:'right',right:'left'}[d]||d):c.flipY?({up:'down',down:'up'}[d]||d):d,
+      pitNS:c.pitNS,termIndex:c.termIndex,exitGroup:c.exitGroup,meta:c.meta||{},
+      beyond:s=>{ const [dx,dy]=RR.DOOR_LOCAL[s]; return [c.ox+dx+(s==='E'?1:s==='W'?-1:0),c.oy+dy+(s==='S'?1:s==='N'?-1:0)]; }});
+    const roomAt=()=>{ const [tx,ty]=T.tileOf(); return cells.find(c=>tx>=c.ox&&tx<c.ox+RR.RW&&ty>=c.oy&&ty<c.oy+RR.RH); };
+    let cur=from?roomAt():cells.find(c=>c.type==='startRoom'), fromSide=from?this._from:null; if(!cur) return 'not inside a room at '+T.tileOf();
+    let i=from; const end=Math.min(to,def.route.length);
+    for(;i<end;i++){ if(performance.now()-t0>maxMs){ log.push('PAUSED at step '+i); break; }
+      const step=def.route[i];
       if(step.solve!=null){ const c=byId(step.solve); const t=RR.TYPES[c.type]; log.push(c.cx+','+c.cy+' '+c.type+': '+(t.solve?t.solve(T,Rof(c)):'-')); continue; }
-      const to=byId(step.go); const side=Object.keys(cur.links).find(s=>cur.links[s].to===to.cy*def.rooms.cols+to.cx); if(!side){ log.push('NO LINK '+cur.cx+','+cur.cy+' -> '+to.cx+','+to.cy); continue; }
-      if(cur.type==='postPit'&&from&&from!==side) log.push('  cross '+RR.TYPES.postPit.cross(T,Rof(cur),from,side));
+      const to2=byId(step.go); const side=Object.keys(cur.links).find(s=>cur.links[s].to===to2.cy*def.rooms.cols+to2.cx); if(!side){ log.push('NO LINK '+cur.cx+','+cur.cy+' -> '+to2.cx+','+to2.cy); continue; }
+      const ct=RR.TYPES[cur.type]; if(ct.cross&&fromSide&&fromSide!==side) log.push('  cross '+ct.cross(T,Rof(cur),fromSide,side));
       const [dx,dy]=RR.DOOR_LOCAL[side], door=[cur.ox+dx,cur.oy+dy];
       if(cur.links[side].kind==='secret'&&r.wallT(door[0],door[1])){ const stand=[cur.ox+dx-(side==='E'?1:side==='W'?-1:0),cur.oy+dy-(side==='S'?1:side==='N'?-1:0)]; const face={N:'up',S:'down',E:'right',W:'left'}[side]; log.push('  secret '+T.grappleSecret(stand[0],stand[1],face,door[0],door[1])); }
-      const inside=[to.ox+(side==='E'?0:side==='W'?RR.RW-1:6),to.oy+(side==='S'?0:side==='N'?RR.RH-1:4)];
-      T.killNear(180); const w=RR.until(T,()=>{ T.walkTo(inside[0],inside[1]); },()=>{ const [tx,ty]=T.tileOf(); return tx>=to.ox&&tx<to.ox+RR.RW&&ty>=to.oy&&ty<to.oy+RR.RH; },4);
-      log.push('-> '+to.cx+','+to.cy+' ('+to.type+') '+w); from=RR.OPP[side]; cur=to; }
-    r.run(30); log.push('RESULT '+r.info().state+' hp '+r.p().hp+' falls '+r.info().falls+' parts '+r.pickups().filter(q=>q.got).length+'/'+r.pickups().length);
+      const inside=[to2.ox+(side==='E'?0:side==='W'?RR.RW-1:6),to2.oy+(side==='S'?0:side==='N'?RR.RH-1:4)];
+      T.killNear(180); const w=RR.until(T,()=>{ T.walkToSafe(inside[0],inside[1]); },()=>{ const [tx,ty]=T.tileOf(); return tx>=to2.ox&&tx<to2.ox+RR.RW&&ty>=to2.oy&&ty<to2.oy+RR.RH; },4);
+      log.push('-> '+to2.cx+','+to2.cy+' ('+to2.type+') '+w); fromSide=RR.OPP[side]; cur=to2; }
+    this._from=fromSide;
+    if(i>=def.route.length){ r.run(30); log.push('RESULT '+r.info().state+' hp '+r.p().hp+' falls '+r.info().falls+' parts '+r.pickups().filter(q=>q.got).length+'/'+r.pickups().length+' terms '+r.info().terms.join(',')); }
+    else log.push('NEXT '+i+' of '+def.route.length);
     return log.join('\n'); },
   // ---- composed side levels: run every section's own check in order ----
-  composedSide(lv,calm){ const log=[]; r.start(lv); if(calm) r.enemies().forEach(e=>{e.alive=false;}); r.run(10);
-    const S=window.RR_SECTIONS.SECTIONS, def=r.def(), g=def.sgen.g||26, ctx={termIndex:0};
-    for(const s of def.sections){ if(s.name!=='goal'&&r.info().tx>=s.x+s.w-2){ log.push(s.x+' '+s.name+' already passed'); continue; }
-      const res=S[s.name].check(T,s.x,s.g??g,ctx); if(s.name==='towerDeck') ctx.termIndex++; log.push(s.x+' '+res); if(/FELL|FAILED|timeout|no platform/.test(res)) log.push('  ^ problem in '+s.name+' at '+s.x); }
-    r.run(30); log.push('RESULT '+r.info().state+' hp '+r.p().hp+' falls '+r.info().falls+' relays '+r.info().got+' clock '+document.getElementById('tim').textContent);
-    return log.join('\n'); },
-  // can the worker get over the tether on the high walkway?
-  anchorCrossing(){ r.start(14); r.anchor().pt=999; r.anchor().st=999; r.enemies().forEach(e=>{ if(e.type!=='clamp') e.alive=false; });
-    r.teleport(28*16,15*16-20); r.run(5); const hp0=r.p().hp; const c=this.climbSide();
-    const cross=T.until({right:true},()=>r.p().x+6>45*16,600); T.until({right:true},()=>r.p().onGround&&r.info().ty>=15,300);
-    return 'climb to '+c+', crossed '+(cross>=0)+', now at '+r.info().tx+',row '+r.info().ty+', hp '+hp0+'->'+r.p().hp; }
+  // opts: resume (carry on from the current position), wind:false (switch the level's gusts off), maxMs
+  composedSide(lv,calm,o={}){ const log=[], t0=performance.now(); if(!o.resume){ r.start(lv); if(calm) r.enemies().forEach(e=>{e.alive=false;}); r.run(10); }
+    const def=r.def(); if(def.wind){ if(def.wind.force0==null) def.wind.force0=def.wind.force; def.wind.force=o.wind===false?0:def.wind.force0; }
+    const S=window.RR_SECTIONS.SECTIONS, ctx={termIndex:def.sgen.termBase||0}; let paused=false, skipped=0, problem=false;
+    for(const s of def.sections){ if(s.name!=='goal'&&r.info().tx>=s.x+s.w-2){ if(s.name==='towerDeck'||s.name==='groundDeck') ctx.termIndex++; skipped++; continue; }
+      if(performance.now()-t0>(o.maxMs||38000)){ log.push('PAUSED before '+s.name+' at '+s.x); paused=true; break; }
+      if(problem){ r.teleport((s.x+1)*16,s.g*16-20); r.run(5); log.push('  (skipped ahead to '+s.name+' at '+s.x+')'); }   // a failed section would otherwise sink every later check
+      const res=S[s.name].check(T,s.x,s.g,ctx); if(s.name==='towerDeck'||s.name==='groundDeck') ctx.termIndex++; log.push(s.x+' '+res); problem=/FELL|FAILED|timeout|no platform|NO CATCH|LOST/.test(res); if(problem) log.push('  ^ problem in '+s.name+' at '+s.x); }
+    if(skipped) log.unshift(skipped+' sections already passed');
+    if(!paused){ r.run(30); log.push('RESULT '+r.info().state+' hp '+r.p().hp+' falls '+r.info().falls+' relays '+r.info().got+' clock '+document.getElementById('tim').textContent); }
+    return log.join('\n'); }
 };
 })();

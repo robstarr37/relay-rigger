@@ -37,6 +37,7 @@
   <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><rect x="5" y="4" width="5" height="16" fill="currentColor"/><rect x="14" y="4" width="5" height="16" fill="currentColor"/></svg>
 </button>
 <p id="hint" class="hint"></p>
+<div id="pageCard" class="page-card" hidden><p class="kicker">DOSSIER PAGE <span id="pageNum"></span></p><p id="pageText"></p></div>
 
 <!-- touch controls -->
 <div id="touch" hidden>
@@ -58,6 +59,7 @@
     <div class="menu row">
       <button class="go" id="startBtn" type="button">Start shift</button>
       <button class="alt" id="levelsBtn" type="button">Levels</button>
+      <button class="alt" id="dossierBtn" type="button">Dossier</button>
     </div>
     <p class="best" id="bestLine"></p>
     <div class="keys only-keys">
@@ -96,6 +98,14 @@
 </div>
 
 <!-- pause -->
+<div class="ov" id="ovDossier" hidden>
+  <div class="card">
+    <h2>THE DOSSIER</h2>
+    <p class="tag" id="dossierCount"></p>
+    <div class="lvl-list dossier" id="dossierList"></div>
+    <button class="alt" id="dossierBack" type="button">Back</button>
+  </div>
+</div>
 <div class="ov" id="ovPause" hidden>
   <div class="card">
     <h2>ON BREAK</h2>
@@ -105,6 +115,7 @@
       <button class="alt" id="restartBtn" type="button">Restart level</button>
       <button class="alt" id="soundBtn" type="button">Sound: on</button>
       <button class="alt" id="hintsBtn" type="button">Hints: on</button>
+      <button class="alt" id="pauseDossierBtn" type="button">Dossier</button>
       <button class="alt" id="fsBtn" type="button" hidden>Fullscreen</button>
       <button class="alt" id="quitBtn" type="button">Title screen</button>
     </div>

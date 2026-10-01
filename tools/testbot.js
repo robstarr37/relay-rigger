@@ -79,6 +79,11 @@ const TB = window.TB = {
       if(i.ground&&i.tx>=landTx&&i.hook!=='att'&&i.hook!=='fly') return 'landed at '+i.tx+' after '+swings+' swings';
     } return 'timeout'; },
   hold(keys,frames){ for(let f=0;f<frames;f++) r.run(1,keys); },
+  // stand under a cracked pocket at column tx, break it open with an upward shot, then shoot again to pull out the page
+  crackUp(tx){ this.walkSide(tx+0.5); const got=()=>r.pages().filter(q=>q.got).length, n0=r.cracks().size, p0=got(); let opened=false;
+    for(let a=0;a<4&&!opened;a++){ r.run(2,{}); this.until({up:true,grab:true},()=>r.cracks().size<n0,70); this.until({},()=>r.hook().state==='idle',90); opened=r.cracks().size<n0; }
+    for(let a=0;a<3&&got()===p0;a++){ r.run(2,{}); this.until({up:true,grab:true},()=>got()>p0,70); this.until({},()=>r.hook().state==='idle',90); }
+    return (opened?'cracked':'NO CRACK')+' '+(got()>p0?'page':'NO PAGE'); },
   // fire up, reel in, land on the girder above
   climb(){ const row0=r.info().ty; r.run(1,{}); r.run(1,{up:true,grab:true}); const f=this.until({up:true,grab:true},()=>r.hook().state==='idle'&&r.p().onGround&&r.info().ty<row0-0.5,240); return f<0?'CLIMB FAILED':'up to row '+r.info().ty; },
   walkSide(tx){ for(let f=0;f<900;f++){ const d=tx*16-(r.p().x+6); if(Math.abs(d)<6&&r.p().onGround) return 'ok'; r.run(1,{[d>0?'right':'left']:true}); } return 'walk timeout'; },

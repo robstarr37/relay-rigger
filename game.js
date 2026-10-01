@@ -160,7 +160,7 @@ function buildLevelData(def){
   W=def.W; H=def.H; LW=W*T; LH=H*T;
   map=Array.from({length:H},()=>new Array(W).fill(0));
   rockMap=Array.from({length:H},()=>new Uint8Array(W));
-  const d={start:[2,H-5],checks:[],relays:[],enemies:[],terms:[],goal:null,props:[],plats:[],crumbles:[],anchor:null,zips:[],core:null,cracks:[],hats:[]};
+  const d={start:[2,H-5],checks:[],relays:[],enemies:[],terms:[],goal:null,props:[],plats:[],crumbles:[],anchor:null,zips:[],core:null,cracks:[],hats:[],pages:[]};
   const set=(x0,x1,y0,y1,v,rock)=>{ for(let y=Math.max(0,y0);y<=Math.min(H-1,y1);y++) for(let x=Math.max(0,x0);x<=Math.min(W-1,x1);x++){ map[y][x]=v; rockMap[y][x]=rock; } };
   const B={W,H,
     steel:(x0,x1,y0,y1)=>set(x0,x1,y0,y1,1,0), rock:(x0,x1,y0,y1)=>set(x0,x1,y0,y1,1,1),
@@ -179,6 +179,7 @@ function buildLevelData(def){
     // a solid tile with a hairline crack: the cable breaks it open. A hat placed on a solid tile is sealed inside until the crack breaks.
     crack:(x,y,rock)=>{ set(x,x,y,y,1,rock?1:0); d.cracks.push([x,y]); },
     hat:(x,y)=>d.hats.push([x,y]),
+    page:(x,y)=>d.pages.push([x,y]),
     // final boss: the core at (x,y), shielded until every generator is destroyed
     core:(x,y,gens)=>{ d.core={tx:x,ty:y}; d.enemies.push({type:'core',x:x*T+8,y:y*T+8}); for(const [gx,gy] of gens) d.enemies.push({type:'gen',x:gx*T+8,y:gy*T+8}); },
     // boss: a tether at column x with a clamp at each of the given rows
@@ -204,7 +205,7 @@ function loadLevel(i){
 }
 
 // ---------- state ----------
-let crumbles=[], water=null, anchor=null, wind=null, zips=[], boss=null, beamsT=[], hats=[], cracks=new Set(), cpDeaths=0;
+let crumbles=[], water=null, anchor=null, wind=null, zips=[], boss=null, beamsT=[], hats=[], pages=[], pageUntil=-9, cracks=new Set(), cpDeaths=0;
 const maxHp=()=>(LDEF&&LDEF.act||1)>=3?5:3;
 let p, hook, rope, enemies, shots, relays, checks, terms, goal, parts, plats=[], cam={x:0,y:0}, state='title', clock=0, falls=0, got=0, cp=0, tnow=0;
 let bolt=0, nextBolt=6, shake=0, hitstop=0, flash=0, winT=0, fwT=0, reelAcc=0, stepPh=0, crackleT=0, lockMsgT=-9, allDoneT=-99;
@@ -247,7 +248,7 @@ function reset(){
   relays=LD.relays.map(([x,y])=>({x:x*T+8,y:y*T+8,got:false,ph:Math.random()*6}));
   terms=LD.terms.map(makeTerm);
   crumbles=LD.crumbles.map(([x,y])=>{ map[y][x]=2; return {x,y,t:-1,gone:false,back:0}; });
-  resetHats(); cpDeaths=0;
+  resetHats(); resetPages(); cpDeaths=0;
   water=LDEF.flood?{y:LDEF.flood.row*T,active:false,wait:0,rumble:0}:null;
   anchor=LD.anchor?{x:LD.anchor.tx*T+8,pt:3,st:5,band:null,dead:false,snap:0}:null;
   boss=LD.core?{pt:3,st:6,band:null,dead:false,phase:1,hx:LD.core.tx*T+8,hy:LD.core.ty*T+8,t:0}:null;
@@ -300,6 +301,23 @@ function resetHats(){
   cracks=new Set(LD.cracks.map(([x,y])=>x+','+y)); for(const [x,y] of LD.cracks) map[y][x]=1;
   if(MODE==='side'&&strips) strips.cache.clear();
 }
+// dossier pages: hidden like hats, but once found they stay found across runs and levels
+const PAGES=window.RR_PAGES||[]; { const cnt={}; for(const e of PAGES){ const k=e.lv-1; e.id=k+':'+(cnt[k]||0); cnt[k]=(cnt[k]||0)+1; } }
+const pageFound=id=>!!(save.pages&&save.pages[id]);
+function resetPages(){ pages=LD.pages.map(([x,y],i)=>({x:x*T+8,y:y*T+8,tx:x,ty:y,id:LI+':'+i,got:pageFound(LI+':'+i),ph:Math.random()*6})); }
+const pageOpen=q=>MODE==='top'?!hid(q.tx,q.ty):map[q.ty][q.tx]!==1;
+function collectPage(q){
+  q.got=true; save.pages=save.pages||{}; save.pages[q.id]=true; persist();
+  burst(q.x,q.y,'#f7f3e3',14,100); sparks(q.x,q.y,'#ffe08a',8,110); ring(q.x,q.y,'#f7f3e3',24,0.4); popup(q.x,q.y-12,'DOSSIER PAGE','#f7f3e3'); sfx.check(); buzz([15,20,15]);
+  const i=PAGES.findIndex(e=>e.id===q.id); if(i>=0){ $('pageNum').textContent=(i+1)+' / '+PAGES.length; $('pageText').innerHTML='<b>'+PAGES[i].title+'.</b> '+PAGES[i].text; pageUntil=tnow+9; }
+}
+function dossierVerdict(){ const E=window.RR_DOSSIER_END||{}; const n=PAGES.filter(e=>pageFound(e.id)).length, tot=PAGES.length; return n>=tot?E.full:n>=tot/2?E.partial:E.thin; }
+let dossierFrom='title';
+function openDossier(from){ dossierFrom=from; const el=$('dossierList'); el.innerHTML=''; let n=0;
+  PAGES.forEach((e,i)=>{ const f=pageFound(e.id); if(f) n++; const d=document.createElement('div'); d.className='page'+(f?' found':' missing'); const lv=LEVELS[e.lv-1];
+    d.innerHTML=f?`<b>PAGE ${i+1} · ${lv?lv.name.toUpperCase():''}</b>${e.title}. ${e.text}`:`<b>PAGE ${i+1}</b>Not found yet. Somewhere in ${lv?lv.name:'?'}.`; el.appendChild(d); });
+  $('dossierCount').textContent=n+' of '+PAGES.length+' pages found'+(n>=PAGES.length?' · complete':''); state='dossier'; setUI(); }
+function closeDossier(){ state=dossierFrom==='pause'?'pause':'title'; if(state==='title') refreshTitle(); setUI(); }
 // a hat is only visible (and collectable) once no solid tile covers it
 const hatOpen=h=>MODE==='top'?!hid(h.tx,h.ty):map[h.ty][h.tx]!==1;
 function collectHat(h){
@@ -309,6 +327,7 @@ function collectHat(h){
 function breakCrack(tx,ty){
   cracks.delete(tx+','+ty); map[ty][tx]=0;
   for(const h of hats) if(!h.got&&Math.abs(h.tx-tx)<=1&&Math.abs(h.ty-ty)<=1&&map[h.ty][h.tx]===1) map[h.ty][h.tx]=0; // open the pocket behind it
+  for(const q of pages) if(!q.got&&Math.abs(q.tx-tx)<=1&&Math.abs(q.ty-ty)<=1&&map[q.ty][q.tx]===1) map[q.ty][q.tx]=0;
   if(strips){ for(const i of [Math.floor(tx*T*ART/SW),Math.floor((tx*T*ART+31)/SW)]) strips.cache.delete(i); }
   debris(tx*T+8,ty*T+8,[TH.rock?TH.rock[0]:'#333a66','#5b66a0','#15182f'],12); dust(tx*T+8,ty*T+8,8); shake=Math.max(shake,3); sfx.secret(); buzz([20,30,20]);
   popup(tx*T+8,ty*T-6,'CRACKED OPEN','#b6ff5a');
@@ -326,6 +345,7 @@ function restartRun(){
 }
 function hookPickups(){
   for(const h of hats) if(!h.got&&hatOpen(h)&&Math.abs(hook.x-h.x)<11&&Math.abs(hook.y-h.y)<11) collectHat(h);
+  for(const q of pages) if(!q.got&&pageOpen(q)&&Math.abs(hook.x-q.x)<11&&Math.abs(hook.y-q.y)<11) collectPage(q);
   for(const r of relays) if(!r.got&&Math.abs(hook.x-r.x)<11&&Math.abs(hook.y-r.y)<11) collectRelay(r);
   if(MODE==='top') for(const q of pickups) if(!q.got&&!hid(q.tx,q.ty)&&Math.abs(hook.x-q.x)<11&&Math.abs(hook.y-q.y)<11) collectPart(q);
 }
@@ -701,6 +721,7 @@ function update(dt){
   for(const r of relays){ if(r.got) continue;
     if(Math.abs(p.x+6-r.x)<11&&Math.abs(p.y+10-r.y)<14) collectRelay(r); }
   for(const h of hats){ if(h.got||!hatOpen(h)) continue; if(Math.abs(p.x+6-h.x)<11&&Math.abs(p.y+10-h.y)<14) collectHat(h); }
+  for(const q of pages){ if(q.got||!pageOpen(q)) continue; if(Math.abs(p.x+6-q.x)<11&&Math.abs(p.y+10-q.y)<14) collectPage(q); }
   // checkpoints
   checks.forEach((c,i)=>{ if(i>cp&&Math.abs(p.x+6-c.x)<10&&Math.abs(p.y+p.h-c.y)<24){cp=i;cpDeaths=0;c.on=true;burst(c.x,c.y-16,'#ffc23d',10,70);popup(c.x,c.y-34,'CHECKPOINT','#ffc23d');sfx.check();} });
   // void
@@ -801,7 +822,7 @@ function buildTopData(def){
   if(def.gen&&!def.map) window.RR_ROOMS.composeAll(LEVELS);
   const rows=def.map; H=rows.length; W=Math.max(...rows.map(r=>r.length)); LW=W*T; LH=H*T;
   map=Array.from({length:H},()=>new Array(W).fill(1)); rockMap=[]; sparkTiles=[];
-  const d={top:true,start:[1,1],checks:[],relays:[],enemies:[],terms:[],goal:null,props:[],plats:[],crates:[],posts:[],plates:[],doors:[],levers:[],bridges:[],conv:[],crumbles:[],anchor:null,zips:[],core:null,beams:[],teles:[],secrets:[],parts:[],fuses:[],cracks:[],hats:[]};
+  const d={top:true,start:[1,1],checks:[],relays:[],enemies:[],terms:[],goal:null,props:[],plats:[],crates:[],posts:[],plates:[],doors:[],levers:[],bridges:[],conv:[],crumbles:[],anchor:null,zips:[],core:null,beams:[],teles:[],secrets:[],parts:[],fuses:[],cracks:[],hats:[],pages:[]};
   let ti=0;
   for(let y=0;y<H;y++) for(let x=0;x<W;x++){
     const ch=rows[y][x]||'#', k=def.key&&def.key[ch];
@@ -832,6 +853,7 @@ function buildTopData(def){
       case '@': d.crates.push([x,y,1]); break;
       case '*': d.parts.push([x,y]); break;
       case '$': d.hats.push([x,y]); break;
+      case '§': d.pages.push([x,y]); break;
       case '>': d.conv.push([x,y,1,0]); break;
       case '<': d.conv.push([x,y,-1,0]); break;
       case '^': d.conv.push([x,y,0,-1]); break;
@@ -850,7 +872,7 @@ function resetTop(){
   const s=LD.start;
   checks=[s,...LD.checks].map(([x,y],i)=>({x:x*T+8,y:(y+1)*T-3,tx:x,ty:y,on:i===0,raise:i===0?1:0}));
   p={x:s[0]*T+2,y:s[1]*T+2,w:12,h:12,vx:0,vy:0,face:'down',onGround:true,hp:maxHp(),inv:0,walk:0,landV:0,fall:0,pushT:0,plat:null,moving:false};
-  hook={state:'idle',x:0,y:0,dx:0,dy:0,len:0}; rope=0; plats=[]; crumbles=[]; water=null; anchor=null; resetHats(); cpDeaths=0; wind=null; zips=[]; boss=null;
+  hook={state:'idle',x:0,y:0,dx:0,dy:0,len:0}; rope=0; plats=[]; crumbles=[]; water=null; anchor=null; resetHats(); resetPages(); cpDeaths=0; wind=null; zips=[]; boss=null;
   beamsT=LD.beams.map(b=>Object.assign({tiles:[],active:false,warn:false},b));
   enemies=LD.enemies.map(e=>makeEnemy(e.type,e.x,e.y,e)); shots=[];
   relays=LD.relays.map(([x,y])=>({x:x*T+8,y:y*T+8,got:false,ph:Math.random()*6}));
@@ -1102,6 +1124,7 @@ function updateTop(dt,edge){
   for(const r of relays){ if(r.got) continue;
     if(Math.abs(p.x+6-r.x)<11&&Math.abs(p.y+6-r.y)<11) collectRelay(r); }
   for(const h of hats){ if(h.got||!hatOpen(h)) continue; if(Math.abs(p.x+6-h.x)<11&&Math.abs(p.y+6-h.y)<11) collectHat(h); }
+  for(const q of pages){ if(q.got||!pageOpen(q)) continue; if(Math.abs(p.x+6-q.x)<11&&Math.abs(p.y+6-q.y)<11) collectPage(q); }
   // top-down checkpoints are numbered in map order, not the order you reach them: any new one you touch takes over
   checks.forEach((c,i)=>{ if(i!==cp&&Math.abs(p.x+6-c.x)<26&&Math.abs(p.y+6-(c.ty*T+8))<26){ cp=i; cpDeaths=0; c.on=true; burst(c.x,c.y-16,'#ffc23d',10,70); popup(c.x,c.y-34,'CHECKPOINT','#ffc23d'); sfx.check(); takeSnap(); } });
   if(LD.rooms){ const R=LD.rooms, cx0=Math.floor((Math.floor((p.x+6)/T)-1)/R.px), cy0=Math.floor((Math.floor((p.y+6)/T)-1)/R.py), id=cy0*R.cols+cx0;
@@ -1230,7 +1253,7 @@ function drawTop(){
     R(x-14,y-14,28,28,'#15182f'); R(x-12,y-12,24,24,open?'#1d4a36':'#3a1a24');
     for(let i=0;i<24;i+=6) R(x-12+i,y-12,3,24,open?'#2a6a4a':'#5a2030');
     R(x-3,y-8+((tnow*8|0)%4),6,3,open?'#5fe39a':'#ff4150'); R(x-2,y-4+((tnow*8|0)%4),4,2,open?'#5fe39a':'#ff4150'); }
-  drawTerms(); drawChecks(); drawRelays(); drawHats();
+  drawTerms(); drawChecks(); drawRelays(); drawHats(); drawPages();
   for(const c of crates) if(!c.dead&&!hid(c.tx,c.ty)){ if(c.heavy) drawBlock(SX(c.x),SY(c.y)); else drawCrate(SX(c.x),SY(c.y)); }
   drawEnemies();
   const lampPos=drawPlayerTop();
@@ -1260,6 +1283,7 @@ function drawDarkness(){
   for(const c of crates) if(!c.dead) hole(SX(c.x),SY(c.y),36,0.45);
   for(const q of pickups) if(!q.got&&!hid(q.tx,q.ty)) hole(SX(q.x),SY(q.y),44,0.75);
   for(const h of hats) if(!h.got&&hatOpen(h)) hole(SX(h.x),SY(h.y),40,0.7);
+  for(const q of pages) if(!q.got&&pageOpen(q)) hole(SX(q.x),SY(q.y),36,0.6);
   for(const f of fuses) hole(SX(f.tx*T+8),SY(f.ty*T+8),40,0.7);
   for(const b of beamsT) if(b.active) for(const [tx,ty] of b.tiles) hole(SX(tx*T+8),SY(ty*T+8),40,0.6);
   for(const t of LD.teles) hole(SX(t.tx*T+8),SY(t.ty*T+8),50,0.8);
@@ -1773,6 +1797,10 @@ function drawHats(){
   for(const h of hats){ if(h.got||!hatOpen(h)) continue; const x=SX(h.x), y=SY(h.y+Math.sin(tnow*3+h.ph)*1.5); if(x<-30||x>BW+30||y<-30||y>BH+30) continue;
     R(x-9,y+2,18,3,'#c8961c'); R(x-7,y-4,14,6,'#f2c230'); R(x-5,y-6,10,2,'#f2c230'); R(x-4,y-5,4,2,'#ffe487'); R(x-1,y-6,2,4,'#ffd84e'); R(x-9,y+2,18,1,'#ffe487'); }
 }
+function drawPages(){
+  for(const q of pages){ if(q.got||!pageOpen(q)) continue; const x=SX(q.x), y=SY(q.y+Math.sin(tnow*3+q.ph)*1.5); if(x<-30||x>BW+30||y<-30||y>BH+30) continue;
+    R(x-5,y-7,11,14,'#8a8470'); R(x-5,y-7,10,13,'#e8e2cc'); R(x-4,y-6,8,11,'#f7f3e3'); R(x-3,y-4,6,1,'#6a6a7a'); R(x-3,y-2,6,1,'#6a6a7a'); R(x-3,y,4,1,'#6a6a7a'); R(x-3,y+3,5,1,'#b03030'); }
+}
 function drawRelays(){
   for(const r of relays){ if(r.got||(MODE==='top'&&hid(Math.floor(r.x/T),Math.floor(r.y/T)))) continue;
     const x=SX(r.x), y=SY(r.y+Math.sin(tnow*3+r.ph)*1.5); if(x<-30||x>BW+30) continue;
@@ -1942,6 +1970,7 @@ function drawGlows(lampPos){
     gl(x,y,l.col,l.size,l.flick?0.45+0.08*Math.sin(tnow*13)*Math.sin(tnow*7):0.7); }
   for(const r of relays) if(!r.got&&!(MODE==='top'&&hid(Math.floor(r.x/T),Math.floor(r.y/T)))){ gl(SX(r.x),SY(r.y),'#5fe39a',44,0.28+0.12*Math.sin(tnow*4+r.ph)); }
   for(const h of hats) if(!h.got&&hatOpen(h)) gl(SX(h.x),SY(h.y),'#ffe08a',40,0.3+0.12*Math.sin(tnow*4+h.ph));
+  for(const q of pages) if(!q.got&&pageOpen(q)) gl(SX(q.x),SY(q.y),'#f7f3e3',36,0.25+0.1*Math.sin(tnow*4+q.ph));
   for(const e of enemies) if(e.alive&&!(MODE==='top'&&hid(Math.floor(e.x/T),Math.floor(e.y/T)))){
     if(e.type==='drone'||e.type==='hunter') gl(SX(e.x+e.dir*2),SY(e.y+Math.sin(e.ph*3)*2),'#ff4150',26,0.6);
     else if(e.type==='seeker') gl(SX(e.x+e.dir*2),SY(e.y),'#7dff6a',30,0.6);
@@ -2001,7 +2030,7 @@ function draw(){
   if(boss&&boss.band) drawBand(boss.band);
   drawPlats();
   drawCrumbles();
-  drawTerms(); drawGoal(); drawChecks(); drawRelays(); drawHats(); drawEnemies();
+  drawTerms(); drawGoal(); drawChecks(); drawRelays(); drawHats(); drawPages(); drawEnemies();
   const lampPos=drawPlayer();
   drawParts(false);
   drawWater();
@@ -2036,7 +2065,8 @@ function pickHint(){
   let hi=null; const tx=p.x/T; (LDEF.hints||[]).forEach((h,i)=>{if(tx>=h[0])hi=i;}); return hi;
 }
 function hud(){
-  if(state!=='play'&&state!=='pause'&&state!=='winning'){ if(lastHint!=='none'){ lastHint='none'; hintEl.textContent=''; } return; }
+  if(state!=='play'&&state!=='pause'&&state!=='winning'){ if(lastHint!=='none'){ lastHint='none'; hintEl.textContent=''; } $('pageCard').hidden=true; return; }
+  $('pageCard').hidden=!(tnow<pageUntil);
   const cab=hook.state==='att'?(rope/16).toFixed(1)+' m':'— m'; cabEl.parentElement.hidden=MODE==='top';
   const nt=terms.filter(t=>t.state==='done').length, act=terms.find(t=>t.state==='active');
   const net=terms.length?(act?Math.floor(act.prog*100)+'%':nt+'/'+terms.length):'';
@@ -2060,7 +2090,7 @@ function setHints(on){ hintsOn=on; store.set('hints',on); $('hintsBtn').textCont
 
 // ---------- flow & UI ----------
 let drawnPaused=false;
-const OVS={title:'ovTitle',levels:'ovLevels',brief:'ovBrief',pause:'ovPause',win:'ovWin',end:'ovEnd'};
+const OVS={title:'ovTitle',levels:'ovLevels',brief:'ovBrief',pause:'ovPause',win:'ovWin',end:'ovEnd',dossier:'ovDossier'};
 function setUI(){
   const playing=state==='play', inRun=playing||state==='pause'||state==='winning';
   hudEl.hidden=!inRun;
@@ -2075,6 +2105,7 @@ function setUI(){
   $('resetPuzzleBtn').hidden=MODE!=='top';
   if(!playing) clearTouch();
 }
+const pagesLine=i=>{ const t=PAGES.filter(e=>e.lv===i+1); return t.length?` · Pages ${t.filter(e=>pageFound(e.id)).length}/${t.length}`:''; };
 const nextLevelIdx=()=>Math.min(save.unlocked,LEVELS.length)-1;
 function refreshTitle(){
   const n=nextLevelIdx();
@@ -2091,7 +2122,7 @@ function openLevels(){
     if(i===0||LEVELS[i-1].act!==lv.act){ const h=document.createElement('p'); h.className='act-head'; h.textContent=`ACT ${lv.act||1} · ${(ACTS[(lv.act||1)-1]||'').toUpperCase()}`; el.appendChild(h); }
     const b=document.createElement('button'), best=save.best[i], locked=i>=save.unlocked;
     b.type='button'; b.className='lvl-item'+(best?' done':''); b.disabled=locked;
-    b.innerHTML=`<span class="n">${i+1}</span><span class="t"><b>${lv.name.toUpperCase()}${lv.mode==='top'?' <em>TOP-DOWN</em>':''}</b><small>${locked?'Locked':best?`Record ${fmt(best.time)} · ${best.relays}/${best.total||'?'} relays`:'Not cleared yet'}</small></span>`;
+    b.innerHTML=`<span class="n">${i+1}</span><span class="t"><b>${lv.name.toUpperCase()}${lv.mode==='top'?' <em>TOP-DOWN</em>':''}</b><small>${locked?'Locked':best?`Record ${fmt(best.time)} · ${best.relays}/${best.total||'?'} relays`:'Not cleared yet'}${pagesLine(i)}</small></span>`;
     b.addEventListener('click',()=>{ sfx.click(); openBrief(i); });
     el.appendChild(b);
   });
@@ -2137,7 +2168,7 @@ function showWin(){
     const ae=LDEF.actEnd||{title:'SIGNAL HOLDS',text:LDEF.outro}, words=ae.title.split(' ');
     $('endKicker').textContent=LI===LEVELS.length-1?'THE END':`ACT ${LDEF.act||1} COMPLETE`;
     $('endTitle').innerHTML=words[0]+(words.length>1?' <span>'+words.slice(1).join(' ')+'</span>':'');
-    $('endText').textContent=ae.text; typeReport('endReport',LDEF.report);
+    $('endText').textContent=ae.text+(LI===LEVELS.length-1?' '+dossierVerdict():''); typeReport('endReport',LDEF.report);
     $('endBtn').textContent=LI<LEVELS.length-1?`Start act ${LEVELS[LI+1].act}`:'Back to title';
     const tot=Object.values(save.best).reduce((a,b)=>a+b.time,0), rel=Object.values(save.best).reduce((a,b)=>a+b.relays,0), all=LEVELS.length;
     $('endStats').textContent=`Final level ${fmt(clock)} · ${got}/${relays.length} relays · Best total ${fmt(tot)} · ${rel} relays across ${Object.keys(save.best).length}/${all} levels`;
@@ -2146,7 +2177,7 @@ function showWin(){
   state='win';
   $('winTitle').textContent='NETWORK SECURED';
   $('winOutro').textContent=LDEF.outro; typeReport('winReport',LDEF.report);
-  $('winStats').textContent=`${LDEF.name} · ${fmt(clock)} · Relays ${got}/${relays.length} · Falls ${falls}`;
+  $('winStats').textContent=`${LDEF.name} · ${fmt(clock)} · Relays ${got}/${relays.length} · Falls ${falls}`+(pages.length?` · Pages ${pages.filter(q=>q.got).length}/${pages.length}`:'');
   $('winBest').textContent=better?(prev?'New record!':'Level cleared.'):`Record: ${fmt(prev.time)} · ${prev.relays}/${prev.total||relays.length} relays`;
   setUI();
 }
@@ -2163,6 +2194,9 @@ const on=(id,fn)=>$(id).addEventListener('click',fn);
 on('startBtn',()=>{ sfx.click(); continueGame(); });
 on('levelsBtn',()=>{ Snd.init(); sfx.click(); openLevels(); });
 on('levelsBack',()=>{ sfx.click(); toTitle(); });
+on('dossierBtn',()=>{ Snd.init(); sfx.click(); openDossier('title'); });
+on('pauseDossierBtn',()=>{ sfx.click(); openDossier('pause'); });
+on('dossierBack',()=>{ sfx.click(); closeDossier(); });
 on('briefGo',startLevel);
 on('againBtn',()=>{ reset(); startLevel(); });
 on('nextBtn',()=>openBrief(LI+1));
@@ -2291,7 +2325,7 @@ if(/[?&]debug\b/.test(location.search)) window.__rr={
   start(i){ openBrief(i); startLevel(); return this.info(); },
   teleport(x,y){ p.x=x; p.y=y; p.vx=p.vy=0; hook.state='idle'; },
   tile, enemies:()=>enemies, terms:()=>terms, p:()=>p,
-  mode:()=>MODE, plats:()=>plats, pickups:()=>pickups, partsHeld:()=>partsHeld, fuses:()=>fuses, crumbles:()=>crumbles, water:()=>water, pulseCd:()=>pulseCd, hats:()=>hats, cracks:()=>cracks, shots:()=>shots, cpDeaths:()=>cpDeaths, maxHp, def:()=>LDEF, visited:()=>visited, anchor:()=>anchor, wind:()=>wind, zips:()=>zips, boss:()=>boss, beams:()=>beamsT, hook:()=>hook, crates:()=>crates, gstate:()=>gstate, levers:()=>levers, pitT, wallT, solidT, LD:()=>LD
+  mode:()=>MODE, plats:()=>plats, pickups:()=>pickups, partsHeld:()=>partsHeld, fuses:()=>fuses, crumbles:()=>crumbles, water:()=>water, pulseCd:()=>pulseCd, hats:()=>hats, pages:()=>pages, cracks:()=>cracks, shots:()=>shots, cpDeaths:()=>cpDeaths, maxHp, def:()=>LDEF, visited:()=>visited, anchor:()=>anchor, wind:()=>wind, zips:()=>zips, boss:()=>boss, beams:()=>beamsT, hook:()=>hook, crates:()=>crates, gstate:()=>gstate, levers:()=>levers, pitT, wallT, solidT, LD:()=>LD
 };
 
 if('serviceWorker' in navigator && /^https?:$/.test(location.protocol)) addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));

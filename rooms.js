@@ -7,7 +7,7 @@
 const RW=13, RH=9, PX=RW+1, PY=RH+1;                 // interior size and cell pitch
 const SIDES=['N','E','S','W'], OPP={N:'S',S:'N',E:'W',W:'E'};
 const DOOR_LOCAL={N:[6,-1],S:[6,9],W:[-1,4],E:[13,4]};
-const RESERVED=new Set(['#',' ','.','C','o','P','X','K','R','T','S','Z','Q','H','M','%','*','@','<','>','^','v','$']);
+const RESERVED=new Set(['#',' ','.','C','o','P','X','K','R','T','S','Z','Q','H','M','%','*','@','<','>','^','v','$','§']);
 const TRIG_POOL=('abdefghijklmnpqrstuwxyz'+'àáâãäåæçèéêëìíîïðñòóôõöøùúûüýþÿ').split('');
 const DOOR_POOL=('ABDEFGIJLNOUVWY0123456789!&()+-=?[]{}|~'+'ÀÁÂÃÄÅÆÇÈÉÊËÌÍÎÏÐÑÒÓÔÕÖØÙÚÛÜÝÞß').split('').filter(c=>!RESERVED.has(c));
 const MIRX={'<':'>','>':'<'}, MIRY={'^':'v','v':'^'}, MIRDX={left:'right',right:'left'}, MIRDY={up:'down',down:'up'};
@@ -169,6 +169,8 @@ function compose(def){
   { let spare=shuffle(branches.filter(c=>!c.type&&Object.keys(c.links).length===1)); if(!spare.length) spare=shuffle(branches.filter(c=>!c.type&&c.parent&&!c.parent.type)); /* no spare leaf: seal off a small side branch instead */ const hr=spare.pop(); if(hr){ hr.type='hatRoom'; const side=Object.keys(hr.links)[0]; hr.links[side].kind='secret'; hr.links[side].to.links[OPP[side]].kind='secret'; } }
   for(const c of branches) if(!c.type) c.type=rnd()<0.6?'den':'partRoom'; // spare part rooms give a little slack
   const spareParts=branches.filter(c=>c.type==='partRoom'&&!partCells.includes(c)); for(const c of spareParts) c.type='den';
+  // dossier pages: a sealed corner pocket in a side room, spread along the route
+  { const cands=branches.filter(c=>c.type==='den'||c.type==='partRoom').sort((a,b)=>a.attach-b.attach), want=G.pages??1; for(let i=0;i<want&&cands.length;i++) cands[Math.min(cands.length-1,Math.floor((i+0.5)*cands.length/want))].page=true; }
   // ---- emit tiles
   const g=Array.from({length:H},()=>new Array(W).fill('#'));
   const keyDef={}, hints=[]; let trig=0, door=0, teleId=0;
@@ -190,7 +192,9 @@ function compose(def){
       tele(lx,ly,ch){ if(!ch){ ch=nextTrig(); keyDef[ch]={t:'tele',id:String(++teleId)}; } this.put(lx,ly,ch); return ch; } };
     const map=(lx,ly)=>[ox+(ctx.flipX?RW-1-lx:lx),oy+(ctx.flipY?RH-1-ly:ly)];
     if(t.gate&&nextSide){ ctx.exitGroup=ctx.group(); }
-    t.build(ctx); c.flipX=ctx.flipX; c.flipY=ctx.flipY; c.exitGroup=ctx.exitGroup; c.pitNS=ctx.pitNS; c.meta=ctx.meta; c.latchMode=ctx.latchMode;
+    t.build(ctx);
+    if(c.page){ for(const [px,py] of [[0,7],[1,7],[2,7],[2,8]]) ctx.put(px,py,'#'); ctx.put(1,7,'%'); ctx.put(0,8,'§'); ctx.meta.page={stand:[1,6],face:'down',crack:[1,7],at:[0,8]}; }
+    c.flipX=ctx.flipX; c.flipY=ctx.flipY; c.exitGroup=ctx.exitGroup; c.pitNS=ctx.pitNS; c.meta=ctx.meta; c.latchMode=ctx.latchMode;
     if(c.type==='terminalRoom') c.exitGroup='term'+c.termIndex;
     if(c.type==='broodRoom') c.exitGroup='boss';
     // a checkpoint sits inside the entry door of every main-path room
@@ -208,12 +212,12 @@ function compose(def){
     else g[gy][gx]='.'; }
   if(!taught.has('secret')){ const sc=cells.find(c=>c.type!=='partRoom'&&Object.values(c.links).some(l=>l.kind==='secret')); if(sc){ taught.add('secret'); hints.push([sc.ox+6,sc.oy+4,"Some walls are cracked, and dust drifts off them. Fire your cable at a crack to break through."]); } }
   // route for the test bot: walk the main path, detouring into every branch that holds a part
-  const route=[]; const visitBranch=(c,from)=>{ for(const [s,n] of c.tree){ if(n.mainIdx!=null) continue; const has=n.type==='partRoom'||n.tree.some(([,m])=>subHasPart(m)); if(!has) continue; route.push({go:n,via:c}); route.push({solve:n}); visitBranch(n,c); route.push({go:c,via:n}); } };
-  const subHasPart=n=>n.type==='partRoom'||n.tree.some(([,m])=>subHasPart(m));
-  main.forEach((c,i)=>{ if(i>0) route.push({go:c,via:main[i-1]}); visitBranch(c); if(c.type!=='startRoom') route.push({solve:c}); });
+  const route=[]; const visitBranch=(c,from)=>{ for(const [s,n] of c.tree){ if(n.mainIdx!=null) continue; const has=subHasPart(n); if(!has) continue; route.push({go:n,via:c}); route.push({solve:n}); if(n.page) route.push({page:n}); visitBranch(n,c); route.push({go:c,via:n}); } };
+  const subHasPart=n=>n.type==='partRoom'||n.page||n.tree.some(([,m])=>subHasPart(m));
+  main.forEach((c,i)=>{ if(i>0) route.push({go:c,via:main[i-1]}); visitBranch(c); if(c.type!=='startRoom') route.push({solve:c}); if(c.page) route.push({page:c}); });
   const cfgs=G.terms||[{time:G.time||14,waves:G.waves||[[0.15,'skitter'],[0.5,'skitter','hunter'],[0.8,'skitter','skitter']]}];
   const terms=[]; termCells.forEach((c,i)=>{ terms[c.termIndex]=Object.assign({},cfgs[Math.min(i,cfgs.length-1)],{parts:c.need}); });
-  return {map:g.map(r=>r.join('')),key:keyDef,terms,hints,rooms:{cols,rows,px:PX,py:PY,cells:cells.map(c=>({cx:c.cx,cy:c.cy,type:c.type,ox:c.ox,oy:c.oy,mainIdx:c.mainIdx,links:Object.fromEntries(Object.entries(c.links).map(([s,l])=>[s,{to:l.to.id,kind:l.kind}])),flipX:c.flipX,flipY:c.flipY,pitNS:c.pitNS,termIndex:c.termIndex,pside:c.pside,exitGroup:c.exitGroup,meta:c.meta,need:c.need}))},route:route.map(s=>s.go?{go:s.go.id,via:s.via.id}:{solve:s.solve.id})};
+  return {map:g.map(r=>r.join('')),key:keyDef,terms,hints,rooms:{cols,rows,px:PX,py:PY,cells:cells.map(c=>({cx:c.cx,cy:c.cy,type:c.type,ox:c.ox,oy:c.oy,mainIdx:c.mainIdx,links:Object.fromEntries(Object.entries(c.links).map(([s,l])=>[s,{to:l.to.id,kind:l.kind}])),flipX:c.flipX,flipY:c.flipY,pitNS:c.pitNS,termIndex:c.termIndex,pside:c.pside,exitGroup:c.exitGroup,meta:c.meta,need:c.need}))},route:route.map(s=>s.go?{go:s.go.id,via:s.via.id}:s.page?{page:s.page.id}:{solve:s.solve.id})};
 }
 // compose every generated level once, in campaign order, so teaching hints appear only the first time a room type is used
 function composeAll(levels){ taught.clear(); for(const lv of levels) if(lv.mode==='top'&&lv.gen){ const c=compose(lv); Object.assign(lv,{map:c.map,key:c.key,terms:c.terms,hints:c.hints,rooms:c.rooms,route:c.route}); } }

@@ -104,6 +104,8 @@ const WALK = window.WALK = {
     for(;i<end;i++){ if(performance.now()-t0>maxMs){ log.push('PAUSED at step '+i); break; }
       const step=def.route[i];
       if(step.solve!=null){ const c=byId(step.solve); const t=RR.TYPES[c.type]; log.push(c.cx+','+c.cy+' '+c.type+': '+(t.solve?t.solve(T,Rof(c)):'-')); continue; }
+      if(step.page!=null){ const c=byId(step.page), R=Rof(c), m=c.meta.page; const n0=r.pages().filter(q=>q.got).length; const [cx2,cy2]=R.g(...m.crack), [sx,sy]=R.g(...m.stand);
+        const s=T.grappleSecret(sx,sy,R.dir(m.face),cx2,cy2)+' '+T.walkTo(...R.g(...m.at)); log.push('  page '+s+(r.pages().filter(q=>q.got).length>n0?' got':' NOT GOT')); T.walkTo(sx,sy); continue; }
       const to2=byId(step.go); const side=Object.keys(cur.links).find(s=>cur.links[s].to===to2.cy*def.rooms.cols+to2.cx); if(!side){ log.push('NO LINK '+cur.cx+','+cur.cy+' -> '+to2.cx+','+to2.cy); continue; }
       const ct=RR.TYPES[cur.type]; if(ct.cross&&fromSide&&fromSide!==side) log.push('  cross '+ct.cross(T,Rof(cur),fromSide,side));
       const [dx,dy]=RR.DOOR_LOCAL[side], door=[cur.ox+dx,cur.oy+dy];
@@ -123,9 +125,9 @@ const WALK = window.WALK = {
     for(const s of def.sections){ if(s.name!=='goal'&&r.info().tx>=s.x+s.w-2){ if(s.name==='towerDeck'||s.name==='groundDeck') ctx.termIndex++; skipped++; continue; }
       if(performance.now()-t0>(o.maxMs||38000)){ log.push('PAUSED before '+s.name+' at '+s.x); paused=true; break; }
       if(problem){ r.teleport((s.x+1)*16,s.g*16-20); r.run(5); log.push('  (skipped ahead to '+s.name+' at '+s.x+')'); }   // a failed section would otherwise sink every later check
-      const res=S[s.name].check(T,s.x,s.g,ctx); if(s.name==='towerDeck'||s.name==='groundDeck') ctx.termIndex++; log.push(s.x+' '+res); problem=/FELL|FAILED|timeout|no platform|NO CATCH|LOST/.test(res); if(problem) log.push('  ^ problem in '+s.name+' at '+s.x); }
+      const res=(s.page&&S[s.name].pageCheck?S[s.name].pageCheck:S[s.name].check)(T,s.x,s.g,ctx); if(s.name==='towerDeck'||s.name==='groundDeck') ctx.termIndex++; log.push(s.x+' '+res); problem=/FELL|FAILED|timeout|no platform|NO CATCH|LOST/.test(res); if(problem) log.push('  ^ problem in '+s.name+' at '+s.x); }
     if(skipped) log.unshift(skipped+' sections already passed');
-    if(!paused){ r.run(30); log.push('RESULT '+r.info().state+' hp '+r.p().hp+' falls '+r.info().falls+' relays '+r.info().got+' clock '+document.getElementById('tim').textContent); }
+    if(!paused){ r.run(30); log.push('RESULT '+r.info().state+' hp '+r.p().hp+' falls '+r.info().falls+' relays '+r.info().got+' pages '+r.pages().filter(q=>q.got).length+'/'+r.pages().length+' clock '+document.getElementById('tim').textContent); }
     return log.join('\n'); }
 };
 })();

@@ -61,7 +61,7 @@ const LEVELS = [
     [[8,21],[30,17],[59,23],[76,14],[96,11],[88,6],[126,2]].forEach(r=>B.relay(...r));
     B.drone(26,36,21); B.drone(66,74,21); B.drone(116,124,2);
     B.terminal(103,2,{time:12,waves:[[0.12,'hunter','hunter'],[0.55,'hunter','hunter','hunter']]});
-    B.goal(132,2); B.crack(40,21,false); B.hat(41,21); B.hat(60,8); B.girder(73,75,8);
+    B.goal(132,2); B.crack(40,21,false); B.hat(41,21); B.hat(60,8); B.girder(73,75,8); B.page(74,7);
     B.prop('tower',{x0:85.4,x1:99.6,top:3,row:21});
     B.prop('pylon',{x:110,top:4,row:21}); B.prop('pylon',{x:124,top:4,row:21});
     B.prop('chains',{x:50.5,row:11,len:34}); B.prop('chains',{x:57.5,row:11,len:22}); B.prop('chains',{x:63.5,row:11,len:40}); B.prop('chains',{x:69.5,row:11,len:26});
@@ -83,7 +83,7 @@ const LEVELS = [
 // ------------------------------------------------------------------ 2
 {
   act:1, name:'Harrow Quarry', place:'Relay HQ-2 · 21:15', theme:'quarry',
-  sgen:{seed:2,len:400,tier:1,g:38,pool:['flat','gap','ceilingSwing','cableHazard','climbOver','drones','slabTunnel','dip','twoTier','shaftUp','dropDown']},
+  sgen:{pages:2,seed:2,len:400,tier:1,g:38,pool:['flat','gap','ceilingSwing','cableHazard','climbOver','drones','slabTunnel','dip','twoTier','shaftUp','dropDown']},
   brief:"Relay HQ-2 in the old quarry went dark at the same minute as Kestrel. The night crew radioed about “something” moving on the quarry floor, then stopped answering.",
   outro:"Those weren't animals. Head office says keep it quiet. Head office is wrong.",
   report:"Quarry relay rerouted. The drones talk on a signal nobody at the station recognises: it rides on top of our own carrier. The interference team says it isn't terrestrial.",
@@ -160,7 +160,7 @@ const LEVELS = [
   brief:"Whatever they dropped burrowed straight into Relay Vault 7 and grew a hive around it. Every signal in the region routes through that vault. Go in, reroute both terminals, and get back out.",
   outro:"",
   report:"Vault 7 rerouted. The hive had grown around our own relay: they use our network to find the rest of it. Expect them to dig.",
-  gen:{cols:5,rows:3,seed:10,terminals:2,need:[1,2],mainLen:9,secret:0.6,tier:2,hold:3.0,loops:2,
+  gen:{cols:5,rows:3,pages:2,seed:10,terminals:2,need:[1,2],mainLen:9,secret:0.6,tier:2,hold:3.0,loops:2,
        types:['plateCrate','leverGate','heavyPair','postPit','cagedFuse','den','timedPlate','sokoban'],
        terms:[{time:14,waves:[[0.1,'skitter','skitter'],[0.45,'leech','seeker'],[0.75,'skitter','skitter','leech']]},
               {time:16,waves:[[0.08,'seeker','hunter'],[0.3,'leech','leech','skitter'],[0.55,'skitter','skitter','seeker'],[0.8,'leech','leech','skitter']]}]}
@@ -283,7 +283,7 @@ const LEVELS = [
     // side perches to dodge onto
     B.girder(6,13,32); B.girder(57,64,32); B.girder(6,13,25); B.girder(57,64,25); B.girder(6,13,18); B.girder(57,64,18);
     B.anchor(35,[35,28,21,14]);
-    B.start(4,35); B.check(64,35); B.crack(25,4,false); B.hat(25,3); B.crack(45,4,false); B.hat(45,3);
+    B.start(4,35); B.check(64,35); B.crack(25,4,false); B.hat(25,3); B.crack(45,4,false); B.hat(45,3); B.page(60,24);
     [[10,31],[60,31],[10,24],[60,24],[27,14],[43,14]].forEach(r=>B.relay(...r));
     B.prop('sign',{x:3,row:35}); B.prop('crates',{x:14,row:35}); B.prop('drum',{x:52,row:35}); B.prop('cone',{x:66,row:35});
   },
@@ -359,7 +359,7 @@ const LEVELS = [
     B.girder(8,26,12); B.girder(46,64,12);
     B.platform(27,40,27,12,4,{speed:40}); B.platform(42,40,42,12,4,{speed:40,phase:1});
     B.core(36,19,[[10,33],[61,33],[18,20],[53,20]]);
-    B.start(4,39); B.check(68,39); B.steel(10,12,28,29); B.crack(11,29,false); B.hat(11,28); B.steel(60,62,28,29); B.crack(61,29,false); B.hat(61,28);
+    B.start(4,39); B.check(68,39); B.page(5,25); B.steel(10,12,28,29); B.crack(11,29,false); B.hat(11,28); B.steel(60,62,28,29); B.crack(61,29,false); B.hat(61,28);
     [[7,33],[64,33],[20,20],[51,20],[36,27],[15,11]].forEach(r=>B.relay(...r));
   },
   hints:[
@@ -369,6 +369,36 @@ const LEVELS = [
 }
 ];
 
+// the cover-up dossier: one page hidden per level (two in a couple of them), collected in any order, kept across runs
+window.RR_PAGES=[
+  {lv:1,title:"KRX-7 maintenance log, torn out",text:"'Ministry inspection, 14 months ago. They asked about the tower's bearing to the coast. Not about the tower.'"},
+  {lv:2,title:"Quarry haulage ticket",text:"A sealed container delivered to the pit floor. Consignee: Ministry of Signals, Project HALYARD."},
+  {lv:2,title:"Photograph, overexposed",text:"A dark hull in the clouds. Pencilled on the back: 'Not the first one. R.'"},
+  {lv:3,title:"Dam engineer's memo",text:"'Told to log the tremors as turbine resonance. They are not turbine resonance.'"},
+  {lv:4,title:"Rooftop lease, Meridian block",text:"Paid from a numbered ministry account for 'antenna trials'. The antenna was never ours."},
+  {lv:5,title:"HALYARD briefing fragment",text:"'Signature first recorded 9 yrs ago. Public disclosure NOT RECOMMENDED. Monitor the coast.'"},
+  {lv:6,title:"Pylon inspection sheet",text:"Every box ticked OK. Stapled behind it: a photo of the same pylon with something nesting in it."},
+  {lv:7,title:"Substation shift log",text:"'Men in grey suits took the switching records. Said they were ministry. Didn't show ID.'"},
+  {lv:8,title:"Weather service draft, unpublished",text:"'The valley event is not meteorological. Recommend evacuation.' Stamped WITHHELD."},
+  {lv:9,title:"Freight manifest",text:"'Alien plating, 4 tonnes, destination REDACTED.' Somebody has been collecting it for longer than we have been fighting."},
+  {lv:10,title:"Vault 7 access list",text:"The last visitor before the hive: a HALYARD badge, two weeks before the first drone."},
+  {lv:10,title:"Lab note, Vault 7",text:"'The hive routes signal through our relays by design. They learned our network from someone.'"},
+  {lv:11,title:"Drill telemetry printout",text:"Alien glyphs down one side, ministry letterhead down the other."},
+  {lv:12,title:"Tunnel survey, seven years old",text:"The burrow shafts are already drawn in, labelled 'anomalous voids. Do not disclose.'"},
+  {lv:13,title:"Pumping station work order",text:"'Keep the sump open on request from HALYARD.' Signed the night the station flooded."},
+  {lv:14,title:"Survey marker tag, brood chamber",text:"'HALYARD site 3, mapped. Specimen contained.' It was not contained."},
+  {lv:15,title:"Gorge clearance notice",text:"Residents moved out 'for landslide works'. The tether came down a week later."},
+  {lv:16,title:"Coastguard log",text:"'Towers going up on the hills overnight. Told to stand down by the ministry.'"},
+  {lv:17,title:"Array schematic, second sheet",text:"A mode nobody told us about: it turns the array into a jammer of its own."},
+  {lv:18,title:"HALYARD memo",text:"'The fleet will arrive regardless. Objective: be first to the Mothership's core.' They wanted it, not us."},
+  {lv:19,title:"Lanyard, alien console",text:"A ministry badge, clipped to their equipment. Somebody from HALYARD was here before us."},
+  {lv:20,title:"Signed order",text:"'Let the jammers stand until the fleet lands. Then we take the core.' Secretary, Project HALYARD."},
+];
+window.RR_DOSSIER_END={
+  full:"Every page of the dossier is accounted for. The ministry had the ship's signature on file for nine years, its survey crews mapped the burrows, and the jammers went up on land the government cleared. Project HALYARD invited this, and wanted the core for itself. The broadcast goes out with all of it attached.",
+  partial:"Most of the dossier is here: enough to prove the ministry knew, not enough to prove who signed. The missing pages are still out there.",
+  thin:"The dossier is thin. Whatever the ministry knew stays buried for now. The pages are still out there, if anyone goes back for them."
+};
 window.RR_LEVELS = LEVELS;
 window.RR_ACTS = ['Lights Out','Interference','Undertow','Signal'];
 })();

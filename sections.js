@@ -79,13 +79,38 @@ const SECTIONS={
     build(B,x,g,c){ B.terminal(x+20,g-1,c.term); B.check(x+6,g-1); B.relay(x+12,g-1); B.relay(x+34,g-1);
       B.prop('fence',{x0:x+8,x1:x+16,row:g-1}); B.prop('crates',{x:x+30,row:g-1}); B.prop('antenna',{x:x+24,row:g-1}); B.prop('pylon',{x:x+38,top:g-14,row:g-1});
       if(c.tier>=2) B.enemy('skitter',x+36,g-1); B.drone(x+26,x+40,g-4); },
-    check(T,x,g,c){ return 'ground deck '+T.walkFight(x+20)+' '+T.defendSide(c.termIndex)+' '+T.walkTill(x+42,g); } },
+    check(T,x,g,c){ return 'ground deck '+T.walkFight(x+20)+' '+T.defendSide(c.termIndex)+' '+T.walkFight(x+42); } },
+  // ---- over/under and elevation sections: from level 2 on, the route stops being one flat line
+  // a raised slab with a tunnel underneath: walk under (skitters) or climb over from the girder stub (a drone, a relay)
+  slabTunnel:{w:24,tier:1,ground:[[0,23]],hint:"Over or under? The tunnel is quicker; the top is quieter.",
+    build(B,x,g,c){ B.steel(x+6,x+17,g-6,g-3); B.girder(x+1,x+6,g-7); B.relay(x+12,g-7); B.relay(x+9,g-1); B.enemy('skitter',x+11,g-1); if(c.tier>=2) B.enemy('skitter',x+15,g-1); if(c.tier>=2) B.drone(x+8,x+16,g-7); B.prop('sign',{x:x+3,row:g-1}); B.prop('vent',{x:x+20,row:g-1}); },
+    check(T,x){ return 'tunnel '+T.walkFight(x+23); } },
+  // the same slab over live cable: hook its underside and swing through in short arcs, or take the top
+  slabSparks:{w:28,tier:2,ground:[[0,27]],hint:"Live cable under the slab. Hook the slab's underside and swing over it, or go over the top.",
+    build(B,x,g,c){ B.steel(x+6,x+21,g-8,g-5); B.girder(x+1,x+6,g-9); B.sparks(x+10,x+11,g-1); B.sparks(x+16,x+17,g-1); B.relay(x+13,g-1); B.relay(x+13,g-9); B.drone(x+8,x+19,g-9); B.prop('chains',{x:x+13,row:g-4,len:20}); if(c.tier>=3) B.enemy('seeker',x+24,g-4); },
+    check(T,x,g){ return 'slab '+T.walkFight(x+2)+' '+T.climb()+' '+T.walkFight(x+26); } },
+  // two tiers: a long live cable on the ground, girders at two heights above it
+  twoTier:{w:32,tier:1,ground:[[0,31]],hint:"The cable runs the whole way. Climb to the first girder, up to the second, and drop off its far end.",
+    build(B,x,g,c){ B.girder(x+2,x+14,g-6); B.girder(x+12,x+28,g-11); B.sparks(x+7,x+26,g-1); B.relay(x+8,g-7); B.relay(x+20,g-12); B.prop('fence',{x0:x+3,x1:x+6,row:g-1}); if(c.tier>=2) B.drone(x+14,x+26,g-12); B.prop('pylon',{x:x+29,top:g-12,row:g-1}); },
+    check(T,x,g){ return 'tiers '+T.walkFight(x+4)+' '+T.climb()+' '+T.walkSide(x+13)+' '+T.climb()+' '+T.walkFight(x+30); } },
+  // a shaft of staggered girders up to a higher ledge
+  shaftUp:{w:20,tier:2,dg:-12,grounds:g=>[[0,9,g],[10,19,g-12]],hint:"Up the shaft: the girders stagger. Fire up from under each one.",
+    build(B,x,g,c){ B.girder(x+5,x+9,g-4); B.girder(x+7,x+11,g-8); B.girder(x+5,x+9,g-12); B.relay(x+7,g-9); B.relay(x+14,g-13); B.prop('tower',{x0:x+4.4,x1:x+10.6,top:g-12,row:g-1}); if(c.tier>=3) B.enemy('seeker',x+3,g-6); B.prop('antenna',{x:x+16,row:g-13}); },
+    check(T,x,g){ let s='shaft '+T.walkFight(x+8); for(let i=0;i<3;i++){ s+=' '+T.climb(); T.walkSide(x+8); } return s+' '+T.walkTill(x+18,g-12); } },
+  // a hollow under a boulder: drop in, walk the hollow, hook the girder past it to climb out
+  dip:{w:20,tier:1,depth:4,grounds:g=>[[0,5,g],[6,14,g+4],[15,19,g]],hint:"A hollow under the rock. Drop in, and hook the girder past the boulder to climb out.",
+    build(B,x,g,c){ B.rock(x+6,x+12,g-10,g-3); B.girder(x+13,x+16,g-3); B.relay(x+9,g+3); B.enemy('skitter',x+10,g+3); if(c.tier>=2) B.enemy('spitter',x+7,g+3); B.prop('sign',{x:x+3,row:g-1}); B.prop('drum',{x:x+18,row:g-1}); },
+    check(T,x,g){ return 'dip '+T.walkTill(x+8,g+4)+' '+T.walkFight(x+14)+' '+T.climb()+' '+T.walkTill(x+18,g); } },   // x+14: a shot from the boulder's edge column would hook its underside
+  // a pit under a low ceiling: short-rope swings, several in a row
+  lowCeilingPit:{w:22,tier:2,ground:[[0,4],[15,21]],hint:"Low ceiling over the pit: short swings. Hook, swing, let go, hook again.",
+    build(B,x,g,c){ B.steel(x+2,x+17,g-6,g-5); B.prop('chains',{x:x+8,row:g-4,len:10}); B.prop('chains',{x:x+12,row:g-4,len:12}); B.relay(x+9,g+1); B.prop('cone',{x:x+16.4,row:g-1}); if(c.tier>=3) B.enemy('seeker',x+19,g-3); },
+    check(T,x,g){ return 'low '+T.swingAcross(x+4,g,x+15,{rope:48,vxRel:90}); } },
   towerDeck:{w:60,tier:1,ground:[[0,59]],hint:"Climb the tower one girder at a time: fire up, reel in, step over. Reroute the terminal on the deck.",
     build(B,x,g,c){ B.girder(x+4,x+10,g-5); B.girder(x+8,x+14,g-10); B.girder(x+2,x+10,g-15); B.girder(x+8,x+52,g-19);
       B.terminal(x+30,g-20,c.term); B.check(x+12,g-20); B.relay(x+6,g-16); B.relay(x+44,g-20);
       B.prop('tower',{x0:x+1.4,x1:x+15.6,top:g-19,row:g-1}); B.prop('pylon',{x:x+24,top:g-18,row:g-1}); B.prop('pylon',{x:x+40,top:g-18,row:g-1}); B.prop('dish',{x:x+36,row:g-20});
       if(c.tier>=2) B.enemy('skitter',x+22,g-20); B.drone(x+34,x+48,g-20); },
-    check(T,x,g,c){ let s='deck '+T.walkFight(x+5); for(let i=0;i<4;i++){ let cl=T.climb(); if(/FAILED/.test(cl)){ T.walkSide(x+9); cl=T.climb(); } s+=' '+cl; T.walkSide(x+9); } s+=' '+T.walkFight(x+30)+' '+T.defendSide(c.termIndex); return s+' '+T.walkTill(x+56,g); } },
+    check(T,x,g,c){ let s='deck '+T.walkFight(x+5); for(let i=0;i<4;i++){ let cl=T.climb(); if(/FAILED/.test(cl)){ T.walkSide(x+9); cl=T.climb(); } s+=' '+cl; T.walkSide(x+9); } s+=' '+T.walkFight(x+30)+' '+T.defendSide(c.termIndex); return s+' '+T.walkFight(x+56); } },
 };
 const BREATH=['flat','drones','nest'], DECKS=['towerDeck','groundDeck'];
 
@@ -113,7 +138,7 @@ function composeSide(def){
   while(decks<nTerms){ list.push({name:deckName,x,g}); x+=SECTIONS[deckName].w; decks++; }
   if(!G.noGoal){ list.push({name:'goal',x,g}); x+=SECTIONS.goal.w; }
   const endX=x;
-  const W=Math.max(endX+2,G.extraFirst?(G.extraW||0):(G.extraW?endX-1+G.extraW:0)), H=Math.max(Math.max(...list.map(s=>s.g))+4,G.extraH||0);
+  const W=Math.max(endX+2,G.extraFirst?(G.extraW||0):(G.extraW?endX-1+G.extraW:0)), H=Math.max(Math.max(...list.map(s=>s.g+(SECTIONS[s.name].depth||0)))+4,G.extraH||0);   // depth: a section whose floor dips below its ground row
   const hints=[], ctx={H,tier,term:G.term||{time:14,waves:[[0.1,'hunter','hunter'],[0.4,'skitter','hunter'],[0.75,'skitter','skitter','seeker']]},termIndex:G.termBase||0};
   const ENEMY_HINTS={skitter:"Skitters take <b>two</b> punches: ▼ + GRAB, twice.",seeker:"Purple seekers hunt you and lunge. Punch them before they close in.",spitter:"A spitter pod. Punch its plasma out of the air, or punch the pod twice.",hunter:"Hunters fly in from above. Punch up (▲ + GRAB) or diagonally when they dive."};
   for(const s of list){ const sec=SECTIONS[s.name]; if(sec.hint&&!taught.has(s.name)){ taught.add(s.name); hints.push([s.x,sec.hint]); } }

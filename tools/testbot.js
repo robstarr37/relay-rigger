@@ -86,7 +86,8 @@ const TB = window.TB = {
   walkTill(tx,g,keepGoing){ const f0=r.info().falls; for(let f=0;f<900;f++){ r.run(1,{right:true}); const i=r.info(); if(i.tx>=tx&&i.ground&&Math.abs(i.ty-g)<0.5) return 'reached '+i.tx; if(i.falls>f0) return 'FELL'; } return 'timeout at '+r.info().tx; },
   // walk right (or left) to tx, punching ordinary enemies that come close; used across every side section
   walkFight(tx){ let f=0, fell=r.info().falls; while(f<2400){ const p=r.p(), px=p.x+6, py=p.y+7; if(Math.abs(px-tx*16)<4&&p.onGround) return 'at '+tx; if(r.info().falls>fell) return 'FELL';
-      let tgt=null,bd=1e9; for(const e of r.enemies()){ if(!e.alive||['brood','core','gen','clamp'].includes(e.type)||(e.type==='leech'&&!e.latched)) continue; const d=Math.hypot(e.x-px,e.y-py); if(d<bd){bd=d;tgt=e;} }
+      const roof=[2,3,4].some(d=>r.tile(Math.floor(px/16),Math.floor(py/16)-d)===1);   // under a slab: anything above it is out of reach, walk on
+      let tgt=null,bd=1e9; for(const e of r.enemies()){ if(!e.alive||['brood','core','gen','clamp'].includes(e.type)||(e.type==='leech'&&!e.latched)) continue; if(roof&&e.y<py-24) continue; const d=Math.hypot(e.x-px,e.y-py); if(d<bd){bd=d;tgt=e;} }
       if(tgt&&bd<70&&p.onGround&&r.pulseCd&&r.pulseCd()<=0&&(r.def().act||1)>=4){ r.run(1,{pulse:true}); r.run(6); f+=7; continue; }   // act 4: shock pulse when they crowd in
       if(tgt&&bd<120&&p.onGround&&r.hook().state==='idle'){ const dx=tgt.x-px, dy=tgt.y-py; let aim=null; if(Math.abs(dy)<10) aim='h'; else if(Math.abs(dx)<10&&dy<0) aim='u'; else if(dy<0&&Math.abs(Math.abs(dx)/(-dy)-0.7)<0.35) aim='d';
         if(aim){ if(aim!=='u') r.run(1,{[dx>0?'right':'left']:true}); const k={grab:true}; if(aim==='h') k.down=true; if(aim==='u') k.up=true; r.run(1,k); r.run(10); f+=12; continue; } }

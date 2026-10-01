@@ -113,6 +113,9 @@ h2{font-size:clamp(30px,9vmin,60px);color:var(--amber);text-shadow:0 3px 0 #a73d
 .story{margin:0;max-width:48ch;font-size:clamp(11px,2.2vmin,14px);line-height:1.5}
 .stats{margin:0;font-size:clamp(12px,2.6vmin,16px);font-variant-numeric:tabular-nums}
 .best{margin:0;min-height:1.2em;color:var(--green);font-size:12px;letter-spacing:.04em}
+.report{color:var(--green);font-family:var(--mono);font-size:clamp(10px,2vmin,13px);text-align:left;border-left:2px solid var(--green);padding-left:10px;min-height:3.2em;max-width:52ch}
+.report::after{content:"_";animation:blink 1s steps(2) infinite}
+@keyframes blink{to{opacity:0}}
 .tip{margin:0;color:var(--amber);font-size:11px;max-width:46ch}
 .note{margin:0;color:var(--dim);font-size:10px;max-width:60ch;line-height:1.5;opacity:.8}
 .go,.alt{

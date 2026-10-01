@@ -2121,6 +2121,10 @@ function win(){
   sfx.win(); buzz([30,60,30]); shake=2;
   setUI();
 }
+// the field report ticks in like a teleprinter once the level is done
+let typingT=null;
+function typeReport(id,text){ const el=$(id); if(typingT) clearInterval(typingT); el.textContent=''; el.hidden=!text; if(!text) return; let i=0;
+  typingT=setInterval(()=>{ i+=2; el.textContent=text.slice(0,i); if(i%16===0) sfx.tick(); if(i>=text.length){ clearInterval(typingT); typingT=null; } },22); }
 function showWin(){
   winT=0;
   const prev=save.best[LI], rec={time:clock,relays:got,total:relays.length,falls};
@@ -2133,7 +2137,7 @@ function showWin(){
     const ae=LDEF.actEnd||{title:'SIGNAL HOLDS',text:LDEF.outro}, words=ae.title.split(' ');
     $('endKicker').textContent=LI===LEVELS.length-1?'THE END':`ACT ${LDEF.act||1} COMPLETE`;
     $('endTitle').innerHTML=words[0]+(words.length>1?' <span>'+words.slice(1).join(' ')+'</span>':'');
-    $('endText').textContent=ae.text;
+    $('endText').textContent=ae.text; typeReport('endReport',LDEF.report);
     $('endBtn').textContent=LI<LEVELS.length-1?`Start act ${LEVELS[LI+1].act}`:'Back to title';
     const tot=Object.values(save.best).reduce((a,b)=>a+b.time,0), rel=Object.values(save.best).reduce((a,b)=>a+b.relays,0), all=LEVELS.length;
     $('endStats').textContent=`Final level ${fmt(clock)} · ${got}/${relays.length} relays · Best total ${fmt(tot)} · ${rel} relays across ${Object.keys(save.best).length}/${all} levels`;
@@ -2141,7 +2145,7 @@ function showWin(){
   }
   state='win';
   $('winTitle').textContent='NETWORK SECURED';
-  $('winOutro').textContent=LDEF.outro;
+  $('winOutro').textContent=LDEF.outro; typeReport('winReport',LDEF.report);
   $('winStats').textContent=`${LDEF.name} · ${fmt(clock)} · Relays ${got}/${relays.length} · Falls ${falls}`;
   $('winBest').textContent=better?(prev?'New record!':'Level cleared.'):`Record: ${fmt(prev.time)} · ${prev.relays}/${prev.total||relays.length} relays`;
   setUI();

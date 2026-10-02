@@ -40,20 +40,24 @@ const WALK = window.WALK = {
     for(let f=0;f<600&&r.info().state==='play';f++) r.run(1,{right:true}); out.push('RESULT '+r.info().state);
     return out.join('\n'); },
   // fight the Ship Anchor: cut clamps bottom-up, dodge bands by climbing or dropping
-  shipAnchor(){ r.start(14); const A=()=>r.anchor(); let f=0, hits=0, hp=r.p().hp, dodges=0; const clamps=()=>r.enemies().filter(e=>e.type==='clamp'&&e.alive);
+  shipAnchor(resume){ return this.anchorBoss(14,{climbX:30.5,dropX:33,resume}); },
+  jammerOne(resume){ return this.anchorBoss(24,{climbX:37.5,dropX:40.5,resume}); },
+  jammerPrime(limitMs,resume){ return this.heartOfTheShip(limitMs,29,resume); },
+  // fight an anchor-mast boss: cut clamps bottom-up from the decks, dodge bands by climbing (at climbX) or dropping (at dropX)
+  anchorBoss(lv,cfg,limitMs=30000){ const t0=performance.now(); if(!cfg.resume) r.start(lv); const A=()=>r.anchor(); const CX=cfg.climbX, DX=cfg.dropX; let f=0, hits=0, hp=r.p().hp, dodges=0; const clamps=()=>r.enemies().filter(e=>e.type==='clamp'&&e.alive);
     const feetRow=()=>Math.round((r.p().y+r.p().h)/16);
     const climb=()=>{ r.run(1,{}); r.run(1,{up:true,grab:true}); for(let i=0;i<120;i++){ r.run(1,{up:true,grab:true}); f++; if(r.hook().state==='idle'&&r.p().onGround) break; } };
     const walkX=(tx)=>{ for(let i=0;i<240;i++){ const d=tx*16-(r.p().x+6); if(Math.abs(d)<3||(!r.p().onGround&&i>5)) break; r.run(1,{[d>0?'right':'left']:true}); f++; } };
-    while(f<60*240&&clamps().length&&r.info().state==='play'){
+    while(f<60*240&&clamps().length&&r.info().state==='play'&&performance.now()-t0<limitMs){
       const p=r.p(), pcy=p.y+p.h/2, b=A().band, h=r.p().hp; if(h<hp) hits+=hp-h; hp=h;
-      if(b&&b.tel>0&&Math.abs(pcy-b.y)<30&&p.onGround){ dodges++; if(feetRow()>15){ walkX(30.5); climb(); } else { walkX(33); for(let i=0;i<60&&!r.p().onGround;i++){ r.run(1); f++; } } continue; }
+      if(b&&b.tel>0&&Math.abs(pcy-b.y)<30&&p.onGround){ dodges++; if(feetRow()>Math.min(...r.LD().anchor.rows)+2){ walkX(CX); climb(); } else { walkX(DX); for(let i=0;i<60&&!r.p().onGround;i++){ r.run(1); f++; } } continue; }
       const c=clamps().sort((a,b)=>b.y-a.y)[0], want=Math.round(c.y/16-0.5)+1, row=feetRow();
       if(!p.onGround){ r.run(1); f++; continue; }
-      if(row>want){ walkX(30.5); climb(); continue; }
-      if(row<want){ walkX(33); for(let i=0;i<80&&!r.p().onGround;i++){ r.run(1); f++; } continue; }
-      if(Math.abs(r.p().x+6-30.5*16)>6){ walkX(30.5); continue; }
+      if(row>want){ walkX(CX); climb(); continue; }
+      if(row<want){ walkX(DX); if(r.p().onGround){ r.run(1,{right:true}); f++; } for(let i=0;i<80&&!r.p().onGround;i++){ r.run(1); f++; } continue; }
+      if(Math.abs(r.p().x+6-CX*16)>6){ walkX(CX); continue; }
       r.run(1,{right:true}); r.run(1,{down:true,grab:true}); r.run(12); f+=14; }
-    return 'state '+r.info().state+', clamps left '+clamps().length+', '+(f/60).toFixed(0)+'s, hits '+hits+', deaths '+r.info().falls+', dodges '+dodges; },
+    return 'state '+r.info().state+', clamps left '+clamps().length+', '+(f/60).toFixed(0)+'s, hits '+hits+', deaths '+r.info().falls+', dodges '+dodges+(performance.now()-t0>=limitMs?' (time limit: call again with resume)':''); },
   // can the worker get over the tether on the high walkway?
   anchorCrossing(){ r.start(14); r.anchor().pt=999; r.anchor().st=999; r.enemies().forEach(e=>{ if(e.type!=='clamp') e.alive=false; });
     r.teleport(28*16,15*16-20); r.run(5); const hp0=r.p().hp; const c=this.climbSide();
@@ -61,7 +65,7 @@ const WALK = window.WALK = {
     return 'climb to '+c+', crossed '+(cross>=0)+', now at '+r.info().tx+',row '+r.info().ty+', hp '+hp0+'->'+r.p().hp; },
   // the final boss with every attack live: generators by climbing, then the core. Dodges each band once
   // (sidestep a vertical band, climb out of a horizontal one) and punches up, across or diagonally.
-  heartOfTheShip(limitMs=40000){ const t0=performance.now(); r.start(19); let f=0, hits=0, hp=r.p().hp, handled=null, dodges=0; const B=()=>r.boss();
+  heartOfTheShip(limitMs=40000,lv=19,resume){ const t0=performance.now(); if(!resume) r.start(lv); let f=0, hits=0, hp=r.p().hp, handled=null, dodges=0; const B=()=>r.boss();
     const gens=()=>r.enemies().filter(e=>e.type==='gen'&&e.alive), core=()=>r.enemies().find(e=>e.type==='core'&&e.alive);
     const tick=(k={})=>{ r.run(1,k); f++; const h=r.p().hp; if(h<hp) hits+=hp-h; hp=h; };
     const climb=()=>{ tick({}); tick({up:true,grab:true}); for(let i=0;i<150&&!(r.hook().state==='idle'&&r.p().onGround);i++) tick({up:true,grab:true}); };
@@ -82,7 +86,7 @@ const WALK = window.WALK = {
     const punchGen=(tx,trow,dir)=>{ for(let tries=0;tries<12;tries++){ const n=gens().length; if(!goTo(tx,trow)) continue;
         for(let i=0;i<6&&gens().length===n;i++){ if(dodge()) break; fend(); tick({[dir]:true}); tick({down:true,grab:true}); for(let k=0;k<12;k++) tick(); }
         if(gens().length<n) return true; } return false; };
-    punchGen(7,34,'right'); punchGen(15,21,'right'); punchGen(64.5,34,'left'); punchGen(56.5,21,'left');
+    if(!resume){ punchGen(7,34,'right'); punchGen(15,21,'right'); punchGen(64.5,34,'left'); punchGen(56.5,21,'left'); }
     while(core()&&performance.now()-t0<limitMs){ if(dodge()||fend()) continue; const p=r.p(); if(!p.onGround){ tick(); continue; }
       if(row()!==21){ goTo(55,21); continue; }
       const c=core(), dy=c.y-(p.y+7), dx=c.x-(p.x+6); let aim=null;
@@ -125,7 +129,8 @@ const WALK = window.WALK = {
     for(const s of def.sections){ if(s.name!=='goal'&&r.info().tx>=s.x+s.w-2){ if(s.name==='towerDeck'||s.name==='groundDeck') ctx.termIndex++; skipped++; continue; }
       if(performance.now()-t0>(o.maxMs||38000)){ log.push('PAUSED before '+s.name+' at '+s.x); paused=true; break; }
       if(problem){ r.teleport((s.x+1)*16,s.g*16-20); r.run(5); log.push('  (skipped ahead to '+s.name+' at '+s.x+')'); }   // a failed section would otherwise sink every later check
-      const res=(s.page&&S[s.name].pageCheck?S[s.name].pageCheck:S[s.name].check)(T,s.x,s.g,ctx); if(s.name==='towerDeck'||s.name==='groundDeck') ctx.termIndex++; log.push(s.x+' '+res); problem=/FELL|FAILED|timeout|no platform|NO CATCH|LOST/.test(res); if(problem) log.push('  ^ problem in '+s.name+' at '+s.x); }
+      const tr=window.__traceAt===s.x&&window.__startTrace?window.__startTrace():null;   /* debugging aid: trace one section's frames */
+      const res=(s.page&&S[s.name].pageCheck?S[s.name].pageCheck:S[s.name].check)(T,s.x,s.g,ctx,s.v); if(tr) tr.stop(); if(s.name==='towerDeck'||s.name==='groundDeck') ctx.termIndex++; log.push(s.x+' '+res); problem=/FELL|FAILED|timeout|no platform|NO CATCH|LOST/.test(res); if(problem) log.push('  ^ problem in '+s.name+' at '+s.x); }
     if(skipped) log.unshift(skipped+' sections already passed');
     if(!paused){ r.run(30); log.push('RESULT '+r.info().state+' hp '+r.p().hp+' falls '+r.info().falls+' relays '+r.info().got+' pages '+r.pages().filter(q=>q.got).length+'/'+r.pages().length+' clock '+document.getElementById('tim').textContent); }
     return log.join('\n'); }

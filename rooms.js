@@ -7,7 +7,7 @@
 const RW=13, RH=9, PX=RW+1, PY=RH+1;                 // interior size and cell pitch
 const SIDES=['N','E','S','W'], OPP={N:'S',S:'N',E:'W',W:'E'};
 const DOOR_LOCAL={N:[6,-1],S:[6,9],W:[-1,4],E:[13,4]};
-const RESERVED=new Set(['#',' ','.','C','o','P','X','K','R','T','S','Z','Q','H','M','%','*','@','<','>','^','v','$','§']);
+const RESERVED=new Set(['#',' ','.','C','o','P','X','K','R','T','S','Z','Q','H','M','%','*','@','<','>','^','v','$','§','¤']);
 const TRIG_POOL=('abdefghijklmnpqrstuwxyz'+'àáâãäåæçèéêëìíîïðñòóôõöøùúûüýþÿ').split('');
 const DOOR_POOL=('ABDEFGIJLNOUVWY0123456789!&()+-=?[]{}|~'+'ÀÁÂÃÄÅÆÇÈÉÊËÌÍÎÏÐÑÒÓÔÕÖØÙÚÛÜÝÞß').split('').filter(c=>!RESERVED.has(c));
 const MIRX={'<':'>','>':'<'}, MIRY={'^':'v','v':'^'}, MIRDX={left:'right',right:'left'}, MIRDY={up:'down',down:'up'};
@@ -57,6 +57,14 @@ const TYPES={
         s+=' '+leg+' '+until(T,()=>{ T.walkTo(...R.g(...stand)); T.killNear(120); T.face(face); T.grab(); },()=>{ const [tx,ty]=T.tileOf(); const [gx,gy]=R.g(...land); return Math.abs(tx-gx)<=1&&Math.abs(ty-gy)<=1; },6); }
       return s.trim(); },
     solve(){ return 'chain'; } },
+  // a pit crossing by post, but the far post sits in jammer static: a crate on the plate switches the field off (and opens the door)
+  staticPosts:{ gate:true, hint:"Jammer static: your cable fizzles in the haze. Something on the plate switches it off.",
+    fits:d=>[...d].every(s=>s==='W'||s==='E'),
+    build(c){ if(c.exitSide==='W') c.flipX=true; c.pitNS=false; for(let y=0;y<RH;y++) for(let x=5;x<=7;x++) c.put(x,y,' '); c.put(3,4,'o'); c.put(9,4,'o');
+      const ch=c.static(c.exitGroup); for(let y=2;y<=6;y++) for(let x=8;x<=12;x++) if(!(x===9&&y===4)) c.put(x,y,ch); c.put(2,1,'C'); c.plate(2,7,c.exitGroup); if(c.tier>=2) c.put(10,1,'S'); },
+    // the layout is mirror-symmetric, so cross it in unflipped coordinates (R.g would mirror the stand tiles the wrong way)
+    cross(T,R,from,to){ const [cx,cy]=R.g(6,4); const R2=Object.assign({},R,{g:(lx,ly)=>[cx-6+lx,cy-4+ly]}); return TYPES.postPit.cross(T,R2,from,to); },
+    solve(T,R){ const r=T.r; return 'static '+T.walkTo(...R.g(2,0))+' '+T.push(R.dir('down'),6)+' field '+(r.gstate()[R.exitGroup]?'off':'STILL ON'); } },
   cagedFuse:{ gate:true, fuse:true, hint:"The fuse box is caged: crate onto the plate opens the cage, then walk into the fuse box with a part.",
     fits:d=>!(d.has('E')&&d.has('W')),
     build(c){ if(c.doors.has('E')) c.flipX=true; for(let x=8;x<=12;x++) for(let y=2;y<=6;y++) c.put(x,y,'#'); for(let x=9;x<=11;x++) for(let y=3;y<=5;y++) c.put(x,y,'.');
@@ -189,7 +197,8 @@ function compose(def){
       fuse(lx,ly,gr,need){ const ch=nextTrig(); keyDef[ch]={t:'fuse',g:gr,need}; this.put(lx,ly,ch); },
       door(lx,ly,gr,latch){ const ch=nextDoor(); keyDef[ch]={t:'door',g:gr,latch:!!latch}; this.put(lx,ly,ch); },
       beam(lx,ly,dir,o={}){ const ch=nextTrig(); if(this.flipX&&MIRDX[dir]) dir=MIRDX[dir]; if(this.flipY&&MIRDY[dir]) dir=MIRDY[dir]; keyDef[ch]=Object.assign({t:'beam',dir},o); this.put(lx,ly,ch); },
-      tele(lx,ly,ch){ if(!ch){ ch=nextTrig(); keyDef[ch]={t:'tele',id:String(++teleId)}; } this.put(lx,ly,ch); return ch; } };
+      tele(lx,ly,ch){ if(!ch){ ch=nextTrig(); keyDef[ch]={t:'tele',id:String(++teleId)}; } this.put(lx,ly,ch); return ch; },
+      static(gr){ const ch=nextTrig(); keyDef[ch]={t:'static',g:gr}; return ch; } };
     const map=(lx,ly)=>[ox+(ctx.flipX?RW-1-lx:lx),oy+(ctx.flipY?RH-1-ly:ly)];
     if(t.gate&&nextSide){ ctx.exitGroup=ctx.group(); }
     t.build(ctx);

@@ -122,6 +122,8 @@ h2{font-size:clamp(30px,9vmin,60px);color:var(--amber);text-shadow:0 3px 0 #a73d
 .dossier .page{text-align:left;background:var(--panel);border:2px solid var(--steel);border-radius:8px;padding:8px 12px;font-size:12px;line-height:1.45;color:var(--ink)}
 .dossier .page b{display:block;color:var(--amber);font:600 11px var(--mono);letter-spacing:.1em;margin-bottom:4px}
 .dossier .page.missing{opacity:.5}
+.feats{margin:0;display:flex;flex-wrap:wrap;justify-content:center;gap:6px 14px;font:600 11px var(--mono);letter-spacing:.06em;color:var(--dim)}
+.feats .feat.done{color:var(--amber)}
 @keyframes blink{to{opacity:0}}
 .tip{margin:0;color:var(--amber);font-size:11px;max-width:46ch}
 .note{margin:0;color:var(--dim);font-size:10px;max-width:60ch;line-height:1.5;opacity:.8}

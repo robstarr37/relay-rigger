@@ -130,6 +130,8 @@ const THEMES={
     rain:true,aurora:0.15,ship:1,moon:false,pit:'dark',windows:true},
   uplink:{sky:['#020514','#0a1f2a','#1f4a3a'],mtn:'#0a1a24',mtnHi:'#16323a',snow:'#2a5a5a',far:'towers',near:'pines',hill:'#06121a',hillHi:'#0e2a2e',tree:'#040c12',
     rain:false,aurora:1,ship:2,moon:false,pit:'dark'},
+  jammer:{sky:['#0a0514','#24103a','#4a1f5a'],mtn:'#1b1030',mtnHi:'#31204e',snow:'#4a3366',far:'towers',near:'pines',hill:'#120a20',hillHi:'#231538',tree:'#0d0818',
+    rain:false,aurora:1,ship:1,moon:true,pit:'dark',rock:['#2a2238','#241d31','#1e1829','#181321'],grit:['#5a4a7a','#7e68a3','#3d3258'],grass:false},
   storm:{sky:['#05070f','#141a2c','#2a3148'],mtn:'#141a2a',mtnHi:'#232c44',snow:'#39445e',far:'towers',near:'pines',hill:'#0b0f1c',hillHi:'#1a2236',tree:'#080b15',
     rain:true,lightning:true,aurora:0,ship:0,moon:false,pit:'dark',rock:['#282a38','#222430','#1c1e29','#171822'],grit:['#4a4e66','#6a7090','#343750'],grass:true},
   flood:{sky:['#030a16','#0d2436','#28485a'],mtn:'#10222e',mtnHi:'#1e3a48',snow:'#33586a',far:'towers',near:'pines',hill:'#08161f',hillHi:'#143039',tree:'#061017',
@@ -148,6 +150,7 @@ const THEMES={
   ship:{top:true,floor:['#141c26','#16202c','#121a22'],wallTop:'#2e3a52',wallHi:'#4a6080',wallFace:'#101824',accent:'#5ae0e8',goo:false,dark:0.55},
   burrow:{top:true,floor:['#1e1428','#22162e','#1a1024'],wallTop:'#3e2250',wallHi:'#5e3478',wallFace:'#180c20',accent:'#7dff6a',goo:true,dark:0.9},
   station:{top:true,floor:['#232845','#262c4c','#1f2440'],wallTop:'#3e4677',wallHi:'#5b66a0',wallFace:'#1b2044',accent:'#ffc23d',goo:false},
+  jamroom:{top:true,floor:['#1b1628','#1f1a2e','#171224'],wallTop:'#4a3a6e',wallHi:'#7058a0',wallFace:'#150f22',accent:'#c080ff',goo:false,dark:0.3},
   hive:{top:true,floor:['#22172e','#261a34','#1d1328'],wallTop:'#4a2a5a',wallHi:'#6e3f82',wallFace:'#1e1026',accent:'#7dff6a',goo:true}
 };
 
@@ -160,7 +163,7 @@ function buildLevelData(def){
   W=def.W; H=def.H; LW=W*T; LH=H*T;
   map=Array.from({length:H},()=>new Array(W).fill(0));
   rockMap=Array.from({length:H},()=>new Uint8Array(W));
-  const d={start:[2,H-5],checks:[],relays:[],enemies:[],terms:[],goal:null,props:[],plats:[],crumbles:[],anchor:null,zips:[],core:null,cracks:[],hats:[],pages:[]};
+  const d={start:[2,H-5],checks:[],relays:[],enemies:[],terms:[],goal:null,props:[],plats:[],crumbles:[],anchor:null,zips:[],core:null,cracks:[],hats:[],pages:[],statics:[],items:[]};
   const set=(x0,x1,y0,y1,v,rock)=>{ for(let y=Math.max(0,y0);y<=Math.min(H-1,y1);y++) for(let x=Math.max(0,x0);x<=Math.min(W-1,x1);x++){ map[y][x]=v; rockMap[y][x]=rock; } };
   const B={W,H,
     steel:(x0,x1,y0,y1)=>set(x0,x1,y0,y1,1,0), rock:(x0,x1,y0,y1)=>set(x0,x1,y0,y1,1,1),
@@ -173,7 +176,11 @@ function buildLevelData(def){
     prop:(t,o)=>d.props.push(Object.assign({t},o)),
     // moving platform: w tiles wide; its top surface travels between (x0,y0) and (x1,y1)
     // girders that give way ~0.7 s after you land on them, and grow back later
-    crumble:(x0,x1,y)=>{ set(x0,x1,y,y,2,0); for(let x=x0;x<=x1;x++) d.crumbles.push([x,y]); },
+    crumble:(x0,x1,y,o={})=>{ set(x0,x1,y,y,2,0); for(let x=x0;x<=x1;x++) d.crumbles.push([x,y,!!o.hook]); },
+    // a haze of jammer static: the hook fizzles inside it
+    static:(x0,x1,y0,y1)=>d.statics.push({x:x0*T,y:y0*T,w:(x1-x0+1)*T,h:(y1-y0+1)*T}),
+    // field kit (shield, cloak, cutter): found once, kept for good
+    item:(t,x,y)=>d.items.push([t,x,y]),
     // zip line: hook the cable and slide along it (x,y are tiles; the cable runs through tile centres)
     zip:(x0,y0,x1,y1)=>d.zips.push({x0:x0*T+8,y0:y0*T+8,x1:x1*T+8,y1:y1*T+8}),
     // a solid tile with a hairline crack: the cable breaks it open. A hat placed on a solid tile is sealed inside until the crack breaks.
@@ -205,7 +212,7 @@ function loadLevel(i){
 }
 
 // ---------- state ----------
-let crumbles=[], water=null, anchor=null, wind=null, zips=[], boss=null, beamsT=[], hats=[], pages=[], pageUntil=-9, cracks=new Set(), cpDeaths=0;
+let crumbles=[], water=null, anchor=null, wind=null, zips=[], boss=null, beamsT=[], hats=[], pages=[], pageUntil=-9, cracks=new Set(), cpDeaths=0, statics=[], items=[], shieldUp=false, shieldT=0;
 const maxHp=()=>(LDEF&&LDEF.act||1)>=3?5:3;
 let p, hook, rope, enemies, shots, relays, checks, terms, goal, parts, plats=[], cam={x:0,y:0}, state='title', clock=0, falls=0, got=0, cp=0, tnow=0;
 let bolt=0, nextBolt=6, shake=0, hitstop=0, flash=0, winT=0, fwT=0, reelAcc=0, stepPh=0, crackleT=0, lockMsgT=-9, allDoneT=-99;
@@ -247,13 +254,13 @@ function reset(){
   shots=[];
   relays=LD.relays.map(([x,y])=>({x:x*T+8,y:y*T+8,got:false,ph:Math.random()*6}));
   terms=LD.terms.map(makeTerm);
-  crumbles=LD.crumbles.map(([x,y])=>{ map[y][x]=2; return {x,y,t:-1,gone:false,back:0}; });
-  resetHats(); resetPages(); cpDeaths=0;
+  crumbles=LD.crumbles.map(([x,y,hk])=>{ map[y][x]=2; return {x,y,t:-1,gone:false,back:0,hook:!!hk}; });
+  resetHats(); resetPages(); resetItems(); cpDeaths=0;
   water=LDEF.flood?{y:LDEF.flood.row*T,active:false,wait:0,rumble:0}:null;
   anchor=LD.anchor?{x:LD.anchor.tx*T+8,pt:3,st:5,band:null,dead:false,snap:0}:null;
   boss=LD.core?{pt:3,st:6,band:null,dead:false,phase:1,hx:LD.core.tx*T+8,hy:LD.core.ty*T+8,t:0}:null;
   wind=LDEF.wind?{phase:'calm',t:LDEF.wind.period*0.6,dir:1}:null;
-  zips=LD.zips;
+  zips=LD.zips; statics=LD.statics||[]; shieldUp=hasItem('shield'); shieldT=0;
   plats=LD.plats.map(q=>{ const o=Object.assign({},q,{x:q.x0,y:q.y0,dx:0,dy:0,hold:0,t:q.phase,len:Math.max(1,Math.hypot(q.x1-q.x0,q.y1-q.y0))}); placePlat(o); o.dx=o.dy=0; return o; });
   goal={x:LD.goal.tx*T+8,y:(LD.goal.ty+1)*T,tx:LD.goal.tx,top:Math.max(3,(LD.goal.ty+1)*T-110)};
   parts=[]; clock=0; falls=0; got=0; shake=0; hitstop=0; flash=0; lockMsgT=-9; allDoneT=-99;
@@ -304,6 +311,16 @@ function resetHats(){
 // dossier pages: hidden like hats, but once found they stay found across runs and levels
 const PAGES=window.RR_PAGES||[]; { const cnt={}; for(const e of PAGES){ const k=e.lv-1; e.id=k+':'+(cnt[k]||0); cnt[k]=(cnt[k]||0)+1; } }
 const pageFound=id=>!!(save.pages&&save.pages[id]);
+const hasItem=t=>!!(save.items&&save.items[t]);
+const ITEM_INFO={shield:{name:'SHIELD RIG',text:'Alien plating, rigged. It soaks one hit, then needs eight quiet seconds to recharge.'},cloak:{name:'CLOAK CELL',text:'Folds light around you for a few seconds. They lose you.'},cutter:{name:'PLASMA CUTTER',text:'Cuts sealed plates. Shortcuts and pages behind them.'}};
+function resetItems(){ items=(LD.items||[]).map(([t,x,y])=>({t,x:x*T+8,y:y*T+8,tx:x,ty:y,got:hasItem(t),ph:Math.random()*6})); }
+const itemOpen=q=>MODE==='top'?!hid(q.tx,q.ty):map[q.ty][q.tx]!==1;
+function collectItem(q){ q.got=true; save.items=save.items||{}; save.items[q.t]=true; persist(); const I=ITEM_INFO[q.t]||{name:q.t.toUpperCase(),text:''};
+  burst(q.x,q.y,'#5ae0e8',18,120); sparks(q.x,q.y,'#ffffff',12,140); ring(q.x,q.y,'#5ae0e8',40,0.6); popup(q.x,q.y-12,I.name,'#5ae0e8'); sfx.win(); buzz([30,40,30]); flash=0.15;
+  $('pageNum').textContent='FIELD KIT'; $('pageText').innerHTML='<b>'+I.name+'.</b> '+I.text; pageUntil=tnow+9; if(q.t==='shield') shieldUp=true; }
+// the shield takes the hit instead of the meter, then recharges
+function shieldAbsorb(){ if(!hasItem('shield')||!shieldUp||p.inv>0) return false; shieldUp=false; shieldT=8; p.inv=1.3; ring(p.x+6,p.y+8,'#5ae0e8',34,0.5); burst(p.x+6,p.y+8,'#5ae0e8',10,90); popup(p.x+6,p.y-14,'SHIELD','#5ae0e8'); sfx.zap(); shake=Math.max(shake,2); buzz(30); return true; }
+function updateShield(dt){ if(!hasItem('shield')||shieldUp) return; shieldT-=dt; if(shieldT<=0){ shieldUp=true; ring(p.x+6,p.y+8,'#5ae0e8',26,0.4); popup(p.x+6,p.y-14,'SHIELD UP','#5ae0e8'); sfx.check(); } }
 function resetPages(){ pages=LD.pages.map(([x,y],i)=>({x:x*T+8,y:y*T+8,tx:x,ty:y,id:LI+':'+i,got:pageFound(LI+':'+i),ph:Math.random()*6})); }
 const pageOpen=q=>MODE==='top'?!hid(q.tx,q.ty):map[q.ty][q.tx]!==1;
 function collectPage(q){
@@ -346,6 +363,7 @@ function restartRun(){
 function hookPickups(){
   for(const h of hats) if(!h.got&&hatOpen(h)&&Math.abs(hook.x-h.x)<11&&Math.abs(hook.y-h.y)<11) collectHat(h);
   for(const q of pages) if(!q.got&&pageOpen(q)&&Math.abs(hook.x-q.x)<11&&Math.abs(hook.y-q.y)<11) collectPage(q);
+  for(const q of items) if(!q.got&&itemOpen(q)&&Math.abs(hook.x-q.x)<12&&Math.abs(hook.y-q.y)<12) collectItem(q);
   for(const r of relays) if(!r.got&&Math.abs(hook.x-r.x)<11&&Math.abs(hook.y-r.y)<11) collectRelay(r);
   if(MODE==='top') for(const q of pickups) if(!q.got&&!hid(q.tx,q.ty)&&Math.abs(hook.x-q.x)<11&&Math.abs(hook.y-q.y)<11) collectPart(q);
 }
@@ -357,6 +375,7 @@ function fire(){
 }
 function hurt(fall,srcX,srcY){
   if(!fall && p.inv>0) return;
+  if(!fall&&shieldAbsorb()){ if(MODE==='top'){ const a=Math.atan2((p.y+6)-(srcY!=null?srcY:p.y+6),(p.x+6)-(srcX!=null?srcX:p.x+6)); p.vx=Math.cos(a)*170; p.vy=Math.sin(a)*170; } else { hook.state='back'; const d=srcX!=null?(Math.sign(p.x+6-srcX)||-p.face):-p.face; p.vx=d*140; p.vy=-180; p.onGround=false; } return; }
   if(MODE==='top'){
     p.hp--; p.inv=1.3; if(hook.state!=='idle') hook.state='back'; burst(p.x+6,p.y+6,'#ff6a2c',12);
     shake=Math.max(shake,4); flash=0.25; buzz(45); sfx.hurt();
@@ -457,6 +476,7 @@ function step(dt){
       if(zp){ const L=Math.hypot(zp.x1-zp.x0,zp.y1-zp.y0), ux=(zp.x1-zp.x0)/L, uy=(zp.y1-zp.y0)/L, t=clamp(((hook.x-zp.x0)*ux+(hook.y-zp.y0)*uy)/L,0,1);
         Object.assign(hook,{state:'zip',zip:zp,t,v:p.vx*ux+p.vy*uy,ux,uy,L,plat:null}); hook.x=zp.x0+ux*L*t; hook.y=zp.y0+uy*L*t; sfx.attach(); buzz(8); sparks(hook.x,hook.y,'#fff6c8',5,90);
         break; }
+      if(statics.some(z=>hook.x>=z.x&&hook.x<=z.x+z.w&&hook.y>=z.y&&hook.y<=z.y+z.h)){ sparks(hook.x,hook.y,'#c080ff',6,100); sfx.deny(); hook.state='back'; break; }
       const tx=Math.floor(hook.x/T), ty=Math.floor(hook.y/T);
       if(cracks.has(tx+','+ty)){ breakCrack(tx,ty); hook.state='back'; break; }
       const pq=plats.find(q=>hook.x>=q.x&&hook.x<=q.x+q.w&&hook.y>=q.y&&hook.y<=q.y+12);
@@ -464,6 +484,7 @@ function step(dt){
       if(v===1||v===2){
         const hd=hand(); rope=Math.max(MINL,Math.hypot(hd.x-hook.x,hd.y-hook.y));
         Object.assign(hook,{tile:v,tx,ty,plat:pq||null}); burst(hook.x,hook.y,'#e9e6f3',4,50); sparks(hook.x,hook.y,'#fff6c8',4,90);
+        { const cb=crumbles.find(c=>c.hook&&!c.gone&&c.t<0&&c.x===tx&&c.y===ty); if(cb){ cb.t=1.3; sfx.creak(); }   /* one swing's worth, then it goes */ }
         hook.state=I.grab?'att':'back';
         if(hook.state==='att'){ sfx.attach(); buzz(8); }
         break;
@@ -686,6 +707,7 @@ function update(dt){
   if(MODE==='top'){ if(fireNow&&p.fall<=0&&hook.state!=='pull'&&hook.state!=='drag') grabBuf=0; updateTop(dt,fireNow); return; }
   if(fireNow && (hook.state==='idle'||hook.state==='back')){ grabBuf=0; fire(); }
   if((hook.state==='att'||hook.state==='zip') && !I.grab){ hook.state='back'; if(!p.onGround&&Math.hypot(p.vx,p.vy)>150) sfx.fling(); }
+  updateShield(dt);
   if(wind){ const Wd=LDEF.wind; wind.t-=dt;
     if(wind.phase==='calm'&&wind.t<=0){ wind.phase='warn'; wind.t=Wd.warn; wind.dir=Math.random()<0.5?-1:1; sfx.gustWarn(); popup(p.x+6,p.y-26,wind.dir>0?'GUST  >>':'<<  GUST','#8fd0ff'); }
     else if(wind.phase==='warn'&&wind.t<=0){ wind.phase='gust'; wind.t=Wd.dur; sfx.gust(Wd.dur); }
@@ -722,6 +744,7 @@ function update(dt){
     if(Math.abs(p.x+6-r.x)<11&&Math.abs(p.y+10-r.y)<14) collectRelay(r); }
   for(const h of hats){ if(h.got||!hatOpen(h)) continue; if(Math.abs(p.x+6-h.x)<11&&Math.abs(p.y+10-h.y)<14) collectHat(h); }
   for(const q of pages){ if(q.got||!pageOpen(q)) continue; if(Math.abs(p.x+6-q.x)<11&&Math.abs(p.y+10-q.y)<14) collectPage(q); }
+  for(const q of items){ if(q.got||!itemOpen(q)) continue; if(Math.abs(p.x+6-q.x)<12&&Math.abs(p.y+10-q.y)<14) collectItem(q); }
   // checkpoints
   checks.forEach((c,i)=>{ if(i>cp&&Math.abs(p.x+6-c.x)<10&&Math.abs(p.y+p.h-c.y)<24){cp=i;cpDeaths=0;c.on=true;burst(c.x,c.y-16,'#ffc23d',10,70);popup(c.x,c.y-34,'CHECKPOINT','#ffc23d');sfx.check();} });
   // void
@@ -822,7 +845,7 @@ function buildTopData(def){
   if(def.gen&&!def.map) window.RR_ROOMS.composeAll(LEVELS);
   const rows=def.map; H=rows.length; W=Math.max(...rows.map(r=>r.length)); LW=W*T; LH=H*T;
   map=Array.from({length:H},()=>new Array(W).fill(1)); rockMap=[]; sparkTiles=[];
-  const d={top:true,start:[1,1],checks:[],relays:[],enemies:[],terms:[],goal:null,props:[],plats:[],crates:[],posts:[],plates:[],doors:[],levers:[],bridges:[],conv:[],crumbles:[],anchor:null,zips:[],core:null,beams:[],teles:[],secrets:[],parts:[],fuses:[],cracks:[],hats:[],pages:[]};
+  const d={top:true,start:[1,1],checks:[],relays:[],enemies:[],terms:[],goal:null,props:[],plats:[],crates:[],posts:[],plates:[],doors:[],levers:[],bridges:[],conv:[],crumbles:[],anchor:null,zips:[],core:null,beams:[],teles:[],secrets:[],parts:[],fuses:[],cracks:[],hats:[],pages:[],statics:[],items:[]};
   let ti=0;
   for(let y=0;y<H;y++) for(let x=0;x<W;x++){
     const ch=rows[y][x]||'#', k=def.key&&def.key[ch];
@@ -833,6 +856,7 @@ function buildTopData(def){
       else if(k.t==='block'){ d.crates.push([x,y,1]); }
       else if(k.t==='beam'){ v=1; d.beams.push(Object.assign(o,{dir:k.dir,on:k.on||0,off:k.off||0,ph:k.ph||0,g:k.g!=null?String(k.g):null})); }
       else if(k.t==='tele'){ d.teles.push(Object.assign(o,{id:String(k.id)})); }
+      else if(k.t==='static'){ d.statics.push(o); }
       else if(k.t==='plate') d.plates.push(o); else if(k.t==='door') d.doors.push(o); else if(k.t==='lever') d.levers.push(o); }
     else switch(ch){
       case '#': v=1; break;
@@ -854,6 +878,7 @@ function buildTopData(def){
       case '*': d.parts.push([x,y]); break;
       case '$': d.hats.push([x,y]); break;
       case '§': d.pages.push([x,y]); break;
+      case '¤': d.items.push(['shield',x,y]); break;
       case '>': d.conv.push([x,y,1,0]); break;
       case '<': d.conv.push([x,y,-1,0]); break;
       case '^': d.conv.push([x,y,0,-1]); break;
@@ -872,7 +897,7 @@ function resetTop(){
   const s=LD.start;
   checks=[s,...LD.checks].map(([x,y],i)=>({x:x*T+8,y:(y+1)*T-3,tx:x,ty:y,on:i===0,raise:i===0?1:0}));
   p={x:s[0]*T+2,y:s[1]*T+2,w:12,h:12,vx:0,vy:0,face:'down',onGround:true,hp:maxHp(),inv:0,walk:0,landV:0,fall:0,pushT:0,plat:null,moving:false};
-  hook={state:'idle',x:0,y:0,dx:0,dy:0,len:0}; rope=0; plats=[]; crumbles=[]; water=null; anchor=null; resetHats(); resetPages(); cpDeaths=0; wind=null; zips=[]; boss=null;
+  hook={state:'idle',x:0,y:0,dx:0,dy:0,len:0}; rope=0; plats=[]; crumbles=[]; water=null; anchor=null; resetHats(); resetPages(); resetItems(); cpDeaths=0; wind=null; zips=[]; boss=null;
   beamsT=LD.beams.map(b=>Object.assign({tiles:[],active:false,warn:false},b));
   enemies=LD.enemies.map(e=>makeEnemy(e.type,e.x,e.y,e)); shots=[];
   relays=LD.relays.map(([x,y])=>({x:x*T+8,y:y*T+8,got:false,ph:Math.random()*6}));
@@ -885,6 +910,7 @@ function resetTop(){
   tdLook={door:new Map(),bridge:new Map(),plate:new Map(),lever:new Map(),post:new Set(),term:new Set(),conv:new Map()};
   LD.conv.forEach(([x,y,dx,dy])=>tdLook.conv.set(tk(x,y),[dx,dy])); gLast={}; gHold={};
   tdLook.tele=new Map(LD.teles.map(t=>[tk(t.tx,t.ty),t]));
+  tdLook.static=new Map((LD.statics||[]).map(s=>[tk(s.tx,s.ty),s]));
   visited=new Set(); curCell=-1; leftBehind=new Set();
   broken=new Set(); tdLook.secret=new Set(LD.secrets.map(([x,y])=>tk(x,y))); tdLook.fuse=new Map(fuses.map(f=>[tk(f.tx,f.ty),f]));
   for(const [x,y] of LD.secrets) map[y][x]=1;
@@ -920,7 +946,7 @@ function groupOn(g){
 }
 function updateGroups(silent){
   const seen=new Set();
-  for(const o of [...LD.doors,...LD.bridges,...LD.plates,...levers,...fuses,...LD.beams.filter(b=>b.g)]){ const g=o.g; if(seen.has(g)) continue; seen.add(g);
+  for(const o of [...LD.doors,...LD.bridges,...LD.plates,...levers,...fuses,...LD.beams.filter(b=>b.g),...(LD.statics||[])]){ const g=o.g; if(seen.has(g)) continue; seen.add(g);
     let on=groupOn(g);
     // timed plates keep their group on for a few seconds after they are released
     const hold=Math.max(0,...LD.plates.filter(q=>q.g===g).map(q=>q.hold||0));
@@ -943,6 +969,8 @@ function updateGroups(silent){
   }
 }
 function doorClosed(x,y){ const d=tdLook.door.get(tk(x,y)); return !!d&&!gstate[d.g]; }
+// a static tile hums until its group is switched on
+function staticAt(x,y){ const s=tdLook.static&&tdLook.static.get(tk(x,y)); return !!s&&!gstate[s.g]; }
 function pitT(x,y){
   if(x<0||y<0||x>=W||y>=H||map[y][x]!==4||filled.has(tk(x,y))) return false;
   const b=tdLook.bridge.get(tk(x,y)); return !(b&&gstate[b.g]);
@@ -1032,6 +1060,7 @@ function updateHookTop(dt){
       const sh=shots.find(q=>q.life>0&&Math.abs(hook.x-q.x)<7&&Math.abs(hook.y-q.y)<7);
       if(sh){ sh.life=0; burst(sh.x,sh.y,'#b6ff5a',8,80); sparks(sh.x,sh.y,'#b6ff5a',6,120); sfx.pop(); hook.state='back'; break; }
       const tx=Math.floor(hook.x/T), ty=Math.floor(hook.y/T), k=tk(tx,ty);
+      if(staticAt(tx,ty)){ sparks(hook.x,hook.y,'#c080ff',6,100); sfx.deny(); hook.state='back'; break; }
       const c=crateAt(tx,ty);
       if(c&&c.heavy){ sparks(hook.x-hook.dx*3,hook.y-hook.dy*3,'#c9c6d8',5,80); sfx.thud(); if(tnow-lockMsgT>2){ lockMsgT=tnow-1; popup(c.x,c.y-18,'TOO HEAVY: PUSH IT','#c9c6d8'); } hook.state='back'; break; }
       if(c){ hook.state='drag'; hook.crate=c; sfx.attach(); buzz(8); break; }
@@ -1125,6 +1154,7 @@ function updateTop(dt,edge){
     if(Math.abs(p.x+6-r.x)<11&&Math.abs(p.y+6-r.y)<11) collectRelay(r); }
   for(const h of hats){ if(h.got||!hatOpen(h)) continue; if(Math.abs(p.x+6-h.x)<11&&Math.abs(p.y+6-h.y)<11) collectHat(h); }
   for(const q of pages){ if(q.got||!pageOpen(q)) continue; if(Math.abs(p.x+6-q.x)<11&&Math.abs(p.y+6-q.y)<11) collectPage(q); }
+  for(const q of items){ if(q.got||!itemOpen(q)) continue; if(Math.abs(p.x+6-q.x)<12&&Math.abs(p.y+6-q.y)<12) collectItem(q); }
   // top-down checkpoints are numbered in map order, not the order you reach them: any new one you touch takes over
   checks.forEach((c,i)=>{ if(i!==cp&&Math.abs(p.x+6-c.x)<26&&Math.abs(p.y+6-(c.ty*T+8))<26){ cp=i; cpDeaths=0; c.on=true; burst(c.x,c.y-16,'#ffc23d',10,70); popup(c.x,c.y-34,'CHECKPOINT','#ffc23d'); sfx.check(); takeSnap(); } });
   if(LD.rooms){ const R=LD.rooms, cx0=Math.floor((Math.floor((p.x+6)/T)-1)/R.px), cy0=Math.floor((Math.floor((p.y+6)/T)-1)/R.py), id=cy0*R.cols+cx0;
@@ -1253,7 +1283,7 @@ function drawTop(){
     R(x-14,y-14,28,28,'#15182f'); R(x-12,y-12,24,24,open?'#1d4a36':'#3a1a24');
     for(let i=0;i<24;i+=6) R(x-12+i,y-12,3,24,open?'#2a6a4a':'#5a2030');
     R(x-3,y-8+((tnow*8|0)%4),6,3,open?'#5fe39a':'#ff4150'); R(x-2,y-4+((tnow*8|0)%4),4,2,open?'#5fe39a':'#ff4150'); }
-  drawTerms(); drawChecks(); drawRelays(); drawHats(); drawPages();
+  drawStaticTiles(); drawTerms(); drawChecks(); drawRelays(); drawHats(); drawPages(); drawItems();
   for(const c of crates) if(!c.dead&&!hid(c.tx,c.ty)){ if(c.heavy) drawBlock(SX(c.x),SY(c.y)); else drawCrate(SX(c.x),SY(c.y)); }
   drawEnemies();
   const lampPos=drawPlayerTop();
@@ -1801,6 +1831,15 @@ function drawPages(){
   for(const q of pages){ if(q.got||!pageOpen(q)) continue; const x=SX(q.x), y=SY(q.y+Math.sin(tnow*3+q.ph)*1.5); if(x<-30||x>BW+30||y<-30||y>BH+30) continue;
     R(x-5,y-7,11,14,'#8a8470'); R(x-5,y-7,10,13,'#e8e2cc'); R(x-4,y-6,8,11,'#f7f3e3'); R(x-3,y-4,6,1,'#6a6a7a'); R(x-3,y-2,6,1,'#6a6a7a'); R(x-3,y,4,1,'#6a6a7a'); R(x-3,y+3,5,1,'#b03030'); }
 }
+// jammer static: a purple haze with drifting scanlines
+function drawStatics(){ for(const z of statics){ const x=SX(z.x), y=SY(z.y), w=z.w*ART, h=z.h*ART; if(x>BW||y>BH||x+w<0||y+h<0) continue;
+  cx.globalAlpha=0.16+0.04*Math.sin(tnow*9); R(x,y,w,h,'#9b5cff'); cx.globalAlpha=0.35; for(let i=0;i<8;i++){ const ly=y+((tnow*140+i*h/8+(i*37)%h)%h); R(x,ly,w,1,'#e0c8ff'); } cx.globalAlpha=1; } }
+function drawStaticTiles(){ for(const s of LD.statics||[]){ if(!staticAt(s.tx,s.ty)) continue; const x=SX(s.tx*T), y=SY(s.ty*T); if(x>BW||y>BH||x+16*ART<0||y+16*ART<0) continue;
+  cx.globalAlpha=0.22+0.05*Math.sin(tnow*9+s.tx); R(x,y,16*ART,16*ART,'#9b5cff'); cx.globalAlpha=0.4; R(x,y+((tnow*60+s.ty*7)%(16*ART)),16*ART,1,'#e0c8ff'); cx.globalAlpha=1; } }
+function drawItems(){
+  for(const q of items){ if(q.got||!itemOpen(q)) continue; const x=SX(q.x), y=SY(q.y+Math.sin(tnow*3+q.ph)*2); if(x<-30||x>BW+30||y<-30||y>BH+30) continue;
+    R(x-7,y-7,14,14,'#1a4a55'); R(x-6,y-8,12,16,'#2a7a8a'); R(x-5,y-7,10,14,'#5ae0e8'); R(x-3,y-5,6,10,'#1a4a55'); R(x-2,y-4,4,8,'#aef6ff'); R(x-1,y-6,2,2,'#ffffff'); }
+}
 function drawRelays(){
   for(const r of relays){ if(r.got||(MODE==='top'&&hid(Math.floor(r.x/T),Math.floor(r.y/T)))) continue;
     const x=SX(r.x), y=SY(r.y+Math.sin(tnow*3+r.ph)*1.5); if(x<-30||x>BW+30) continue;
@@ -1971,6 +2010,8 @@ function drawGlows(lampPos){
   for(const r of relays) if(!r.got&&!(MODE==='top'&&hid(Math.floor(r.x/T),Math.floor(r.y/T)))){ gl(SX(r.x),SY(r.y),'#5fe39a',44,0.28+0.12*Math.sin(tnow*4+r.ph)); }
   for(const h of hats) if(!h.got&&hatOpen(h)) gl(SX(h.x),SY(h.y),'#ffe08a',40,0.3+0.12*Math.sin(tnow*4+h.ph));
   for(const q of pages) if(!q.got&&pageOpen(q)) gl(SX(q.x),SY(q.y),'#f7f3e3',36,0.25+0.1*Math.sin(tnow*4+q.ph));
+  for(const q of items) if(!q.got&&itemOpen(q)) gl(SX(q.x),SY(q.y),'#5ae0e8',48,0.4+0.15*Math.sin(tnow*4+q.ph));
+  if(hasItem('shield')&&shieldUp&&state!=='title') gl(SX(p.x+6),SY(p.y+10),'#5ae0e8',34,0.22+0.06*Math.sin(tnow*5));
   for(const e of enemies) if(e.alive&&!(MODE==='top'&&hid(Math.floor(e.x/T),Math.floor(e.y/T)))){
     if(e.type==='drone'||e.type==='hunter') gl(SX(e.x+e.dir*2),SY(e.y+Math.sin(e.ph*3)*2),'#ff4150',26,0.6);
     else if(e.type==='seeker') gl(SX(e.x+e.dir*2),SY(e.y),'#7dff6a',30,0.6);
@@ -2030,7 +2071,8 @@ function draw(){
   if(boss&&boss.band) drawBand(boss.band);
   drawPlats();
   drawCrumbles();
-  drawTerms(); drawGoal(); drawChecks(); drawRelays(); drawHats(); drawPages(); drawEnemies();
+  drawStatics();
+  drawTerms(); drawGoal(); drawChecks(); drawRelays(); drawHats(); drawPages(); drawItems(); drawEnemies();
   const lampPos=drawPlayer();
   drawParts(false);
   drawWater();
@@ -2043,7 +2085,7 @@ function draw(){
 }
 
 // ---------- HUD ----------
-const partStat=$('partStat'), partEl=$('parts'), pulseStat=$('pulseStat'), pulseEl=$('pulse'), pulseBtn=$('pulseBtn');
+const partStat=$('partStat'), partEl=$('parts'), pulseStat=$('pulseStat'), pulseEl=$('pulse'), pulseBtn=$('pulseBtn'), shieldStat=$('shieldStat'), shieldEl=$('shield');
 const hudEl=$('hud'), hpEl=$('hp'), relEl=$('rel'), cabEl=$('cab'), timEl=$('tim'), hintEl=$('hint'), netEl=$('net'), netStat=$('netStat'), lvlEl=$('lvl');
 let lastHud='', lastHint=null, hintAt=0, hintFor=8;
 const DYN={
@@ -2072,12 +2114,14 @@ function hud(){
   const net=terms.length?(act?Math.floor(act.prog*100)+'%':nt+'/'+terms.length):'';
   const pk=MODE==='top'&&pickups.length?pickups.filter(q=>q.got).length+'/'+pickups.length+(partsHeld?' ('+partsHeld+' held)':''):'';
   const pu=pulseOn()?(pulseCd<=0?'READY':Math.ceil(pulseCd)+'s'):'';
-  const key=p.hp+'/'+maxHp()+'|'+got+'|'+cab+'|'+fmt(clock)+'|'+net+'|'+pk+'|'+pu;
+  const sh=hasItem('shield')?(shieldUp?'UP':Math.ceil(shieldT)+'s'):'';
+  const key=p.hp+'/'+maxHp()+'|'+got+'|'+cab+'|'+fmt(clock)+'|'+net+'|'+pk+'|'+pu+'|'+sh;
   if(key!==lastHud){ lastHud=key;
     hpEl.innerHTML=Array.from({length:maxHp()},(_,i)=>`<i class="${i<p.hp?'':'off'}"></i>`).join('');
     hudEl.classList.toggle('low',p.hp===1);
     partStat.hidden=!pk; partEl.textContent=pk;
     pulseStat.hidden=!pu; pulseEl.textContent=pu; pulseStat.classList.toggle('net-on',pu==='READY'); pulseBtn.classList.toggle('cd',pulseCd>0);
+    shieldStat.hidden=!sh; shieldEl.textContent=sh; shieldStat.classList.toggle('net-on',sh==='UP');
     relEl.textContent=got+'/'+relays.length; cabEl.textContent=cab; timEl.textContent=fmt(clock);
     netStat.hidden=!terms.length; netEl.textContent=net; netStat.classList.toggle('net-on',terms.length>0&&nt===terms.length); }
   const hi=hintsOn?pickHint():null;
@@ -2105,13 +2149,21 @@ function setUI(){
   $('resetPuzzleBtn').hidden=MODE!=='top';
   if(!playing) clearTouch();
 }
+// optional feats per level: every relay, no falls, the dossier page, under par time
+function levelFeats(i){ const lv=LEVELS[i], f=[{id:'relays',label:'Every relay'},{id:'clean',label:'No falls'}]; if(PAGES.some(e=>e.lv===i+1)) f.push({id:'page',label:'Dossier page'}); if(lv.par) f.push({id:'par',label:'Under '+fmt(lv.par)}); return f; }
+const featDone=(i,id)=>!!(save.feats&&save.feats[i]&&save.feats[i][id]);
+function featsLine(i){ const f=levelFeats(i); return ` · ★ ${f.filter(q=>featDone(i,q.id)).length}/${f.length}`; }
+function featsHTML(i,now){ return levelFeats(i).map(q=>{ const d=now?now[q.id]:featDone(i,q.id); return `<span class="feat ${d?'done':''}">${d?'✓':'○'} ${q.label}</span>`; }).join(''); }
+function evalFeats(){ const now={}; now.relays=got>=relays.length; now.clean=falls===0; now.page=pages.length>0&&pages.every(q=>q.got); now.par=!!LDEF.par&&clock<LDEF.par;
+  save.feats=save.feats||{}; const cur=save.feats[LI]=save.feats[LI]||{}; for(const k in now) if(now[k]) cur[k]=true; return now; }
 const pagesLine=i=>{ const t=PAGES.filter(e=>e.lv===i+1); return t.length?` · Pages ${t.filter(e=>pageFound(e.id)).length}/${t.length}`:''; };
 const nextLevelIdx=()=>Math.min(save.unlocked,LEVELS.length)-1;
 function refreshTitle(){
   const n=nextLevelIdx();
   $('startBtn').textContent=save.unlocked>1?(save.unlocked>LEVELS.length?'Replay from level 1':`Continue · Level ${n+1}`):'Start shift';
   const cleared=Object.keys(save.best).length;
-  $('bestLine').textContent=cleared?`${cleared} of ${LEVELS.length} levels cleared`:'';
+  const stars=Object.keys(save.feats||{}).reduce((a,k)=>a+Object.keys(save.feats[k]).length,0);
+  $('bestLine').textContent=cleared?`${cleared} of ${LEVELS.length} levels cleared · ★ ${stars}`:'';
 }
 function continueGame(){ openBrief(save.unlocked>LEVELS.length?0:nextLevelIdx()); }
 function toTitle(){ loadLevel(Math.min(LI,nextLevelIdx())); state='title'; Snd.ambience(false); refreshTitle(); setUI(); }
@@ -2122,7 +2174,7 @@ function openLevels(){
     if(i===0||LEVELS[i-1].act!==lv.act){ const h=document.createElement('p'); h.className='act-head'; h.textContent=`ACT ${lv.act||1} · ${(ACTS[(lv.act||1)-1]||'').toUpperCase()}`; el.appendChild(h); }
     const b=document.createElement('button'), best=save.best[i], locked=i>=save.unlocked;
     b.type='button'; b.className='lvl-item'+(best?' done':''); b.disabled=locked;
-    b.innerHTML=`<span class="n">${i+1}</span><span class="t"><b>${lv.name.toUpperCase()}${lv.mode==='top'?' <em>TOP-DOWN</em>':''}</b><small>${locked?'Locked':best?`Record ${fmt(best.time)} · ${best.relays}/${best.total||'?'} relays`:'Not cleared yet'}${pagesLine(i)}</small></span>`;
+    b.innerHTML=`<span class="n">${i+1}</span><span class="t"><b>${lv.name.toUpperCase()}${lv.mode==='top'?' <em>TOP-DOWN</em>':''}</b><small>${locked?'Locked':best?`Record ${fmt(best.time)} · ${best.relays}/${best.total||'?'} relays`:'Not cleared yet'}${pagesLine(i)}${best?featsLine(i):''}</small></span>`;
     b.addEventListener('click',()=>{ sfx.click(); openBrief(i); });
     el.appendChild(b);
   });
@@ -2136,6 +2188,7 @@ function openBrief(i){
   $('briefText').textContent=LDEF.brief;
   const nT=LD.terms.length, nP=(LD.parts||[]).length;
   const hasBoss=LD.boss||LD.enemies.some(e=>e.type==='brood');
+  $('briefFeats').innerHTML=featsHTML(i);
   $('briefMeta').textContent=(nP?`${nP} parts to find · `:'')+`${LD.relays.length} relays · `+(LD.boss?'Boss fight':(nT?`${nT} terminal${nT===1?'':'s'} to reroute`:'')+(hasBoss?' · Boss':''));
   Snd.ambience(false); setUI();
 }
@@ -2164,7 +2217,7 @@ function showWin(){
   save.unlocked=Math.max(save.unlocked,LI+2); persist();
   Snd.ambience(false);
   if(LDEF.actEnd||LI===LEVELS.length-1){
-    state='end';
+    state='end'; evalFeats(); persist();
     const ae=LDEF.actEnd||{title:'SIGNAL HOLDS',text:LDEF.outro}, words=ae.title.split(' ');
     $('endKicker').textContent=LI===LEVELS.length-1?'THE END':`ACT ${LDEF.act||1} COMPLETE`;
     $('endTitle').innerHTML=words[0]+(words.length>1?' <span>'+words.slice(1).join(' ')+'</span>':'');
@@ -2179,6 +2232,7 @@ function showWin(){
   $('winOutro').textContent=LDEF.outro; typeReport('winReport',LDEF.report);
   $('winStats').textContent=`${LDEF.name} · ${fmt(clock)} · Relays ${got}/${relays.length} · Falls ${falls}`+(pages.length?` · Pages ${pages.filter(q=>q.got).length}/${pages.length}`:'');
   $('winBest').textContent=better?(prev?'New record!':'Level cleared.'):`Record: ${fmt(prev.time)} · ${prev.relays}/${prev.total||relays.length} relays`;
+  $('winFeats').innerHTML=featsHTML(LI,evalFeats()); persist();
   setUI();
 }
 
@@ -2325,7 +2379,7 @@ if(/[?&]debug\b/.test(location.search)) window.__rr={
   start(i){ openBrief(i); startLevel(); return this.info(); },
   teleport(x,y){ p.x=x; p.y=y; p.vx=p.vy=0; hook.state='idle'; },
   tile, enemies:()=>enemies, terms:()=>terms, p:()=>p,
-  mode:()=>MODE, plats:()=>plats, pickups:()=>pickups, partsHeld:()=>partsHeld, fuses:()=>fuses, crumbles:()=>crumbles, water:()=>water, pulseCd:()=>pulseCd, hats:()=>hats, pages:()=>pages, cracks:()=>cracks, shots:()=>shots, cpDeaths:()=>cpDeaths, maxHp, def:()=>LDEF, visited:()=>visited, anchor:()=>anchor, wind:()=>wind, zips:()=>zips, boss:()=>boss, beams:()=>beamsT, hook:()=>hook, crates:()=>crates, gstate:()=>gstate, levers:()=>levers, pitT, wallT, solidT, LD:()=>LD
+  mode:()=>MODE, plats:()=>plats, pickups:()=>pickups, partsHeld:()=>partsHeld, fuses:()=>fuses, crumbles:()=>crumbles, water:()=>water, pulseCd:()=>pulseCd, hats:()=>hats, pages:()=>pages, items:()=>items, statics:()=>statics, shield:()=>({up:shieldUp,t:shieldT}), cracks:()=>cracks, shots:()=>shots, cpDeaths:()=>cpDeaths, maxHp, def:()=>LDEF, visited:()=>visited, anchor:()=>anchor, wind:()=>wind, zips:()=>zips, boss:()=>boss, beams:()=>beamsT, hook:()=>hook, crates:()=>crates, gstate:()=>gstate, levers:()=>levers, pitT, wallT, solidT, LD:()=>LD
 };
 
 if('serviceWorker' in navigator && /^https?:$/.test(location.protocol)) addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));

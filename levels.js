@@ -366,7 +366,146 @@ const LEVELS = [
     [0,  "The core. Its shield holds while any generator stands: punch the four generators on the girders. When the hunters crowd you, <b>PULSE</b>."],
     [30, "Climb from the low girders to the high ones, or ride the lifts. Red bands can come down the chamber too."]
   ]
-}
+},
+// ================================================================== ACT 5 · JAMMERS
+// ------------------------------------------------------------------ 21
+{
+  act:5, name:'Static Hill', place:'Kestrel hills, north slope · 06:10', theme:'jammer',
+  par:165,
+  brief:"The first jammer tower stands on the hill above the ridge, and its static hangs over the slopes in sheets: your cable won't bite inside the haze. Get up the hill, reroute the relay in the tower's shadow, and learn how the static behaves.",
+  outro:"Relay back. The haze is thinner on the north face: that's the way into the tower.",
+  report:"North slope relay up. The static is a field, not a weapon: it only stops cable and radio. Engineering says the shield plates shrug it off entirely, and they've finished a rig. It went up the hill ahead of you; it's somewhere on the ladder.",
+  sgen:{seed:21,len:520,tier:3,g:38,maxG:50,unique:true,vary:true,terminals:1,
+        pool:['flat','staticLeap','ceilingSwing','releaseGate','gap','slabTunnel','dip','drones','twoTier','lowCeilingPit','shaftUp','dropDown','nest','anchorRun','ceilingRun','crumbleBridge','ferry','slabSparks'],must:['staticLeap','releaseGate']},
+  hints:[[0,"Static Hill. The purple haze is jammer static: nothing to hook inside it. Swing in, let go, and fly through."]]
+},
+// ------------------------------------------------------------------ 22
+{
+  act:5, mode:'top', name:'Jammer Yard', place:'Jammer tower, control yard · 07:40', theme:'jamroom',
+  par:300,
+  brief:"The tower's control rooms are dug into the hill. They've laid static across the pits so nothing can be pulled over them, and the switches that drop the fields are never on the side you need them. Reroute the yard terminal and find the stairs up.",
+  outro:"Yard terminal rerouted. The static fields all run off one bus, and the bus runs to the tower.",
+  report:"Yard rerouted. Each field has a cutout plate: weight on the plate, field off. Their engineers built in a safety switch for themselves, and left it where anyone can push a crate onto it. Keep that in mind inside the ships.",
+  gen:{cols:5,rows:4,seed:22,need:3,mainLen:11,secret:0.6,tier:3,hold:2.2,loops:3,must:['staticPosts','beamHall'],
+       types:['staticPosts','beamHall','sokoban','timedPlate','beltCrate','heavyPair','postChain','cagedFuse','den','leverGate'],
+       terms:[{time:16,waves:[[0.1,'skitter','seeker'],[0.4,'leech','leech','hunter'],[0.7,'skitter','skitter','seeker']]}]}
+},
+// ------------------------------------------------------------------ 23
+{
+  act:5, name:'Pylon Ladder', place:'Jammer tower, the climb · 09:15', theme:'jammer',
+  par:150,
+  brief:"The tower is a hundred rows of pylon and ladder, and the only way is up: shaft after shaft, lift after lift. The shield rig the workshop sent up is somewhere on the way. The relay deck is near the top.",
+  outro:"Deck rerouted, and the rig fits. The next hit is on the plating, not on you.",
+  report:"Shield rig recovered and fitted: it soaks one hit, then takes eight seconds to recharge. Don't lean on it. From the deck we could see the second tower on the far ridge, and the trolley line the aliens strung between them.",
+  sgen:{seed:23,len:330,tier:3,g:110,maxG:122,vary:true,terminals:1,deckAt:[0.88],must:['kitLedge'],
+        pool:['shaftUp','shaftTall','liftUp','climbOver','flat','gap','anchorRun','drones','releaseGate']},
+  hints:[[0,"Pylon Ladder. Up, and up. Rest on the ledges; the terminal is near the top."]]
+},
+// ------------------------------------------------------------------ 24
+{
+  act:5, name:'Trolley Line', place:'Between the towers · 11:30', theme:'jammer',
+  par:270,
+  brief:"They strung a cable trolley between the two towers to carry their equipment. It still runs. Hook a trolley as it passes, hang on, and let go over the next ridge; some of the anchors on this stretch give way the moment you hook them.",
+  outro:"Across the valley. The second tower is bigger, and it's humming.",
+  report:"Trolley line crossed. The anchors that crack when hooked are a defence, not decay: they are tuned to our cable. Expect more of them on the ships. The second tower's mast carries five clamps, like the tether did.",
+  sgen:{seed:24,len:560,tier:3,g:38,maxG:50,unique:true,vary:true,terminals:2,
+        pool:['trolleyRun','ferry','staticLeap','anchorChain','releaseGate','flat','drones','gap','ceilingRun','slabSparks','twoTier','dip','nest','lowCeilingPit'],must:['trolleyRun','anchorChain']},
+  hints:[[0,"Trolley Line. The trolleys run overhead: hook one from below and ride it."]]
+},
+// ------------------------------------------------------------------ 25 (boss)
+{
+  act:5, name:'Jammer One', place:'Second tower, the mast · 13:00', theme:'jammer', W:84, H:46,
+  brief:"The jammer mast is held by five clamps, and the tower fires bands of charge across the decks whenever you get close. Static blankets some of the perches you'd dodge onto. Cut every clamp and the tower goes quiet.",
+  outro:"",
+  actEnd:null,
+  report:"First jammer down. Half the coast's channels came back the moment the mast fell. The fleet noticed: scout ships are peeling off and coming down over the hills.",
+  build(B){
+    B.rock(1,82,42,45); B.steel(12,72,3,4);
+    B.girder(28,38,35); B.girder(46,56,35); B.girder(28,38,28); B.girder(46,56,28); B.girder(28,38,21); B.girder(46,56,21); B.girder(28,38,14); B.girder(46,56,14);
+    B.girder(30,54,9);
+    B.girder(6,15,38); B.girder(69,78,38); B.girder(6,15,31); B.girder(69,78,31); B.girder(6,15,24); B.girder(69,78,24); B.girder(6,15,17); B.girder(69,78,17);
+    B.static(60,80,19,33); B.static(2,22,10,20);
+    B.anchor(42,[41,34,27,20,13]);
+    B.start(4,41); B.check(78,41); B.crack(30,4,false); B.hat(30,3); B.crack(54,4,false); B.hat(54,3); B.page(10,37);
+    [[10,30],[74,37],[10,23],[74,23],[32,13],[52,13],[42,8]].forEach(r=>B.relay(...r));
+    B.drone(30,36,20); B.drone(48,55,13);
+    B.prop('sign',{x:3,row:41}); B.prop('crates',{x:20,row:41}); B.prop('drum',{x:60,row:41}); B.prop('antenna',{x:42,row:8});
+  },
+  hints:[
+    [0,"Jammer One. Punch the clamps off the mast (▼ + GRAB) from the decks at their height. The static over the perches means you can't hook into them: pick your dodge side."],
+    [24,"When a band lights up, get above or below it. The high walkway crosses over the mast."]
+  ]
+},
+// ------------------------------------------------------------------ 26
+{
+  act:5, mode:'top', name:'Dead Air', place:'Second tower, lower levels · 15:20', theme:'jamroom',
+  par:330,
+  brief:"Below the mast the tower is dark and sealed, every room reached by pad or beam lane, and the static fields are wired to the terminals themselves. Two terminals to reroute, and they've hidden the parts well.",
+  outro:"Both terminals rerouted. The tower's own logs mention a landing zone on the coast road.",
+  report:"Dead air cleared. In the terminal logs: the scouts land where the towers' coverage overlaps, so with both towers down they will land blind. Also in the logs, a HALYARD access code. Somebody has been logging in.",
+  gen:{cols:6,rows:4,seed:26,terminals:2,need:[1,2],mainLen:13,secret:0.7,tier:3,hold:2.0,loops:3,must:['staticPosts','teleCrate'],
+       types:['staticPosts','teleCrate','beamHall','sokoban','timedPlate','postChain','cagedFuse','den','heavyPair','beltCrate'],
+       terms:[{time:15,waves:[[0.1,'skitter','seeker'],[0.4,'leech','leech'],[0.7,'skitter','skitter','seeker']]},
+              {time:17,waves:[[0.08,'seeker','hunter'],[0.3,'leech','leech','skitter'],[0.55,'skitter','skitter','seeker'],[0.8,'leech','hunter','hunter']]}]}
+},
+// ------------------------------------------------------------------ 27
+{
+  act:5, name:'Ridge Run', place:'Kestrel ridge road · 17:45', theme:'jammer', wind:{period:9,warn:1.3,dur:2,force:150},
+  par:270,
+  brief:"The ridge road runs the whole length of the hills, and they've thrown everything at it: cracking anchors, static, gates, a trolley, and a wind off the sea. Two relays to reroute on the way. Nothing on this road happens twice.",
+  outro:"Ridge road clear. From here the second tower's shadow reaches the coast.",
+  report:"Ridge relays rerouted. We tested the shield in the static: it holds. The workshop has started on the cloak; the cell they need is the kind the scout ships run on. Bring one back if you can.",
+  sgen:{seed:27,len:640,tier:3,g:38,maxG:50,unique:true,vary:true,terminals:2,
+        pool:['anchorChain','staticLeap','releaseGate','trolleyRun','ceilingRun','crumbleBridge','lowCeilingPit','slabSparks','shaftUp','dropDown','zipDown','ferry','flat','drones','nest','dip','twoTier','gap','anchorRun'],
+        must:['anchorChain','releaseGate','trolleyRun']},
+  hints:[[0,"Ridge Run. Everything at once, and a wind. Time your swings between gusts."]]
+},
+// ------------------------------------------------------------------ 28
+{
+  act:5, mode:'top', name:'Relay Graveyard', place:'Under the second tower · 20:05', theme:'hive',
+  par:330,
+  brief:"They dumped every relay they tore out of the coast under the second tower, and a hive has grown over the pile. Something is nesting in it. Find the parts, reroute the terminal, and deal with what's guarding the stairs.",
+  outro:"The nest is cleared and the terminal's ours. The stairs go up the mast.",
+  report:"Graveyard relay rerouted, brood mother down. Among the dumped relays: twenty of ours, and one that isn't. It carries a HALYARD serial plate. The ministry built relays for them.",
+  gen:{cols:6,rows:4,seed:28,need:3,boss:true,mainLen:12,secret:0.6,tier:3,hold:2.0,loops:3,must:['staticPosts','sokoban'],
+       types:['staticPosts','sokoban','heavyPair','postChain','leverGate','cagedFuse','den','timedPlate','plateCrate','beltCrate'],
+       terms:[{time:16,waves:[[0.1,'skitter','skitter'],[0.4,'leech','seeker'],[0.7,'skitter','skitter','leech']]}]}
+},
+// ------------------------------------------------------------------ 29
+{
+  act:5, name:'Mast Approach', place:'Second tower, the mast climb · 22:30', theme:'jammer', wind:{period:8,warn:1.3,dur:2.2,force:170},
+  par:180,
+  brief:"The second mast is taller, and the wind up here is worse. Cracking anchors, lifts, and a long way down. The relay deck is at the very top, under the dish.",
+  outro:"Top deck rerouted. The dish is right there.",
+  report:"Mast deck rerouted. The dish is aimed at the sea, not at us: it was talking to the fleet. Cut it and the fleet loses its eyes on the coast. Whatever lands after that lands blind.",
+  sgen:{seed:29,len:340,tier:3,g:120,maxG:132,vary:true,terminals:1,deckAt:[0.9],must:['anchorChain','shaftTall'],
+        pool:['shaftTall','shaftUp','liftUp','anchorChain','releaseGate','flat','gap','climbOver','drones','anchorRun']},
+  hints:[[0,"Mast Approach. The anchors up here crack when hooked, and the gusts are worse. Climb between them."]]
+},
+// ------------------------------------------------------------------ 30 (boss)
+{
+  act:5, name:'Jammer Prime', place:'Second tower, the dish · 23:50', theme:'jammer', W:76, H:46,
+  brief:"The dish is powered by four generators on the mast girders and shielded by all four. Static hangs under the dish so nothing can be hooked from below. Climb, break the generators, then bring the dish down from the high girders.",
+  outro:"",
+  actEnd:{title:'JAMMERS DOWN',text:"The dish fell through the deck and the hum that had sat over the coast for a week stopped all at once. Every channel is open. Out at sea the scout ships are coming down anyway, blind and in a hurry. End of Act 5."},
+  report:"Both jammers down. The fleet has lost the coast, and the scouts are landing wherever they can: the first is on the beach road. Their ships run on the cells the workshop wants for the cloak. Board one.",
+  build(B){
+    B.steel(1,74,40,43); B.steel(6,70,2,3);
+    B.girder(6,14,34); B.girder(57,67,34); B.girder(2,7,26); B.girder(68,73,26); B.girder(18,24,30); B.girder(49,55,30); B.girder(14,22,21); B.girder(51,59,21); B.girder(33,43,28);
+    B.girder(8,26,12); B.girder(48,66,12);
+    B.platform(29,40,29,12,4,{speed:40}); B.platform(44,40,44,12,4,{speed:40,phase:1});
+    B.static(26,50,22,27);
+    B.core(38,19,[[10,33],[61,33],[18,20],[53,20]]);
+    B.start(4,39); B.check(70,39); B.page(10,11); B.steel(10,12,28,29); B.crack(11,29,false); B.hat(11,28); B.steel(62,64,28,29); B.crack(63,29,false); B.hat(63,28);
+    [[7,33],[64,33],[20,20],[51,20],[38,27],[15,11],[60,11]].forEach(r=>B.relay(...r));
+    B.prop('dish',{x:38,row:11}); B.prop('antenna',{x:12,row:11});
+  },
+  hints:[
+    [0,"Jammer Prime. Four generators guard the dish. Climb the girders and punch each one, then the dish itself from the high girders. The haze under the dish won't take a hook."],
+    [20,"When a band lights up, step out of its line. Vertical bands: sidestep. Horizontal bands: climb."]
+  ]
+},
+
 ];
 
 // the cover-up dossier: one page hidden per level (two in a couple of them), collected in any order, kept across runs
@@ -393,6 +532,16 @@ window.RR_PAGES=[
   {lv:18,title:"HALYARD memo",text:"'The fleet will arrive regardless. Objective: be first to the Mothership's core.' They wanted it, not us."},
   {lv:19,title:"Lanyard, alien console",text:"A ministry badge, clipped to their equipment. Somebody from HALYARD was here before us."},
   {lv:20,title:"Signed order",text:"'Let the jammers stand until the fleet lands. Then we take the core.' Secretary, Project HALYARD."},
+  {lv:21,title:"Hill lease",text:"The north slope was sold to a ministry holding company a month before the towers went up. The seller: HALYARD."},
+  {lv:22,title:"Control yard manifest",text:"Crates of static emitters, delivered by road. Our road. Signed for by a ministry driver."},
+  {lv:23,title:"Workshop note, stapled to the rig",text:"'Plating from the freight yard. It stops their static cold. Don't tell the ministry we have it.'"},
+  {lv:24,title:"Trolley line survey",text:"The cable route was surveyed two years ago. By a ministry crew. For 'pylon maintenance'."},
+  {lv:25,title:"Mast blueprint",text:"The clamps are a ministry pattern: the same clamps hold up our own transmitters."},
+  {lv:26,title:"Access log",text:"HALYARD-7 logged in to the tower's terminals eleven times. The last time was yesterday."},
+  {lv:27,title:"Ridge road closure order",text:"'Closed for resurfacing.' The road was never resurfaced. The towers went up while it was closed."},
+  {lv:28,title:"Relay serial plate",text:"HALYARD-RELAY-003. The ministry's own factory mark, on a relay built for the hive."},
+  {lv:29,title:"Weather memo",text:"'The sea wind will keep the riggers off the mast.' Somebody counted on it."},
+  {lv:30,title:"Dish alignment card",text:"Bearing to the fleet, and a second bearing: to the ministry's own tower on the hill above the capital."},
 ];
 window.RR_DOSSIER_END={
   full:"Every page of the dossier is accounted for. The ministry had the ship's signature on file for nine years, its survey crews mapped the burrows, and the jammers went up on land the government cleared. Project HALYARD invited this, and wanted the core for itself. The broadcast goes out with all of it attached.",
@@ -400,5 +549,5 @@ window.RR_DOSSIER_END={
   thin:"The dossier is thin. Whatever the ministry knew stays buried for now. The pages are still out there, if anyone goes back for them."
 };
 window.RR_LEVELS = LEVELS;
-window.RR_ACTS = ['Lights Out','Interference','Undertow','Signal'];
+window.RR_ACTS = ['Lights Out','Interference','Undertow','Signal','Jammers'];
 })();

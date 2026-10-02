@@ -99,16 +99,19 @@ const TB = window.TB = {
       r.run(3,{[tx*16>px?'right':'left']:true}); f+=3; }
     return 'timeout at '+r.info().tx; },
   // swing across a gap starting from ground edge tile edgeTx (the chain() logic, without restarting the level)
-  swingAcross(edgeTx,g,landTx,opts={}){ this.walkFight(edgeTx-2); this.calmSpell(edgeTx-2); const f0=r.info().falls; let fired=false, swings=0, lastRel=-99, still=0; const fireAt=opts.fireAt??0.5, want=opts.rope??110, vxRel=opts.vxRel??60;
+  // opts.window = {x, top, bot}: a gate past the pit; release only when the arc will carry the worker through it
+  swingAcross(edgeTx,g,landTx,opts={}){ this.walkFight(edgeTx-2); this.calmSpell(edgeTx-2); this.until({},()=>r.hook().state==='idle'&&r.p().onGround,60); /* a shot pressed while the last hook is still returning is ignored */ const f0=r.info().falls; let fired=false, swings=0, lastRel=-99, still=0; const fireAt=opts.fireAt??0.5, want=opts.rope??110, vxRel=opts.vxRel??60, win=opts.window;
+    const through=()=>{ if(!win) return true; const p=r.p(); let x=p.x+6, y=p.y+p.h, vx=p.vx, vy=p.vy; for(let i=0;i<120;i++){ const dt=1/60; vy+=760*dt; x+=vx*dt; y+=vy*dt; if(x>=win.x*16){ return y<=(win.bot+1)*16-1&&y-p.h>=win.top*16; } } return false; };
     for(let f=0;f<3000;f++){ const p=r.p(), h=r.hook(), info=r.info(), k={};
       still=h.state==='att'&&!p.onGround&&Math.abs(p.vx)<15&&Math.abs(p.vy)<15?still+1:0;   // hanging dead still against a wall: reel in and climb over it
-      if(!fired){ k.right=true; if(p.x+6>=(edgeTx+fireAt)*16){ k.grab=true; fired=true; } }
-      else if(still>40){ k.grab=true; k.up=true; if(p.x+6>(landTx-1.6)*16&&p.y+p.h<=g*16-1){ k.grab=false; k.up=false; k.right=true; lastRel=f; still=0; } }
-      else if(h.state==='att'){ k.grab=true; if(p.onGround) k.right=true; else { k[p.vx>=0?'right':'left']=true; if(info.rope<want) k.down=true;
-        if(p.x+6>(landTx-1.6)*16&&p.y+p.h<=g*16-1){ k.grab=false; k.down=false; k.right=true; lastRel=f; swings++; } // above the far ledge: let go and step on
-        else if(p.x+6>h.x+8&&p.vy<0&&p.vx>0&&p.vx<vxRel&&p.x+6<(landTx-2)*16&&f-lastRel>20){ k.grab=false; k.down=false; lastRel=f; swings++; } } }
-      else if(h.state==='fly'){ k.grab=true; k.right=true; }
-      else { k.right=true; if(!p.onGround&&f-lastRel<90) k.grab=(f-lastRel)%2===1; }
+      if(!fired){ k.right=true; if(p.x+6>=(edgeTx+fireAt)*16){ k.grab=true; if(opts.fireUp) k.up=true; fired=true; } }   // fireUp: straight up (short or high ceilings the diagonal shot can't reach)
+      else if(still>40){ k.grab=true; k.up=true; if(h.y>=g*16+8){ k.grab=false; k.up=false; still=0; lastRel=f-100; } /* hooked into the pit wall below the ledge: nothing to climb to, let go */
+        else if(p.x+6>(landTx-1.6)*16&&p.y+p.h<=g*16-1){ k.grab=false; k.up=false; k.right=true; lastRel=f; still=0; } }
+      else if(h.state==='att'){ k.grab=true; if(p.onGround) k.right=true; else { k[p.vx>=0?'right':'left']=true; if(info.rope<want) k.down=true; else if(info.rope>want+40) k.up=true; /* a rope much longer than wanted overshoots the next anchor: reel in */
+        if(!win&&p.x+6>(landTx-1.6)*16&&p.y+p.h<=g*16-1){ k.grab=false; k.down=false; k.right=true; lastRel=f; swings++; } // above the far ledge: let go and step on
+        else if(win?(p.vx>40&&through()):(p.x+6>h.x+(opts.minFwd??8)&&p.vy<0&&p.vx>0&&p.vx<vxRel&&p.x+6<(landTx-2)*16)&&f-lastRel>20){ /* minFwd: how far past the hook before a release counts (leaps want the full forward arc) */ k.grab=false; k.down=false; lastRel=f; swings++; } } }
+      else if(h.state==='fly'){ k.grab=true; k.right=true; if(opts.fireUp&&swings===0) k.up=true; }
+      else { k.right=true; if(!p.onGround&&f-lastRel<90&&p.vy>30&&!(p.x+6>(landTx-2.5)*16&&p.y+p.h>g*16)) k.grab=(f-lastRel)%2===1; }   /* re-fire near the apex or falling: a hook caught while rocketing up leaves a stub of rope and no swing */   // never re-fire into the landing's wall face
       const i=r.run(1,k); if(i.falls>f0) return 'FELL after '+swings+' swings';
       if(i.ground&&i.tx>=landTx){ r.run(2,{right:true}); return 'landed '+i.tx+' ('+swings+' swings)'; } }
     return 'timeout at '+r.info().tx; },

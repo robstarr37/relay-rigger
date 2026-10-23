@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
 <title>Relay Rigger</title>
-<meta name="description" content="Swing up a storm-wrecked radio tower with a winch gauntlet. No jump.">
+<meta name="description" content="Carry a live broadcast feed up the towers. Hook the jacks, plug the taps, and don't drop the carrier.">
 <meta name="theme-color" content="#10122a">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -27,6 +27,7 @@
   <span class="stat lvl"><b id="lvl">L1</b></span>
   <span class="pips" id="hp" aria-label="Hard hat"></span>
   <span class="stat"><span class="l">Relays</span><b id="rel">0/7</b></span>
+  <span class="stat" id="carStat" hidden><span class="l">Carrier</span><b id="car">COLD</b></span>
   <span class="stat" id="netStat"><span class="l">Network</span><b id="net">0/1</b></span>
   <span class="stat" id="partStat" hidden><span class="l">Parts</span><b id="parts">0/0</b></span>
   <span class="stat" id="pulseStat" hidden><span class="l">Pulse</span><b id="pulse">READY</b></span>
@@ -55,8 +56,8 @@
 <div class="ov" id="ovTitle">
   <div class="card">
     <h1>RELAY <span>RIGGER</span></h1>
-    <p class="tag">No jump. One winch gauntlet. 13&nbsp;m of cable.</p>
-    <p class="story">Something is jamming the broadcast network, and it isn't the weather. Swing up the towers, reroute the terminals and keep the lines open long enough to warn everyone.</p>
+    <p class="tag">Carry the live feed. Plug the jacks. Don't drop the carrier.</p>
+    <p class="story">The broadcast network is going dark, tower by tower. Your cable is the carrier: hook a live jack and the feed rides the line with you. Plug the taps, walk it home to the mast, and the towers come back on air. Let go at speed and a hot cable throws a cue.</p>
     <div class="menu row">
       <button class="go" id="startBtn" type="button">Start shift</button>
       <button class="alt" id="levelsBtn" type="button">Levels</button>
@@ -68,12 +69,13 @@
       <span><kbd>↑</kbd> aim up · reel in</span>
       <span><kbd>↓</kbd> aim ahead · pay out</span>
       <span><kbd>Space</kbd> hold to grab · tap to punch · release to fling</span>
+      <span>Hook a glowing <b>LIVE</b> jack. Walk the feed into a tap before it dumps. Release a fast swing for a <b>cue</b>.</span>
       <span><kbd>X</kbd> shock pulse (from level 16)</span>
       <span><kbd>Esc</kbd> pause · <kbd>M</kbd> sound · <kbd>H</kbd> hints</span>
     </div>
-    <p class="keys only-touch">Left thumb: move and aim. Right thumb: hold <b>GRAB</b>.</p>
+    <p class="keys only-touch">Left thumb: move and aim. Right thumb: hold <b>GRAB</b>. Hook the glowing jack first.</p>
     <p class="tip" id="installTip" hidden></p>
-    <p class="note">An original game. Characters, setting, art and names are all new; only the general swing-instead-of-jump idea is shared with the genre.</p>
+    <p class="note">Come back for the call signs: a full sweep, a clean run, a hot carrier, the dossier, and a time to beat. The feed has to be live when it hits every tap and the mast. Dropping it on the way is fine. Hook another live jack and it comes back.</p>
   </div>
 </div>
 

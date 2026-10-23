@@ -100,7 +100,7 @@ const TB = window.TB = {
     return 'timeout at '+r.info().tx; },
   // swing across a gap starting from ground edge tile edgeTx (the chain() logic, without restarting the level)
   // opts.window = {x, top, bot}: a gate past the pit; release only when the arc will carry the worker through it
-  swingAcross(edgeTx,g,landTx,opts={}){ this.walkFight(edgeTx-2); this.calmSpell(edgeTx-2); this.until({},()=>r.hook().state==='idle'&&r.p().onGround,60); /* a shot pressed while the last hook is still returning is ignored */ const f0=r.info().falls; let fired=false, swings=0, lastRel=-99, still=0; const fireAt=opts.fireAt??0.5, want=opts.rope??110, vxRel=opts.vxRel??60, win=opts.window;
+  swingAcross(edgeTx,g,landTx,opts={}){ const here=r.info(); if(here.ground&&here.tx>=landTx-0.2&&Math.abs(here.ty-g)<0.6) return 'already across '+here.tx; /* the previous swing already carried us onto this landing */ this.walkFight(edgeTx-2); this.calmSpell(edgeTx-2); this.until({},()=>r.hook().state==='idle'&&r.p().onGround,60); /* a shot pressed while the last hook is still returning is ignored */ const f0=r.info().falls; let fired=false, swings=0, lastRel=-99, still=0; const fireAt=opts.fireAt??0.5, want=opts.rope??110, vxRel=opts.vxRel??60, win=opts.window;
     const through=()=>{ if(!win) return true; const p=r.p(); let x=p.x+6, y=p.y+p.h, vx=p.vx, vy=p.vy; for(let i=0;i<120;i++){ const dt=1/60; vy+=760*dt; x+=vx*dt; y+=vy*dt; if(x>=win.x*16){ return y<=(win.bot+1)*16-1&&y-p.h>=win.top*16; } } return false; };
     for(let f=0;f<3000;f++){ const p=r.p(), h=r.hook(), info=r.info(), k={};
       still=h.state==='att'&&!p.onGround&&Math.abs(p.vx)<15&&Math.abs(p.vy)<15?still+1:0;   // hanging dead still against a wall: reel in and climb over it

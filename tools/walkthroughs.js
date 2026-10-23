@@ -6,6 +6,22 @@
 const T = window.TB, r = window.__rr;
 const WALK = window.WALK = {
   substation9(calm){ return this.composed(6,calm); },
+  // level 1 is hand-built: swing the live ceiling, plug the tap, crack the page, climb three girders to the mast
+  kestrel(){ const log=[]; r.start(0); r.run(8);
+    log.push('swing '+T.swingAcross(6,22,19));
+    log.push('tap '+T.walkFight(19));
+    const tap=(r.carrier().jacks.find(j=>j.role==='tap')||{});
+    log.push(tap.patched?'TAP ON AIR':'COLD TAP');
+    log.push('page '+T.crackUp(42));
+    log.push('girder '+T.walkFight(48));
+    log.push('c1 '+T.climb()); T.walkSide(52);
+    log.push('c2 '+T.climb()); T.walkSide(52);
+    log.push('c3 '+T.climb());
+    log.push('deck '+T.walkFight(70));
+    for(let f=0;f<500&&r.info().state==='play';f++) r.run(1,{right:true});
+    const mast=r.carrier().jacks.find(j=>j.role==='mast')||{};
+    log.push((mast.patched?'MAST HOME':'MAST MISSED')+' RESULT '+r.info().state+' clock '+document.getElementById('tim').textContent+' falls '+r.info().falls);
+    return log.join('\n'); },
 
   // ---- side-view set pieces ----
   // hook the beam at a shaft edge, step off, pay out cable, land without fall damage

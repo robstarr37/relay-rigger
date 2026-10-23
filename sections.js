@@ -39,6 +39,14 @@ const SECTIONS={
     build(B,x,g,c,v){ const {pw,ch}=V(v,{pw:12,ch:12}); B.steel(x,x+pw+12,g-ch-1,g-ch); B.prop('chains',{x:x+8,row:g-ch+1,len:30}); B.prop('chains',{x:x+14,row:g-ch+1,len:44}); B.relay(x+Math.floor(pw/2)+5,g+1); B.prop('cone',{x:x+pw+5.4,row:g-1});
       if(rnd()<0.5){ B.girder(x+pw+13,x+pw+16,g-ch-2); B.hat(x+12,g-ch-2); } },
     check(T,x,g,c,v){ const {pw,ch}=V(v,{pw:12,ch:12}); return 'swing '+T.swingAcross(x+4,g,x+5+pw,{fireUp:ch>12}); } },
+  // a ceiling swing whose underside is a live jack: the cable goes hot, and a tap waits on the landing
+  patchSwing:{w:30,tier:1,ground:[[0,4],[17,29]],hint:"Live jack in the ceiling. Hook it and the cable carries the carrier. Land, then walk into the tap before the feed dumps. Let go fast and a hot cable throws a cue.",
+    build(B,x,g){ const pw=12, ch=12; B.steel(x,x+pw+12,g-ch-1,g-ch); for(let i=3;i<=pw+8;i++){ B.jack(x+i,g-ch-1,'live'); B.jack(x+i,g-ch,'live'); }
+      B.jack(x+20,g-1,'tap'); B.prop('chains',{x:x+8,row:g-ch+1,len:34}); B.prop('chains',{x:x+14,row:g-ch+1,len:46});
+      B.relay(x+11,g+1); B.relay(x+23,g-1); B.prop('antenna',{x:x+26,row:g-1}); B.prop('sign',{x:x+2,row:g-1}); },
+    check(T,x,g){ const s='patch '+T.swingAcross(x+4,g,x+17)+' '+T.walkFight(x+21); const tap=(T.r.carrier?T.r.carrier():{jacks:[]}).jacks.find(j=>j.role==='tap'&&j.tx===x+20); return s+(tap&&tap.patched?' TAP':' COLD'); },
+    page(B,x,g){ pageOverhang(B,x+24,g); },
+    pageCheck(T,x,g){ const s='patch '+T.swingAcross(x+4,g,x+17)+' '+T.walkFight(x+21)+' '+T.crackUp(x+24)+' '+T.walkFight(x+28); const tap=(T.r.carrier?T.r.carrier():{jacks:[]}).jacks.find(j=>j.role==='tap'&&j.tx===x+20); return s+(tap&&tap.patched?' TAP':' COLD'); } },
   // one long ceiling over a pit len wide
   ceilingRun:{w:v=>14+V(v,{len:26}).len,tier:2,ground:v=>{ const {len}=V(v,{len:26}); return [[0,4],[5+len,13+len]]; },vary:r=>({len:24+2*Math.floor(r()*3)}),hint:"One long ceiling over the gap. Swing, let go at the top, fire again straight away. Chain it across.",
     build(B,x,g,c,v){ const {len}=V(v,{len:26}); B.steel(x,x+len+10,g-13,g-12); B.prop('chains',{x:x+9,row:g-11,len:24}); B.prop('chains',{x:x+18,row:g-11,len:40}); B.prop('chains',{x:x+26,row:g-11,len:20}); B.relay(x+Math.floor(len/2)+4,g+1);
@@ -149,6 +157,7 @@ const SECTIONS={
     check(T,x,g){ const r=T.r; const n0=r.items().filter(q=>q.got).length; let s='kit '+T.walkFight(x+11)+' '+T.climb()+' '+T.walkFight(x+12); return s+(r.items().filter(q=>q.got).length>n0?' got':' NO KIT')+' '+T.walkFight(x+17); } },
   towerDeck:{w:60,tier:1,ground:[[0,59]],hint:"Climb the tower one girder at a time: fire up, reel in, step over. Reroute the terminal on the deck.",
     build(B,x,g,c){ B.girder(x+4,x+10,g-5); B.girder(x+8,x+14,g-10); B.girder(x+2,x+10,g-15); B.girder(x+8,x+52,g-19);
+      for(let i=4;i<=10;i++) B.jack(x+i,g-5,'live'); B.jack(x+44,g-20,'mast');
       B.terminal(x+30,g-20,c.term); B.check(x+12,g-20); B.relay(x+6,g-16); B.relay(x+44,g-20);
       B.prop('tower',{x0:x+1.4,x1:x+15.6,top:g-19,row:g-1}); B.prop('pylon',{x:x+24,top:g-18,row:g-1}); B.prop('pylon',{x:x+40,top:g-18,row:g-1}); B.prop('dish',{x:x+36,row:g-20});
       if(c.tier>=2) B.enemy('skitter',x+22,g-20); B.drone(x+34,x+48,g-20); },
@@ -171,10 +180,14 @@ function composeSide(def){
   const hazards=pool.filter(k=>!BREATH.includes(k)), breathers=pool.filter(k=>BREATH.includes(k));
   const list=[]; let x=x0, g=g0, last='start', run=0, decks=0; const used=new Set();
   if(!G.noStart){ list.push({name:'start',x,g}); x+=SECTIONS.start.w; }
+  // a hand-ordered run: each section once, in this order. Random pools repeat the same swing.
+  if(G.script){ for(const name of G.script){ const sec=SECTIONS[name]; if(!sec) throw new Error('unknown section '+name);
+    if(DECKS.includes(name)) decks++; const v=G.vary&&sec.vary?sec.vary(rnd):undefined;
+    list.push({name,x,g,v}); x+=wOf(sec,v); g+=sec.dg||0; last=name; } }
   // levels with fall damage never drop the worker: no descents, and the terminal stays on the ground
   const fits=k=>{ const dg=SECTIONS[k].dg||0; if(def.fallDamage&&dg>0) return false; return g+dg>=22&&g+dg<=(G.maxG||g0+12); };
   const tail=(G.noGoal?0:SECTIONS.goal.w)+40;
-  while(x<len-tail){
+  while(!G.script&&x<len-tail){
     let name;
     if(decks<nTerms&&x>len*deckAt[decks]&&g>=22){ name=deckName; decks++; }
     else if(G.must&&(()=>{ while(mustIdx<G.must.length&&used.has(G.must[mustIdx])) mustIdx++; return mustIdx<G.must.length&&x>len*(0.2+0.3*mustIdx)&&fits(G.must[mustIdx])&&G.must[mustIdx]!==last; })()){ name=G.must[mustIdx++]; }   // a level's signature sections, spread along the run
@@ -185,7 +198,7 @@ function composeSide(def){
     const sec=SECTIONS[name], v=G.vary&&sec.vary?sec.vary(rnd):undefined;
     list.push({name,x,g,v}); x+=wOf(sec,v); g+=sec.dg||0; last=name;
   }
-  while(decks<nTerms){ list.push({name:deckName,x,g}); x+=SECTIONS[deckName].w; decks++; }
+  while(!G.script&&decks<nTerms){ list.push({name:deckName,x,g}); x+=SECTIONS[deckName].w; decks++; }
   if(!G.noGoal){ list.push({name:'goal',x,g}); x+=SECTIONS.goal.w; }
   const endX=x;
   const W=Math.max(endX+2,G.extraFirst?(G.extraW||0):(G.extraW?endX-1+G.extraW:0)), H=Math.max(Math.max(...list.map(s=>s.g+(SECTIONS[s.name].depth||0)))+4,G.extraH||0);   // depth: a section whose floor dips below its ground row

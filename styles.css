@@ -36,6 +36,7 @@ canvas{
 .hud b{color:var(--ink);font-weight:600}
 .hud .lvl b{color:var(--orange)}
 .hud .net-on b{color:var(--green)}
+.hud .hot b{color:var(--green);text-shadow:0 0 8px #5fe39a}
 .hud .l{color:var(--dim);margin-right:5px}
 .pips{display:inline-flex;gap:3px}
 .pips i{width:12px;height:10px;background:var(--amber);display:block;border-radius:6px 6px 1px 1px;box-shadow:0 1px 0 #000}

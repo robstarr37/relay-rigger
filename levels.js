@@ -47,71 +47,71 @@ const shiftB=(B,dx)=>({ W:B.W,H:B.H,
 const LEVELS = [
 // ------------------------------------------------------------------ 1
 {
-  act:1, name:'Kestrel Ridge', place:'Transmitter KRX-7 · 02:40', theme:'ridge', W:140, H:26,
-  brief:"Last night's storm knocked seven relay boxes loose and took the Kestrel Ridge transmitter off air. Somebody's drones are crawling all over the tower. Swing up, reroute the network from the deck terminal and get it broadcasting again.",
-  outro:"Back on air. But those drones weren't ours — and they were jamming the signal on purpose.",
+  act:1, hot:true, name:'Kestrel Ridge', par:40, place:'Transmitter KRX-7 · 02:40', theme:'ridge', W:96, H:28,
+  brief:"The ridge is dark. One jack over the shack is still live. Hook it and the cable carries the carrier: swing it across the gap, plug the tap on the far side, and the towers answer. Let go at speed and a hot cable throws a cue. Bring what's left up to the mast.",
+  outro:"The ridge just came back, every tower you can see. Those drones weren't ours, and they were eating the carrier on purpose.",
   report:"KRX-7 back on air. Dispatch says the drones came off a transport that put down in Harrow quarry two nights ago. Nobody at the ministry is returning calls.",
   build(B){
-    B.rock(1,16,22,25); B.rock(22,52,22,25); B.rock(65,138,22,25);
-    B.girder(11,26,15); B.girder(28,33,18); B.girder(34,39,12); B.steel(40,44,12,21);
-    B.steel(48,72,9,10);
-    B.girder(71,82,15); B.sparks(78,80,21);
-    B.girder(88,94,17); B.girder(92,98,12); B.girder(86,94,7); B.girder(92,136,3);
-    B.start(2,21); B.check(47,21); B.check(87,21); B.check(98,2);
-    [[8,21],[30,17],[59,23],[76,14],[96,11],[88,6],[126,2]].forEach(r=>B.relay(...r));
-    B.drone(26,36,21); B.drone(66,74,21); B.drone(116,124,2);
-    B.terminal(103,2,{time:12,waves:[[0.12,'hunter','hunter'],[0.55,'hunter','hunter','hunter']]});
-    B.goal(132,2); B.crack(40,21,false); B.hat(41,21); B.hat(60,8); B.girder(73,75,8); B.page(74,7);
-    B.prop('tower',{x0:85.4,x1:99.6,top:3,row:21});
-    B.prop('pylon',{x:110,top:4,row:21}); B.prop('pylon',{x:124,top:4,row:21});
-    B.prop('chains',{x:50.5,row:11,len:34}); B.prop('chains',{x:57.5,row:11,len:22}); B.prop('chains',{x:63.5,row:11,len:40}); B.prop('chains',{x:69.5,row:11,len:26});
-    B.prop('cabin',{x:3.5,row:21}); B.prop('fence',{x0:22.2,x1:39.8,row:21});
-    B.prop('cone',{x:15.4,row:21}); B.prop('cone',{x:52.2,row:21}); B.prop('cone',{x:65.4,row:21});
-    B.prop('sign',{x:75.2,row:21}); B.prop('drum',{x:68.5,row:21}); B.prop('crates',{x:99.7,row:21});
+    const g=22;
+    // the opening swing: same proportions as a ceiling swing the test bot already clears
+    B.rock(2,6,g,27); B.rock(19,94,g,27);
+    B.steel(2,26,g-13,g-12);
+    // both rows: the hook bites the underside, and a steep shot can clip the course above it
+    for(let i=4;i<=20;i++){ B.jack(i,g-13,'live'); B.jack(i,g-12,'live'); }
+    B.jack(20,g-1,'tap');
+    B.relay(13,g+1); B.relay(16,g-4); B.relay(24,g-1); B.relay(52,g-6); B.relay(64,g-16);
+    B.prop('chains',{x:10,row:g-11,len:36}); B.prop('chains',{x:16,row:g-11,len:50});
+    B.prop('cabin',{x:3.4,row:g-1}); B.prop('antenna',{x:23,row:g-1}); B.prop('sign',{x:5,row:g-1});
+    B.start(3,g-1); B.check(22,g-1);
+    B.drone(30,40,g-1);
+    B.steel(41,43,g-7,g-6); B.crack(42,g-6,false); B.page(42,g-7);
+    B.girder(46,52,g-5); for(let i=46;i<=52;i++) B.jack(i,g-5,'live');
+    B.girder(50,56,g-10); B.girder(44,82,g-15);
+    B.jack(66,g-16,'mast'); B.goal(74,g-16); B.check(52,g-16);
+    B.prop('tower',{x0:43.4,x1:58.6,top:g-15,row:g-1}); B.prop('dish',{x:74,row:g-16});
+    B.prop('pylon',{x:30,top:g-14,row:g-1}); B.prop('cone',{x:28.4,row:g-1});
   },
   hints:[
-    [0,  "Hold <b>GRAB</b> to fire your cable at the girder above. Walk off the edge and swing. You can't jump."],
-    [22, "Press <b>▼ + GRAB</b> to punch straight ahead. Knock that drone out of the air."],
-    [36, "That pillar is cracked at the base. A punch opens it: hard hats hide behind cracks like that, and they fix your hard-hat meter."],
-    [32, "Press <b>▲ + GRAB</b> to fire straight up, then hold <b>▲</b> to reel in and climb onto the girder."],
-    [45, "Hook the ceiling, swing low through the pit, and let go at the top of the arc."],
-    [65, "Live cable on the ground ahead. Climb the girder and walk over it."],
-    [84, "Climb the tower one girder at a time: fire up, reel in, step over."],
-    [95, "Up top. Reroute the terminal, then reach the transmitter mast."]
+    [0,  "That ceiling jack is <b>LIVE</b>. Hold <b>GRAB</b> and walk off the edge. You can't jump. The cable carries the carrier."],
+    [10, "Let go at the top. A hot cable throws a <b>cue</b> that snatches relays and staggers drones."],
+    [19, "Walk into the <b>tap</b> before the feed dumps. Solid ground shorts it. Girders hold it. The towers answer when you plug in."],
+    [28, "<b>▼ + GRAB</b> punches straight ahead. One drone. Knock it out of the air."],
+    [44, "The page is in the cracked pocket. <b>▲ + GRAB</b> opens it. Then fire up at the girder, hold <b>▲</b> and reel in. Hooking that girder puts the carrier back on the cable."],
+    [60, "The mast takes a hot feed. Walk it home."]
   ]
 },
 // ------------------------------------------------------------------ 2
 {
-  act:1, name:'Harrow Quarry', place:'Relay HQ-2 · 21:15', theme:'quarry',
-  sgen:{pages:2,seed:2,len:400,tier:1,g:38,pool:['flat','gap','ceilingSwing','cableHazard','climbOver','drones','slabTunnel','dip','twoTier','shaftUp','dropDown']},
-  brief:"Relay HQ-2 in the old quarry went dark at the same minute as Kestrel. The night crew radioed about “something” moving on the quarry floor, then stopped answering.",
+  act:1, hot:true, name:'Harrow Quarry', par:85, place:'Relay HQ-2 · 21:15', theme:'quarry',
+  sgen:{pages:2,seed:2,tier:1,g:38,script:['patchSwing','dip','drones','flat','towerDeck']},
+  brief:"Relay HQ-2 in the old quarry went dark at the same minute as Kestrel. One hot swing across the pit, then the hollow under the rock. The night crew radioed about “something” on the quarry floor, then stopped answering.",
   outro:"Those weren't animals. Head office says keep it quiet. Head office is wrong.",
   report:"Quarry relay rerouted. The drones talk on a signal nobody at the station recognises: it rides on top of our own carrier. The interference team says it isn't terrestrial.",
 
 },
 // ------------------------------------------------------------------ 3
 {
-  act:1, name:'Blackwater Dam', place:'Emergency antenna BW-1 · 23:50', theme:'dam',
-  sgen:{seed:3,len:420,tier:2,g:38,pool:['flat','gap','ceilingSwing','cableHazard','climbOver','drones','ceilingRun','ferry','nest','slabTunnel','dip','twoTier','lowCeilingPit','shaftUp','dropDown']},
-  brief:"The dam antenna carries every emergency channel in the valley. Something is feeding on its terminal from the inside. Get up there and take it back.",
+  act:1, hot:true, name:'Blackwater Dam', par:105, place:'Emergency antenna BW-1 · 23:50', theme:'dam',
+  sgen:{seed:3,tier:2,g:38,script:['cableHazard','ferry','twoTier','nest','towerDeck']},
+  brief:"The dam antenna carries every emergency channel in the valley. Live cable on the spillway, then the ferry. Something is feeding on the terminal from the inside. Ride across and take it back.",
   outro:"Emergency channels restored. There were lights over the mountains all night, and they're moving toward the city.",
   report:"Dam line restored. We overheard a government channel discussing a 'contained incident' on the coast. They knew something was coming before it came.",
 
 },
 // ------------------------------------------------------------------ 4
 {
-  act:1, name:'Meridian Rooftops', place:'City relay grid · 01:05', theme:'city',
-  sgen:{seed:4,len:440,tier:2,g:38,terminals:2,steel:true,pool:['flat','gap','ceilingSwing','climbOver','drones','anchorRun','crumbleBridge','nest','ceilingRun','slabSparks','twoTier','shaftUp','dropDown','dip']},
-  brief:"There's a ship over Meridian City. The rooftop relay grid is the only way left to get a warning out, and they're tearing it down block by block. Two terminals to reroute.",
+  act:1, hot:true, name:'Meridian Rooftops', par:95, place:'City relay grid · 01:05', theme:'city',
+  sgen:{seed:4,tier:2,g:38,steel:true,script:['crumbleBridge','slabTunnel','anchorRun','climbOver','towerDeck']},
+  brief:"There's a ship over Meridian City. The rooftop grid is coming apart: a bridge that crumbles if you hesitate, a tunnel or the roof, then a run of separate anchors. One terminal up top. Don't stop.",
   outro:"Meridian's grid is ours again. One link is left: the Skyline Uplink can reach the whole coast.",
   report:"Rooftop mesh is up. Two of the drones were carrying hull plating with markings nobody can read: dense, light, takes a beating. Engineering wants more of it for a shield rig.",
 
 },
 // ------------------------------------------------------------------ 5
 {
-  act:1, name:'Skyline Uplink', place:'Coastal uplink SK-1 · 03:33', theme:'uplink',
-  sgen:{seed:5,len:460,tier:2,g:38,terminals:2,steel:true,pool:['flat','gap','ceilingSwing','climbOver','drones','anchorRun','ceilingRun','liftUp','dropDown','nest','slabSparks','twoTier','lowCeilingPit','shaftUp']},
-  brief:"This is it. Reroute both uplink terminals and the warning goes out to every radio, phone and screen on the coast. They know it too. Expect everything.",
+  act:1, hot:true, name:'Skyline Uplink', par:160, place:'Coastal uplink SK-1 · 03:33', theme:'uplink',
+  sgen:{seed:5,tier:2,g:38,terminals:2,steel:true,script:['patchSwing','ceilingRun','liftUp','towerDeck','dropDown','nest','towerDeck']},
+  brief:"This is it. Carry the carrier across one long ceiling, ride the lift, and reroute both uplink terminals. The warning goes out to every radio, phone and screen on the coast. They know it too.",
   outro:"",
   report:"Uplink live. We saw the ship: hanging over the coast, dark, jamming everything for sixty miles. The ministry has ordered a blackout on the footage. They had a file on this before it arrived.",
   actEnd:{title:'WARNING BROADCAST',text:"Every radio, phone and screen on the coast just heard the warning. The roads are filling, the shelters are opening, and the ship over Meridian has stopped moving. You kept the lines open."},
@@ -120,43 +120,43 @@ const LEVELS = [
 // ================================================================== ACT 2 · INTERFERENCE
 // ------------------------------------------------------------------ 6
 {
-  act:2, name:'Pylon Run', place:'Northern trunk line · 22:10', theme:'storm',
-  sgen:{seed:6,len:470,tier:2,g:38,pool:['flat','gap','ceilingRun','climbOver','drones','cableHazard','anchorRun','crumbleBridge','nest','dip','slabTunnel','twoTier','lowCeilingPit','shaftUp','dropDown']},
-  brief:"The warning got out, and they noticed. Storm cells are rolling down the northern trunk line and the pylons are dropping one by one. Ride the storm and keep the line alive.",
+  act:2, hot:true, name:'Pylon Run', par:95, place:'Northern trunk line · 22:10', theme:'storm',
+  sgen:{seed:6,tier:2,g:38,script:['ceilingRun','crumbleBridge','anchorRun','nest','cableHazard','towerDeck']},
+  brief:"The warning got out, and they noticed. One long ceiling, a bridge that dies behind you, then the pylons. Storm cells are dropping the trunk line. Keep it alive.",
   outro:"The line is holding. But the junk wrapped round the pylons wasn't storm damage. It was growing.",
   report:"Pylon line rerouted. The things on the pylons aren't drones. They're alive, and they're hunting the signal. Keep them at arm's length; punches work.",
 
 },
 // ------------------------------------------------------------------ 7 (top-down)
 {
-  act:2, mode:'top', name:'Substation 9', place:'Substation 9 · 23:40', theme:'station',
+  act:2, mode:'top', name:'Substation 9', par:70, place:'Substation 9 · 23:40', theme:'station',
   brief:"Something has moved into Substation 9 and sealed it from the inside. The doors run on pressure plates and old levers. Get in, reroute the switching terminal, and get out through the service hatch.",
   outro:"Switching restored. The things in there were nesting between the transformers.",
   report:"Substation switching back. There was a terminal in there running the ship's own code. The night-shift cryptographer thinks she can turn their jamming against them one day.",
-  gen:{cols:4,rows:3,seed:7,need:2,mainLen:6,secret:0.5,types:['plateCrate','leverGate','heavyPair','postPit','cagedFuse','den'],time:12}
+  gen:{cols:3,rows:3,seed:7,need:1,mainLen:5,secret:0.4,types:['plateCrate','leverGate','postPit','den'],time:10}
 
 },
 // ------------------------------------------------------------------ 8
 {
-  act:2, name:'Floodgate', place:'Carrow Dam spillway · 02:05', theme:'flood',
-  sgen:{seed:8,len:480,tier:2,g:38,pool:['flat','gap','ceilingSwing','ferry','liftUp','dropDown','anchorRun','drones','nest','crumbleBridge','slabSparks','dip','lowCeilingPit','shaftUp']},
-  brief:"They opened the floodgates to drown the valley relays. The ferries and service lifts still run on backup power. Ride them across the spillway and take the dam terminal back.",
+  act:2, hot:true, name:'Floodgate', par:120, place:'Carrow Dam spillway · 02:05', theme:'flood',
+  sgen:{seed:8,tier:2,g:38,script:['ferry','dropDown','liftUp','gap','nest','towerDeck']},
+  brief:"They opened the floodgates to drown the valley relays. This stretch is rides: ferry down, lift back up, one gap. Take the dam terminal back.",
   outro:"Gates shut, relays dry. Whatever opened them knew exactly which valve to turn.",
   report:"Spillway relay secured. The ship is dropping pods into the valley. Someone upstairs is calling it a weather event.",
 
 },
 // ------------------------------------------------------------------ 9
 {
-  act:2, name:'Freight Yard', place:'Harlow freight yard · 04:30', theme:'yard',
-  sgen:{seed:9,len:510,tier:2,g:38,terminals:2,pool:['flat','gap','ceilingRun','climbOver','liftUp','dropDown','ferry','anchorRun','drones','nest','crumbleBridge','cableHazard','slabTunnel','slabSparks','twoTier','dip','shaftUp']},
-  brief:"The freight yard's crane lines carry the backbone cables for three cities, and the ship is hovering right over them. Two terminals, a long way apart. Don't stop moving.",
+  act:2, hot:true, name:'Freight Yard', par:195, place:'Harlow freight yard · 04:30', theme:'yard',
+  sgen:{seed:9,tier:2,g:38,terminals:2,script:['liftUp','ferry','anchorRun','towerDeck','crumbleBridge','drones','towerDeck']},
+  brief:"The freight yard's crane lines carry the backbone for three cities, and the ship is hovering right over them. A lift, a ferry, a run of anchors, then two terminals. Don't stop moving.",
   outro:"Both yard terminals rerouted. Before it pulled back, the ship dropped something into the hills. Something big.",
   report:"Freight yard live. A wagon in there was packed with alien plating. The first shield plates are on their way to the workshop; a rig that soaks one hit is weeks out, not months.",
 
 },
 // ------------------------------------------------------------------ 10 (top-down)
 {
-  act:2, mode:'top', name:'The Hive Relay', place:'Relay Vault 7 · 05:55', theme:'hive',
+  act:2, mode:'top', name:'The Hive Relay', par:180, place:'Relay Vault 7 · 05:55', theme:'hive',
   brief:"Whatever they dropped burrowed straight into Relay Vault 7 and grew a hive around it. Every signal in the region routes through that vault. Go in, reroute both terminals, and get back out.",
   outro:"",
   report:"Vault 7 rerouted. The hive had grown around our own relay: they use our network to find the rest of it. Expect them to dig.",
@@ -169,12 +169,12 @@ const LEVELS = [
 // ================================================================== ACT 3 · UNDERTOW
 // ------------------------------------------------------------------ 11
 {
-  act:3, name:'Quarry Descent', place:'Harrow deep pit · 20:30', theme:'pit', fallDamage:true,
+  act:3, name:'Quarry Descent', par:240, place:'Harrow deep pit · 20:30', theme:'pit', fallDamage:true,
   brief:"The ship dropped a drill into Harrow's old deep pit, and the relay at the bottom is the only line left into the valley. Get down there, follow the pit floor east, and don't just jump: the drops are long enough to hurt now.",
   outro:"The valley line is back. Something at the bottom of that pit was drilling towards the pumping station.",
   report:"Pit relay up. The drill at the bottom is theirs, and it cuts steel like paper. Salvage a cutter from one of those and no sealed plate will stop a rigger again.",
-  sgen:{seed:11,len:520,x0:149,g:56,tier:3,noStart:true,terminals:1,termBase:1,extraFirst:true,extraW:150,extraH:64,maxG:56,
-        pool:['flat','gap','ceilingSwing','ceilingRun','anchorRun','cableHazard','climbOver','drones','nest','crumbleBridge','ferry','slabTunnel','dip','lowCeilingPit']},
+  sgen:{seed:11,x0:149,g:56,tier:3,noStart:true,terminals:1,termBase:1,extraFirst:true,extraW:150,extraH:64,maxG:56,
+        script:['gap','nest','cableHazard','groundDeck','flat']},
   // the hand-built descent; the composed pit floor runs east from x=149
   extra(B){
     B.rock(1,30,7,11);                    // top ledge
@@ -200,13 +200,13 @@ const LEVELS = [
     [66, "Ride the lift down."],
     [102,"Another shaft. Hook the girder, step off and lower yourself."],
     [118,"The pit relay. Reroute it."],
-    [150,"The pit floor runs east for a long way. Keep moving: the mast is at the far end."]
+    [150,"The pit floor runs east: a gap, a nest, live cable, then the ground terminal."]
   ]
 },
 
 // ------------------------------------------------------------------ 12 (top-down)
 {
-  act:3, mode:'top', name:'Cable Tunnels', place:'Harrow cable tunnels · 22:15', theme:'station',
+  act:3, mode:'top', name:'Cable Tunnels', par:155, place:'Harrow cable tunnels · 22:15', theme:'station',
   brief:"The drill broke into the old cable tunnels under the valley. The doors down here are on timers and the belts still run. Reroute the junction terminal and find the way out.",
   outro:"Junction rerouted. The tunnels lead straight to the pumping station, and the water in them is rising.",
   report:"Junction rerouted. The tunnels connect to the pumping station, and the station to the sea. They came up from under us.",
@@ -217,13 +217,13 @@ const LEVELS = [
 
 // ------------------------------------------------------------------ 13
 {
-  act:3, name:'Pumping Station', place:'Valley pumping station · 00:40', theme:'pump',
+  act:3, hot:true, name:'Pumping Station', par:160, place:'Valley pumping station · 00:40', theme:'pump',
   flood:{row:73,trigger:4,speed:12,max:14}, floodAt:4,
   brief:"They've jammed the station's pumps open and the whole shaft is flooding. Cross the valley to the station; the control terminal is at the very top of the shaft. Climb, and don't stop. Some of the old walkways give way under you.",
   outro:"Pumps reversed. The water's going down, and far below something huge has started to move.",
   report:"Pumps reversed. Something huge moved under the station on the way out. Sonar lost it heading for the gorge.",
-  sgen:{seed:13,len:330,g:68,tier:3,terminals:1,noGoal:true,extraW:124,extraH:72,maxG:68,shiftHints:true,
-        pool:['flat','gap','ceilingSwing','ceilingRun','anchorRun','cableHazard','climbOver','drones','nest','crumbleBridge','ferry','slabTunnel','slabSparks','twoTier','dip','lowCeilingPit']},
+  sgen:{seed:13,g:68,tier:3,terminals:1,noGoal:true,extraW:124,extraH:72,maxG:68,shiftHints:true,
+        script:['gap','drones','nest','ceilingSwing','towerDeck']},
   // the hand-built flooding shaft, shifted to the end of the composed valley run
   extra(B,x0){ const S=shiftB(B,x0-1);
     const g=68;
@@ -256,7 +256,7 @@ const LEVELS = [
 
 // ------------------------------------------------------------------ 14 (top-down)
 {
-  act:3, mode:'top', name:'The Burrow', place:'Beneath the station · 02:20', theme:'burrow',
+  act:3, mode:'top', name:'The Burrow', par:250, place:'Beneath the station · 02:20', theme:'burrow',
   brief:"Whatever flooded the station came up from here: a burrow full of them, and no lights. Your headlamp is all you've got. Reroute the deep relay, then deal with what's guarding the way out.",
   outro:"",
   report:"Deep relay rerouted and the brood mother is down. In her chamber: a government survey marker, dated years before the invasion. Somebody mapped this place.",
@@ -267,7 +267,7 @@ const LEVELS = [
 
 // ------------------------------------------------------------------ 15 (boss)
 {
-  act:3, name:'Ship Anchor', place:'Carrow gorge · 04:05', theme:'gorge', W:70, H:40,
+  act:3, name:'Ship Anchor', par:100, place:'Carrow gorge · 04:05', theme:'gorge', W:70, H:40,
   brief:"The ship has dropped a tether into Carrow gorge, a living cable pumping energy up into it. Cut the four clamps holding it down. It will fight back: when a red band lights up across the gorge, get out of it.",
   outro:"",
   report:"Tether cut. The ship is running north along the coast, and it's building towers on the hills: jammers, one for every band we have.",
@@ -295,13 +295,13 @@ const LEVELS = [
 // ================================================================== ACT 4 · SIGNAL
 // ------------------------------------------------------------------ 16
 {
-  act:4, name:'Storm Front', place:'Kestrel coast line · 21:00', theme:'storm',
+  act:4, hot:true, name:'Storm Front', par:190, place:'Kestrel coast line · 21:00', theme:'storm',
   wind:{period:7,warn:1.3,dur:2.6,force:230},
-  brief:"The ship ran, but it's coming back for one last push, riding a storm front in over the coast. The gusts out there can knock a rigger clean off a girder. One thing in your favour: the shock cell you salvaged from the tether. Press PULSE and everything around you gets thrown back.",
+  brief:"The ship is riding a storm back in. Gusts shove you off a girder, and the shock cell still throws everything back: press PULSE. Gap, ferry, low ceiling, then the tower. Swing between the gusts.",
   outro:"The line held through the storm. Down the coast, the relay array is powering up.",
   report:"Coast line held. The pulse cell works, and the workshop thinks the same tech can fold light. A cloak, if we find a power cell big enough.",
-  sgen:{seed:16,len:560,tier:3,g:26,terminals:2,maxG:38,
-        pool:['flat','gap','ceilingSwing','ceilingRun','anchorRun','cableHazard','climbOver','drones','nest','crumbleBridge','ferry','liftUp','dropDown','slabSparks','twoTier','lowCeilingPit','shaftUp','dip']},
+  sgen:{seed:16,tier:3,g:26,terminals:2,maxG:38,
+        script:['gap','ferry','lowCeilingPit','anchorRun','towerDeck','crumbleBridge','nest','towerDeck']},
   hints:[
     [0,  "Storm Front. You now carry a shock cell: <b>PULSE</b> knocks back everything near you and burns up plasma, then recharges. Watch for the GUST warning: the wind shoves you sideways."],
     [40, "Swings in a gale: time them between gusts, and stand still on ferries to brace."]
@@ -310,7 +310,7 @@ const LEVELS = [
 
 // ------------------------------------------------------------------ 17 (top-down)
 {
-  act:4, mode:'top', name:'Relay Array', place:'Coastal relay array · 23:15', theme:'station',
+  act:4, mode:'top', name:'Relay Array', par:195, place:'Coastal relay array · 23:15', theme:'station',
   brief:"The coast's relay array is the one weapon we have: aim it at the ship and it can knock out the shields. The aliens got here first and rigged the array rooms with security beams. Get both control terminals online.",
   outro:"The array is locked on. The ship's shields are flickering.",
   report:"Array online and aimed. Their shields are down for ten minutes, long enough to get onto the hull. Note from the array crew: their beams can't see through their own plating.",
@@ -322,13 +322,13 @@ const LEVELS = [
 
 // ------------------------------------------------------------------ 18
 {
-  act:4, name:'Skyhook', place:'Above the Kestrel hills · 02:45', theme:'sky',
+  act:4, hot:true, name:'Skyhook', par:215, place:'Above the Kestrel hills · 02:45', theme:'sky',
   wind:{period:10,warn:1.3,dur:2,force:140},
   brief:"The array knocked the ship's shields out for a few minutes and it dropped low, trailing its own cable lines over the hills. Ride those lines up into the sky and get onto the hull before it recovers.",
   outro:"You're on the hull. There's a hatch, and it isn't locked.",
   report:"Hull reached. From the deck we counted the fleet: eleven ships in the clouds, and one far bigger behind the moon. The towers on the hills are its relays.",
-  sgen:{seed:18,len:600,tier:3,g:30,steel:true,terminals:2,maxG:54,
-        pool:['flat','gap','ceilingRun','anchorRun','climbOver','drones','nest','crumbleBridge','ferry','liftUp','zipDown','zipDown','cableHazard','slabSparks','twoTier','shaftUp','lowCeilingPit']},
+  sgen:{seed:18,tier:3,g:30,steel:true,terminals:2,maxG:54,
+        script:['zipDown','liftUp','zipDown','anchorRun','towerDeck','ferry','towerDeck']},
   hints:[
     [0,  "Skyhook. The ship's cable lines trail down over the hills: ride them. Lifts take you back up. Watch the gusts."]
   ]
@@ -336,7 +336,7 @@ const LEVELS = [
 
 // ------------------------------------------------------------------ 19 (top-down)
 {
-  act:4, mode:'top', name:'Hull Breach', place:'Inside the mothership · 03:30', theme:'ship',
+  act:4, mode:'top', name:'Hull Breach', par:230, place:'Inside the mothership · 03:30', theme:'ship',
   brief:"You're inside. The ship's rooms are sealed and connected only by teleport pads, and most of the lights are out. Reroute the ship's own relays to broadcast our signal, and the core will be wide open.",
   outro:"The ship's own relays are broadcasting our signal. The core is exposed.",
   report:"Ship relays rerouted. Their jammers are a network, like ours. Knock out the towers and the whole fleet goes blind.",
@@ -348,7 +348,7 @@ const LEVELS = [
 
 // ------------------------------------------------------------------ 20 (final boss)
 {
-  act:4, name:'Heart of the Ship', place:'The mothership core', theme:'core', W:72, H:44,
+  act:4, name:'Heart of the Ship', par:695, place:'The mothership core', theme:'core', W:72, H:44,
   brief:"The core. Four generators keep its shield up: destroy them, then destroy it. When a red band lights up, it can come across the chamber or straight down it. Move.",
   outro:"",
   report:"Core destroyed. This ship is down, but the towers on the hills are still humming and the fleet is coming. Next stop: the jammers.",
@@ -370,19 +370,19 @@ const LEVELS = [
 // ================================================================== ACT 5 · JAMMERS
 // ------------------------------------------------------------------ 21
 {
-  act:5, name:'Static Hill', place:'Kestrel hills, north slope · 06:10', theme:'jammer',
-  par:165,
+  act:5, hot:true, name:'Static Hill', place:'Kestrel hills, north slope · 06:10', theme:'jammer',
+  par:95,
   brief:"The first jammer tower stands on the hill above the ridge, and its static hangs over the slopes in sheets: your cable won't bite inside the haze. Get up the hill, reroute the relay in the tower's shadow, and learn how the static behaves.",
   outro:"Relay back. The haze is thinner on the north face: that's the way into the tower.",
   report:"North slope relay up. The static is a field, not a weapon: it only stops cable and radio. Engineering says the shield plates shrug it off entirely, and they've finished a rig. It went up the hill ahead of you; it's somewhere on the ladder.",
-  sgen:{seed:21,len:520,tier:3,g:38,maxG:50,unique:true,vary:true,terminals:1,
-        pool:['flat','staticLeap','ceilingSwing','releaseGate','gap','slabTunnel','dip','drones','twoTier','lowCeilingPit','shaftUp','dropDown','nest','anchorRun','ceilingRun','crumbleBridge','ferry','slabSparks'],must:['staticLeap','releaseGate']},
+  sgen:{seed:21,tier:3,g:38,maxG:50,terminals:1,
+        script:['staticLeap','releaseGate','slabTunnel','drones','patchSwing','towerDeck']},
   hints:[[0,"Static Hill. The purple haze is jammer static: nothing to hook inside it. Swing in, let go, and fly through."]]
 },
 // ------------------------------------------------------------------ 22
 {
   act:5, mode:'top', name:'Jammer Yard', place:'Jammer tower, control yard · 07:40', theme:'jamroom',
-  par:300,
+  par:175,
   brief:"The tower's control rooms are dug into the hill. They've laid static across the pits so nothing can be pulled over them, and the switches that drop the fields are never on the side you need them. Reroute the yard terminal and find the stairs up.",
   outro:"Yard terminal rerouted. The static fields all run off one bus, and the bus runs to the tower.",
   report:"Yard rerouted. Each field has a cutout plate: weight on the plate, field off. Their engineers built in a safety switch for themselves, and left it where anyone can push a crate onto it. Keep that in mind inside the ships.",
@@ -392,29 +392,29 @@ const LEVELS = [
 },
 // ------------------------------------------------------------------ 23
 {
-  act:5, name:'Pylon Ladder', place:'Jammer tower, the climb · 09:15', theme:'jammer',
-  par:150,
+  act:5, hot:true, name:'Pylon Ladder', place:'Jammer tower, the climb · 09:15', theme:'jammer',
+  par:115,
   brief:"The tower is a hundred rows of pylon and ladder, and the only way is up: shaft after shaft, lift after lift. The shield rig the workshop sent up is somewhere on the way. The relay deck is near the top.",
   outro:"Deck rerouted, and the rig fits. The next hit is on the plating, not on you.",
   report:"Shield rig recovered and fitted: it soaks one hit, then takes eight seconds to recharge. Don't lean on it. From the deck we could see the second tower on the far ridge, and the trolley line the aliens strung between them.",
-  sgen:{seed:23,len:330,tier:3,g:110,maxG:122,vary:true,terminals:1,deckAt:[0.88],must:['kitLedge'],
-        pool:['shaftUp','shaftTall','liftUp','climbOver','flat','gap','anchorRun','drones','releaseGate']},
+  sgen:{seed:23,tier:3,g:110,maxG:122,terminals:1,
+        script:['shaftUp','liftUp','shaftTall','kitLedge','shaftUp','towerDeck']},
   hints:[[0,"Pylon Ladder. Up, and up. Rest on the ledges; the terminal is near the top."]]
 },
 // ------------------------------------------------------------------ 24
 {
-  act:5, name:'Trolley Line', place:'Between the towers · 11:30', theme:'jammer',
-  par:270,
+  act:5, hot:true, name:'Trolley Line', place:'Between the towers · 11:30', theme:'jammer',
+  par:195,
   brief:"They strung a cable trolley between the two towers to carry their equipment. It still runs. Hook a trolley as it passes, hang on, and let go over the next ridge; some of the anchors on this stretch give way the moment you hook them.",
   outro:"Across the valley. The second tower is bigger, and it's humming.",
   report:"Trolley line crossed. The anchors that crack when hooked are a defence, not decay: they are tuned to our cable. Expect more of them on the ships. The second tower's mast carries five clamps, like the tether did.",
-  sgen:{seed:24,len:560,tier:3,g:38,maxG:50,unique:true,vary:true,terminals:2,
-        pool:['trolleyRun','ferry','staticLeap','anchorChain','releaseGate','flat','drones','gap','ceilingRun','slabSparks','twoTier','dip','nest','lowCeilingPit'],must:['trolleyRun','anchorChain']},
+  sgen:{seed:24,tier:3,g:38,maxG:50,terminals:2,
+        script:['trolleyRun','anchorChain','staticLeap','towerDeck','releaseGate','flat','towerDeck']},
   hints:[[0,"Trolley Line. The trolleys run overhead: hook one from below and ride it."]]
 },
 // ------------------------------------------------------------------ 25 (boss)
 {
-  act:5, name:'Jammer One', place:'Second tower, the mast · 13:00', theme:'jammer', W:84, H:46,
+  act:5, name:'Jammer One', par:55, place:'Second tower, the mast · 13:00', theme:'jammer', W:84, H:46,
   brief:"The jammer mast is held by five clamps, and the tower fires bands of charge across the decks whenever you get close. Static blankets some of the perches you'd dodge onto. Cut every clamp and the tower goes quiet.",
   outro:"",
   actEnd:null,
@@ -439,7 +439,7 @@ const LEVELS = [
 // ------------------------------------------------------------------ 26
 {
   act:5, mode:'top', name:'Dead Air', place:'Second tower, lower levels · 15:20', theme:'jamroom',
-  par:330,
+  par:215,
   brief:"Below the mast the tower is dark and sealed, every room reached by pad or beam lane, and the static fields are wired to the terminals themselves. Two terminals to reroute, and they've hidden the parts well.",
   outro:"Both terminals rerouted. The tower's own logs mention a landing zone on the coast road.",
   report:"Dead air cleared. In the terminal logs: the scouts land where the towers' coverage overlaps, so with both towers down they will land blind. Also in the logs, a HALYARD access code. Somebody has been logging in.",
@@ -450,20 +450,19 @@ const LEVELS = [
 },
 // ------------------------------------------------------------------ 27
 {
-  act:5, name:'Ridge Run', place:'Kestrel ridge road · 17:45', theme:'jammer', wind:{period:9,warn:1.3,dur:2,force:150},
-  par:270,
+  act:5, hot:true, name:'Ridge Run', place:'Kestrel ridge road · 17:45', theme:'jammer', wind:{period:9,warn:1.3,dur:2,force:150},
+  par:220,
   brief:"The ridge road runs the whole length of the hills, and they've thrown everything at it: cracking anchors, static, gates, a trolley, and a wind off the sea. Two relays to reroute on the way. Nothing on this road happens twice.",
   outro:"Ridge road clear. From here the second tower's shadow reaches the coast.",
   report:"Ridge relays rerouted. We tested the shield in the static: it holds. The workshop has started on the cloak; the cell they need is the kind the scout ships run on. Bring one back if you can.",
-  sgen:{seed:27,len:640,tier:3,g:38,maxG:50,unique:true,vary:true,terminals:2,
-        pool:['anchorChain','staticLeap','releaseGate','trolleyRun','ceilingRun','crumbleBridge','lowCeilingPit','slabSparks','shaftUp','dropDown','zipDown','ferry','flat','drones','nest','dip','twoTier','gap','anchorRun'],
-        must:['anchorChain','releaseGate','trolleyRun']},
+  sgen:{seed:27,tier:3,g:38,maxG:62,terminals:2,
+        script:['anchorChain','staticLeap','releaseGate','trolleyRun','towerDeck','lowCeilingPit','zipDown','towerDeck']},
   hints:[[0,"Ridge Run. Everything at once, and a wind. Time your swings between gusts."]]
 },
 // ------------------------------------------------------------------ 28
 {
   act:5, mode:'top', name:'Relay Graveyard', place:'Under the second tower · 20:05', theme:'hive',
-  par:330,
+  par:180,
   brief:"They dumped every relay they tore out of the coast under the second tower, and a hive has grown over the pile. Something is nesting in it. Find the parts, reroute the terminal, and deal with what's guarding the stairs.",
   outro:"The nest is cleared and the terminal's ours. The stairs go up the mast.",
   report:"Graveyard relay rerouted, brood mother down. Among the dumped relays: twenty of ours, and one that isn't. It carries a HALYARD serial plate. The ministry built relays for them.",
@@ -473,18 +472,18 @@ const LEVELS = [
 },
 // ------------------------------------------------------------------ 29
 {
-  act:5, name:'Mast Approach', place:'Second tower, the mast climb · 22:30', theme:'jammer', wind:{period:8,warn:1.3,dur:2.2,force:170},
-  par:180,
+  act:5, hot:true, name:'Mast Approach', place:'Second tower, the mast climb · 22:30', theme:'jammer', wind:{period:8,warn:1.3,dur:2.2,force:170},
+  par:120,
   brief:"The second mast is taller, and the wind up here is worse. Cracking anchors, lifts, and a long way down. The relay deck is at the very top, under the dish.",
   outro:"Top deck rerouted. The dish is right there.",
   report:"Mast deck rerouted. The dish is aimed at the sea, not at us: it was talking to the fleet. Cut it and the fleet loses its eyes on the coast. Whatever lands after that lands blind.",
-  sgen:{seed:29,len:340,tier:3,g:120,maxG:132,vary:true,terminals:1,deckAt:[0.9],must:['anchorChain','shaftTall'],
-        pool:['shaftTall','shaftUp','liftUp','anchorChain','releaseGate','flat','gap','climbOver','drones','anchorRun']},
+  sgen:{seed:29,tier:3,g:120,maxG:132,terminals:1,
+        script:['shaftTall','anchorChain','liftUp','shaftUp','towerDeck']},
   hints:[[0,"Mast Approach. The anchors up here crack when hooked, and the gusts are worse. Climb between them."]]
 },
 // ------------------------------------------------------------------ 30 (boss)
 {
-  act:5, name:'Jammer Prime', place:'Second tower, the dish · 23:50', theme:'jammer', W:76, H:46,
+  act:5, name:'Jammer Prime', par:385, place:'Second tower, the dish · 23:50', theme:'jammer', W:76, H:46,
   brief:"The dish is powered by four generators on the mast girders and shielded by all four. Static hangs under the dish so nothing can be hooked from below. Climb, break the generators, then bring the dish down from the high girders.",
   outro:"",
   actEnd:{title:'JAMMERS DOWN',text:"The dish fell through the deck and the hum that had sat over the coast for a week stopped all at once. Every channel is open. Out at sea the scout ships are coming down anyway, blind and in a hurry. End of Act 5."},

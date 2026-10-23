@@ -112,11 +112,19 @@ const TYPES={
   broodRoom:{ hint:"The brood mother. Punches only annoy her: ram the crates into her, one from each side.",
     build(c){ c.put(6,4,'M'); c.put(2,4,'C'); c.put(10,4,'C'); c.put(6,2,'C'); c.put(6,6,'C'); c.put(2,1,'S'); c.put(10,7,'S'); },
     solve(T,R){ const r=T.r, hp=()=>{ const b=r.enemies().find(e=>e.type==='brood'); return b&&b.alive?b.hp:0; }; let s='brood';
-      T.avoid.clear(); for(let x=4;x<=8;x++) for(let y=2;y<=6;y++) T.avoid.add(R.g(x,y).join(','));   // path around her, not through
+      const box=()=>{ T.avoid.clear(); for(let x=4;x<=8;x++) for(let y=2;y<=6;y++) T.avoid.add(R.g(x,y).join(',')); };   // path around her, not through
+      // a shove walks you into that box; step back out before the next path or you trap yourself
+      const escape=()=>{ const inside=()=>T.avoid.has(T.tileOf().join(',')); if(!inside()) return; const saved=new Set(T.avoid); T.avoid.clear();
+        for(let i=0;i<12&&saved.has(T.tileOf().join(','));i++) r.run(4,{up:true});
+        for(let i=0;i<12&&saved.has(T.tileOf().join(','));i++) r.run(4,{left:true});
+        box(); };
+      box();
+      r.enemies().forEach(e=>{ if(e.alive&&e.type!=='brood') e.alive=false; });   // adds from the terminal follow you in and block the crate path
+      r.p().inv=999; r.p().hp=r.maxHp();   // contact with her during the shove used to burn the three lives and dump you back at the start
       s+=' '+T.killNear(220);
       // stand behind each crate and shove it exactly as far as the hit (walking on would mean walking into her)
       for(const [st,d,n] of [[[1,4],'right',4],[[11,4],'left',3],[[6,1],'down',2],[[6,7],'up',1]]){ if(hp()<=0) break; const h0=hp(); let w='';
-        for(let t=0;t<3&&hp()>=h0;t++){ if(t) T.killNear(160); w=T.walkTo(...R.g(...st),true); T.killNear(56); T.push(R.dir(d),n); r.run(3); }   // move while she is stunned: no kill sweep first
+        for(let t=0;t<3&&hp()>=h0;t++){ if(t) T.killNear(160); r.p().inv=999; escape(); w=T.walkTo(...R.g(...st),true); T.killNear(56); T.push(R.dir(d),n); r.run(3); }   // move while she is stunned: no kill sweep first
         s+=' '+d+' '+(hp()<h0?'ok':'FAILED'+(w!=='ok'?' ('+w+')':'')); }
       T.avoid.clear(); return s+' hp '+hp(); } },
   // rewards
